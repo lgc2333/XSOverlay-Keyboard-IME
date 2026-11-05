@@ -80,21 +80,30 @@ namespace XSOverlayKeyboardIme.Host
         {
             foreach (char character in text)
             {
-                short scan = Win32Native.VkKeyScanW(character);
-                if (scan == -1)
-                {
-                    HostLog.Warn("layout cannot type '" + character + "'");
-                    return false;
-                }
-
-                bool shift = (scan & 0x100) != 0;
-                if (!Send((VirtualKey)(scan & 0xFF), shift))
+                if (!Send(character))
                 {
                     return false;
                 }
             }
 
             return true;
+        }
+
+        internal bool Send(char character)
+        {
+            short scan = Win32Native.VkKeyScanW(character);
+            if (scan == -1)
+            {
+                HostLog.Warn("layout cannot type '" + character + "'");
+                return false;
+            }
+
+            return Send((VirtualKey)(scan & 0xFF), (scan & 0x100) != 0);
+        }
+
+        internal bool Send(Takeover.KeyStroke stroke)
+        {
+            return stroke.IsText ? Send(stroke.Text) : Send(stroke.Key, stroke.Shift);
         }
 
         private static NativeInput Create(VirtualKey key, uint flags)

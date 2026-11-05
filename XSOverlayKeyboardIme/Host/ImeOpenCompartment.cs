@@ -46,10 +46,14 @@ namespace XSOverlayKeyboardIme.Host
             return new ImeOpenCompartment(compartment, clientId);
         }
 
-        /// <summary>Forces the open state and reports what the compartment held before.</summary>
+        /// <summary>Forces the open state and records what the compartment held before.</summary>
         internal void Open()
         {
-            _captured = TryRead(out _previous);
+            if (!_captured)
+            {
+                _captured = TryRead(out _previous);
+            }
+
             string before = _captured ? Describe(_previous) : "unreadable";
 
             var opened = new NativeVariant { Type = NativeVariant.TypeInt32, Integer = 1 };
@@ -59,14 +63,23 @@ namespace XSOverlayKeyboardIme.Host
             HostLog.Info("ime open before=" + before + " set hr=0x" + hr.ToString("x") + " after=" + after);
         }
 
+        /// <summary>Puts the open state back, so the next composition starts clean.</summary>
+        internal void Close()
+        {
+            if (!_captured)
+            {
+                return;
+            }
+
+            var previous = _previous;
+            int hr = _compartment.SetValue(_clientId, ref previous);
+            HostLog.Info("ime open restored to " + Describe(previous) + ", hr=0x" + hr.ToString("x"));
+            _captured = false;
+        }
+
         public void Dispose()
         {
-            if (_captured)
-            {
-                var previous = _previous;
-                int hr = _compartment.SetValue(_clientId, ref previous);
-                HostLog.Info("ime open restored to " + Describe(previous) + ", hr=0x" + hr.ToString("x"));
-            }
+            Close();
 
             if (Marshal.IsComObject(_compartment))
             {

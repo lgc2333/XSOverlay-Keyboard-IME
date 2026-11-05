@@ -58,13 +58,26 @@ namespace XSOverlayKeyboardIme.Composition
 
         internal CompositionMove ElementEnded(uint elementId)
         {
-            if (Phase != CompositionPhase.AwaitingResult || elementId != ElementId)
+            if (elementId != ElementId || elementId == 0)
+            {
+                return CompositionMove.None;
+            }
+
+            // AwaitingResult is a commit this host asked for; Composing is a commit the
+            // IME did on its own, which is how live typing ends.
+            if (Phase != CompositionPhase.AwaitingResult && Phase != CompositionPhase.Composing)
             {
                 return CompositionMove.None;
             }
 
             Phase = CompositionPhase.Finished;
             return CompositionMove.ReadResult;
+        }
+
+        internal void Reset()
+        {
+            Phase = CompositionPhase.Idle;
+            ElementId = 0;
         }
     }
 }

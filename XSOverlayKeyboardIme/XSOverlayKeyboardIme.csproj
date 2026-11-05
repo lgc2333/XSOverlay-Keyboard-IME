@@ -14,7 +14,18 @@
     <GameDir Condition="'$(GameDir)' == ''">D:\SteamLibrary\steamapps\common\XSOverlay_Beta</GameDir>
     <ManagedDir>$(GameDir)\XSOverlay_Data\Managed</ManagedDir>
     <PluginsDir>$(GameDir)\BepInEx\plugins</PluginsDir>
+    <CoreDir>$(GameDir)\BepInEx\core</CoreDir>
+    <PageBundle>$(MSBuildThisFileDirectory)..\web\dist\keyboard-ime.js</PageBundle>
   </PropertyGroup>
+
+  <!-- The self-check is a diagnostic build, never shipped: dotnet build -p:SelfCheck=true -->
+  <PropertyGroup Condition="'$(SelfCheck)' == 'true'">
+    <DefineConstants>$(DefineConstants);IME_SELF_CHECK</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(SelfCheck)' != 'true'">
+    <Compile Remove="SelfCheck\**\*.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
@@ -33,5 +44,27 @@
       <HintPath>$(ManagedDir)\UnityEngine.CoreModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(ManagedDir)\Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Vuplex.WebView">
+      <HintPath>$(ManagedDir)\Vuplex.WebView.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(CoreDir)\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
+
+  <!-- The page script ships inside the plugin DLL, so the plugin stays one file.
+       Build it with the web build script. -->
+  <ItemGroup>
+    <EmbeddedResource Include="$(PageBundle)" LogicalName="keyboard-ime.js" />
+  </ItemGroup>
+
+  <Target Name="RequirePageBundle" BeforeTargets="BeforeBuild" Condition="!Exists('$(PageBundle)')">
+    <Error Text="The keyboard page script is missing. Run pnpm --dir web build first." />
+  </Target>
 </Project>

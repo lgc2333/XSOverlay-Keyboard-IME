@@ -88,6 +88,41 @@ namespace XSOverlayKeyboardIme.Tests
         }
 
         [Fact]
+        public void ElementEnded_reads_the_result_when_the_ime_commits_on_its_own()
+        {
+            var session = new CompositionSession();
+
+            session.BeginTyping();
+            session.ElementBegun(7);
+
+            Assert.Equal(CompositionMove.ReadResult, session.ElementEnded(7));
+            Assert.Equal(CompositionPhase.Finished, session.Phase);
+        }
+
+        [Fact]
+        public void ElementEnded_before_any_element_is_ignored()
+        {
+            var session = new CompositionSession();
+
+            session.BeginTyping();
+
+            Assert.Equal(CompositionMove.None, session.ElementEnded(0));
+        }
+
+        [Fact]
+        public void Reset_returns_to_idle_without_an_element()
+        {
+            var session = new CompositionSession();
+
+            session.BeginTyping();
+            session.ElementBegun(7);
+            session.Reset();
+
+            Assert.Equal(CompositionPhase.Idle, session.Phase);
+            Assert.Equal(0u, session.ElementId);
+        }
+
+        [Fact]
         public void Typing_again_restarts_after_a_failed_attempt()
         {
             var session = new CompositionSession();

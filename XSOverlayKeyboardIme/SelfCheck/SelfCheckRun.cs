@@ -3,11 +3,12 @@ using System.Collections.Concurrent;
 using XSOverlayKeyboardIme.Candidates;
 using XSOverlayKeyboardIme.Composition;
 using XSOverlayKeyboardIme.Diagnostics;
+using XSOverlayKeyboardIme.Host;
 using XSOverlayKeyboardIme.Input;
 using XSOverlayKeyboardIme.Interop;
 using XSOverlayKeyboardIme.Sinks;
 
-namespace XSOverlayKeyboardIme.Host
+namespace XSOverlayKeyboardIme.SelfCheck
 {
     /// <summary>One startup run: prove composing, candidates and the commit result.</summary>
     internal sealed class SelfCheckRun : IUIElementObserver
@@ -53,7 +54,7 @@ namespace XSOverlayKeyboardIme.Host
             {
                 DrainElements();
             }
-            else if (message == HostWindow.ObserveMessage)
+            else if (message == SelfCheckMessages.Observe)
             {
                 ObserveComposition();
             }
@@ -137,7 +138,7 @@ namespace XSOverlayKeyboardIme.Host
             ReadElement(elementId);
 
             // The IME publishes the composing string one beat after the element.
-            _window.Post(HostWindow.ObserveMessage);
+            _window.Post(SelfCheckMessages.Observe);
         }
 
         private void OnElementUpdated(uint elementId)

@@ -1,37 +1,99 @@
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
+using Vuplex.WebView;
+using XSOverlay;
 using XSOverlayKeyboardIme.Diagnostics;
+using XSOverlayKeyboardIme.Game;
 using XSOverlayKeyboardIme.Interop;
+using XSOverlayKeyboardIme.Page;
+using XSOverlayKeyboardIme.Takeover;
+#if IME_SELF_CHECK
+using XSOverlayKeyboardIme.SelfCheck;
+#endif
 
 namespace XSOverlayKeyboardIme.Host
 {
     /// <summary>
-    /// Runs the composition host on its own STA thread and routes host messages to the
-    /// self-check run. It owns teardown so a failure still hands the foreground back.
+    /// Owns the STA thread, the hidden host window and the TSF bridge. It runs the live
+    /// take-over, or the diagnostic self-check in a build that includes it. See ADR 0006.
     /// </summary>
-    internal sealed class CompositionHost
+    internal sealed partial class CompositionHost
     {
         /// <summary>XSOverlay finishes starting after the plugin, and steals the foreground while it does.</summary>
         private const int StartupSettleMilliseconds = 8000;
 
-        private readonly string _typingText;
+        private static volatile CompositionHost _current;
+
+        private readonly ConcurrentQueue<KeyStroke> _strokes = new ConcurrentQueue<KeyStroke>();
+
         private HostWindow _window;
         private ForegroundLease _lease;
         private ThreadManagerBridge _bridge;
-        private SelfCheckRun _run;
-        private bool _finished;
+        private CompositionService _service;
+        private IWebView _target;
+        private bool _pageAttached;
+        private int _finished;
 
-        private CompositionHost(string typingText)
+        internal static void Start()
         {
-            _typingText = typingText;
+            Launch(new CompositionHost());
         }
 
-        internal static void Start(string typingText)
+        private static void Launch(CompositionHost host)
         {
-            var host = new CompositionHost(typingText);
+            _current = host;
             var thread = new Thread(host.Run) { IsBackground = true, Name = "XSOverlayKeyboardIme" };
             thread.SetApartmentState(ApartmentState.STA);
             thread.Start();
+        }
+
+        internal static CompositionHost Current
+        {
+            get { return _current; }
+        }
+
+        /// <summary>
+        /// Takes a page key event when this plugin owns it. Called on Unity's main thread;
+        /// a true answer suppresses the page's own handling.
+        /// </summary>
+        internal bool TryAcceptKey(XSOverlay.Websockets.API.Objects.KeyboardEvent keyEvent)
+        {
+            CompositionService service = _service;
+            if (service == null || _window == null)
+            {
+                return false;
+            }
+
+            if (!KeyboardOverlayScope.TryGetFocusedOverlay(out KeyboardInputFocusManager focus))
+            {
+                return false;
+            }
+
+            bool composing = service.ConfirmedComposing;
+            var strokes = new List<KeyStroke>(4);
+            if (!KeyStrokeReader.TryRead(keyEvent, composing, strokes))
+            {
+                return false;
+            }
+
+            _target = focus.TargetWebView;
+            if (!_pageAttached && _target != null)
+            {
+                // ADR 0004: the page gets the script when the take-over first needs it.
+                _pageAttached = true;
+                IWebView page = _target;
+                MainThreadDispatcher.Post(() => KeyboardPageBridge.Attach(page));
+            }
+
+            foreach (KeyStroke stroke in strokes)
+            {
+                _strokes.Enqueue(stroke);
+            }
+
+            _window.Post(HostWindow.StrokeMessage);
+            return true;
         }
 
         private void Run()
@@ -53,18 +115,17 @@ namespace XSOverlayKeyboardIme.Host
                 _window = HostWindow.Create(OnHostMessage);
                 _lease = new ForegroundLease(_window.Handle, _window.Editor);
                 var feeder = new KeyFeeder(_window, _lease);
-                _run = new SelfCheckRun(_window, feeder, _typingText, Finish);
 
-                _bridge = ThreadManagerBridge.Open(_run);
-                if (_bridge == null)
+#if IME_SELF_CHECK
+                bool started = TryStartSelfCheck(feeder) || StartTakeOver(feeder);
+#else
+                bool started = StartTakeOver(feeder);
+#endif
+                if (!started)
                 {
                     return;
                 }
 
-                _window.PumpPending();
-                _lease.BeginAttach();
-                _lease.Acquire();
-                _run.Start(_bridge);
                 _window.PumpMessages();
             }
             catch (Exception ex)
@@ -78,22 +139,70 @@ namespace XSOverlayKeyboardIme.Host
             }
         }
 
+        private bool StartTakeOver(KeyFeeder feeder)
+        {
+            CompositionService service = new CompositionService(_window, _lease, feeder, OnCommitted);
+            _bridge = ThreadManagerBridge.Open(service);
+            if (_bridge == null)
+            {
+                return false;
+            }
+
+            service.Attach(_bridge);
+            _service = service;
+            _window.PumpPending();
+            HostLog.Info("take-over ready; keys are taken from the keyboard composer");
+            return true;
+        }
+
         private void OnHostMessage(uint message)
         {
-            if (_run != null)
+            if (message == HostWindow.StrokeMessage)
             {
-                _run.HandleMessage(message);
+                DrainStrokes();
+                return;
+            }
+
+#if IME_SELF_CHECK
+            if (HandleSelfCheckMessage(message))
+            {
+                return;
+            }
+#endif
+
+            if (_service != null)
+            {
+                _service.HandleMessage(message);
             }
         }
 
-        private void Finish()
+        private void DrainStrokes()
         {
-            if (_finished)
+            CompositionService service = _service;
+            if (service == null)
             {
                 return;
             }
 
-            _finished = true;
+            while (_strokes.TryDequeue(out KeyStroke stroke))
+            {
+                service.Send(stroke);
+            }
+        }
+
+        /// <summary>Hands the committed text to Unity's main thread, where the page lives.</summary>
+        private void OnCommitted(string text)
+        {
+            IWebView target = _target;
+            MainThreadDispatcher.Post(() => KeyboardPageBridge.WriteBack(target, text));
+        }
+
+        private void Finish()
+        {
+            if (Interlocked.Exchange(ref _finished, 1) != 0)
+            {
+                return;
+            }
 
             if (_bridge != null)
             {

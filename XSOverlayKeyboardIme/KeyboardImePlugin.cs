@@ -1,38 +1,64 @@
+using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
+using HarmonyLib;
 using XSOverlayKeyboardIme.Diagnostics;
 using XSOverlayKeyboardIme.Host;
+#if IME_SELF_CHECK
+using XSOverlayKeyboardIme.SelfCheck;
+#endif
 
 namespace XSOverlayKeyboardIme
 {
     [BepInPlugin(MyPluginInfo.PLUGIN_GUID, MyPluginInfo.PLUGIN_NAME, MyPluginInfo.PLUGIN_VERSION)]
     public sealed class KeyboardImePlugin : BaseUnityPlugin
     {
-        private ConfigEntry<bool> _selfCheckEnabled;
-        private ConfigEntry<string> _selfCheckText;
+        private ConfigEntry<bool> _takeoverEnabled;
+        private Harmony _harmony;
 
         private void Awake()
         {
             HostLog.Attach(Logger);
 
-            _selfCheckEnabled = Config.Bind(
-                "SelfCheck",
+            _takeoverEnabled = Config.Bind(
+                "Takeover",
                 "Enabled",
-                false,
-                "启动时执行一次组字自检：抢占前台、向隐藏输入框喂键、读回候选与提交结果。"
-            );
-            _selfCheckText = Config.Bind(
-                "SelfCheck",
-                "Text",
-                "nihc",
-                "自检时逐键输入的文本，需为当前输入法能组成候选的编码。"
+                true,
+                "接管键盘输入框的按键：组字与写回。关闭时插件不做任何事。"
             );
 
             HostLog.Info(MyPluginInfo.PLUGIN_NAME + " " + MyPluginInfo.PLUGIN_VERSION + " loaded");
 
-            if (_selfCheckEnabled.Value)
+#if IME_SELF_CHECK
+            if (SelfCheckMode.StartIfEnabled(Config))
             {
-                CompositionHost.Start(_selfCheckText.Value);
+                return;
+            }
+#endif
+
+            if (!_takeoverEnabled.Value)
+            {
+                HostLog.Info("take-over is off; the plugin will do nothing");
+                return;
+            }
+
+            _harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
+            _harmony.PatchAll(Assembly.GetExecutingAssembly());
+            HostLog.Info("take-over patched onto " + typeof(XSOverlay.InputManager).FullName);
+            CompositionHost.Start();
+        }
+
+        private void Update()
+        {
+            MainThreadDispatcher.Drain();
+        }
+
+        private void OnDestroy()
+        {
+            if (_harmony != null)
+            {
+                _harmony.UnpatchSelf();
+                _harmony = null;
             }
         }
     }
