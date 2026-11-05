@@ -1,5 +1,8 @@
 # XSOverlay Keyboard IME
 
+> [!WARNING]
+> 仓库当前仍处于开发阶段，暂无可用产物，且实现方案仍在变动。请耐心等待。
+
 给 XSOverlay 的 VR 键盘加上系统输入法：在键盘页的输入框里组字，组字串与候选显示在键盘上，用键盘上的按键选候选，提交后写回输入框。
 
 ## 运行要求
@@ -25,6 +28,11 @@ dotnet build -c Release
 ```powershell
 dotnet build -c Release -p:GameDir="D:\Steam\steamapps\common\XSOverlay_Beta"
 ```
+
+## 鸣谢
+
+- [Windmill-City/IngameIME_Win32](https://github.com/Windmill-City/IngameIME_Win32)：输入相关组件实现。
+- DeepSeek V4.1 Flash & DeepSeek Harness：本项目全程由大肥鱼妈妈构建。
 
 ## 赞助
 
