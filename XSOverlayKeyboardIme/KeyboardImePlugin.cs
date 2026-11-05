@@ -44,6 +44,18 @@ namespace XSOverlayKeyboardIme
 
             _harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
             _harmony.PatchAll(Assembly.GetExecutingAssembly());
+
+            MethodInfo target = typeof(XSOverlay.InputManager).GetMethod(
+                "HandleKeypress",
+                BindingFlags.Instance | BindingFlags.NonPublic
+            );
+            Patches applied = target == null ? null : Harmony.GetPatchInfo(target);
+            if (applied == null || applied.Prefixes.Count == 0)
+            {
+                HostLog.Error("take-over patch did not apply; keys stay with the game");
+                return;
+            }
+
             HostLog.Info("take-over patched onto " + typeof(XSOverlay.InputManager).FullName);
             CompositionHost.Start();
         }

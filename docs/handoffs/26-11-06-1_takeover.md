@@ -51,6 +51,7 @@
 - 自检只在诊断构建里存在：`dotnet build -c Release -p:SelfCheck=true`。正式构建里没有 `SelfCheck` 配置项，也没有 `SelfCheckRun` 类型；生产 DLL 已核验不含自检符号。
 - `pnpm --dir web build` 在非交互环境要先 `CI=true pnpm --dir web install`，否则 pnpm 会因无法确认清理 `node_modules` 而失败。
 - 前端只改页内节点，不改游戏目录里的任何文件。
+- Harmony 前缀补丁按参数名绑定。游戏的 `HandleKeypress` 参数名是 `e`，按名字写会报 `Parameter "keyEvent" not found` 并整条补丁失效，因此改用位置参数 `__0`。插件在挂补丁后校验 `Harmony.GetPatchInfo`，失败时写错误日志而不是静默。
 
 ## 未做
 

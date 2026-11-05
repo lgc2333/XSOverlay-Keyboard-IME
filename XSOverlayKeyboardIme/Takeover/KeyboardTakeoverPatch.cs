@@ -13,12 +13,12 @@ namespace XSOverlayKeyboardIme.Takeover
     internal static class KeyboardTakeoverPatch
     {
         [HarmonyPrefix]
-        private static bool Prefix(XSOverlay.Websockets.API.Objects.KeyboardEvent keyEvent)
+        private static bool Prefix(XSOverlay.Websockets.API.Objects.KeyboardEvent __0)
         {
             try
             {
                 CompositionHost host = CompositionHost.Current;
-                return host == null || !host.TryAcceptKey(keyEvent);
+                return host == null || !host.TryAcceptKey(__0);
             }
             catch (Exception ex)
             {
