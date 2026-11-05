@@ -10,24 +10,34 @@ namespace XSOverlayKeyboardIme.Candidates
     {
         private const int MaxItems = 10;
 
+        // The IME updates its element on every keystroke, so a failure is logged once
+        // until the read succeeds again.
+        private static int _lastFailure;
+
         internal static CandidateSnapshot Read(ITfUIElementMgr manager, uint elementId)
         {
             if (manager == null)
             {
+                FailOnce(1, "no element manager");
                 return CandidateSnapshot.Empty;
             }
 
             ITfUIElement element;
-            if (manager.GetUIElement(elementId, out element) != 0 || element == null)
+            int hr = manager.GetUIElement(elementId, out element);
+            if (hr < 0 || element == null)
             {
+                FailOnce(2, "no element " + elementId + ", hr=0x" + hr.ToString("x"));
                 return CandidateSnapshot.Empty;
             }
 
             var list = element as ITfCandidateListUIElement;
             if (list == null)
             {
+                FailOnce(3, "element " + elementId + " is not a candidate list");
                 return CandidateSnapshot.Empty;
             }
+
+            _lastFailure = 0;
 
             uint count;
             uint selected;
@@ -53,6 +63,17 @@ namespace XSOverlayKeyboardIme.Candidates
             var snapshot = new CandidateSnapshot(count, (int)selected, items);
             HostLog.Info("candidates " + snapshot.Describe());
             return snapshot;
+        }
+
+        private static void FailOnce(int reason, string message)
+        {
+            if (_lastFailure == reason)
+            {
+                return;
+            }
+
+            _lastFailure = reason;
+            HostLog.Warn("candidate read: " + message);
         }
     }
 }

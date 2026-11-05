@@ -57,12 +57,24 @@ namespace XSOverlayKeyboardIme
                 typeof(XSOverlay.InputManager).GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic),
                 postfix: true
             );
+            bool pageShown = HasPatch(
+                typeof(XSOverlay.Overlay_Manager).GetMethod(
+                    "SetKeyboardVisibility",
+                    BindingFlags.Instance | BindingFlags.NonPublic
+                ),
+                postfix: true
+            );
             if (!keyTaken || !pumpRuns)
             {
                 HostLog.Error(
                     "patches did not apply (keys=" + keyTaken + ", pump=" + pumpRuns + "); the plugin stays idle"
                 );
                 return;
+            }
+
+            if (!pageShown)
+            {
+                HostLog.Warn("the page attach patch is missing; the candidate bar appears on the first key");
             }
 
             HostLog.Info("patched " + typeof(XSOverlay.InputManager).FullName + "; keys and frame pump are ours");

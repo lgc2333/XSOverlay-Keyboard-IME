@@ -3,7 +3,7 @@ status: accepted
 supersedes: []
 superseded_by: []
 amends: []
-amended_by: []
+amended_by: ['0020']
 ---
 
 # 候选栏由插件在运行时注入键盘页

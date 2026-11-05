@@ -30,6 +30,9 @@ namespace XSOverlayKeyboardIme.Host
         private volatile bool _open;
         private volatile bool _composing;
         private bool _committing;
+
+        // Element ids start at 0, so a separate flag marks whether one is open.
+        private bool _hasElement;
         private uint _elementId;
 
         internal CompositionService(
@@ -107,6 +110,7 @@ namespace XSOverlayKeyboardIme.Host
         {
             _open = true;
             _composing = false;
+            _hasElement = false;
             _elementId = 0;
             Win32Native.SetWindowTextW(_window.Editor, string.Empty);
             _lease.Acquire();
@@ -191,6 +195,7 @@ namespace XSOverlayKeyboardIme.Host
 
             _open = false;
             _composing = false;
+            _hasElement = false;
             _elementId = 0;
             Win32Native.SetWindowTextW(_window.Editor, string.Empty);
             _lease.Restore();
@@ -246,7 +251,7 @@ namespace XSOverlayKeyboardIme.Host
         /// <summary>The IME ended its own element, which is how a candidate pick commits.</summary>
         private void OnElementEnded(uint elementId)
         {
-            if (!_open || _committing || elementId != _elementId)
+            if (!_open || _committing || !_hasElement || elementId != _elementId)
             {
                 return;
             }
@@ -256,6 +261,7 @@ namespace XSOverlayKeyboardIme.Host
 
         private void ReadElement(uint elementId)
         {
+            _hasElement = true;
             _elementId = elementId;
             string preedit = ReadPreedit();
             HostLog.Info("composing text '" + preedit + "'");
@@ -272,7 +278,7 @@ namespace XSOverlayKeyboardIme.Host
         private void Publish(string preedit)
         {
             CandidateSnapshot candidates = CandidateSnapshot.Empty;
-            if (_elementId != 0 && _bridge != null)
+            if (_hasElement && _bridge != null)
             {
                 candidates = CandidateReader.Read(_bridge.ElementManager, _elementId);
             }

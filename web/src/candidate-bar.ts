@@ -44,7 +44,7 @@ export interface CandidateBar {
 
 /**
  * The candidate bar: one row between the toolbar and the keys, owned by this script.
- * It only shows what the IME reports; the keys themselves pick and turn candidates.
+ * It shows the candidates and the IME name. See ADR 0004 and ADR 0018.
  * The page rebuilds the whole keyboard tree on every layout update, so the bar is put
  * back whenever it is not a child of the current container. See ADR 0004.
  */

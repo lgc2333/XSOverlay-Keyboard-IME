@@ -68,6 +68,7 @@ These come from probing the live game process. Breaking one costs a crash or a w
 - The game runs Unity 2022.3.62 on Mono x64. Keep `TargetFramework` at `netstandard2.1` or higher; Unity assemblies fail `CS1705` below it.
 - Reference the game's own `Managed/*.dll`. Stub packages from other Unity versions do not match the real API surface.
 - Do not edit the game's `StreamingAssets` without a backup and a documented restore path.
+- Restart the game through Steam: `steam.exe -applaunch 1173510`. After the processes die, Steam keeps reporting the app as running, and an early launch fails with "the game is already running". Wait until `HKCU\Software\Valve\Steam\Apps\1173510` reports `Running` as 0, then launch.
 
 ## Rules
 
@@ -81,6 +82,8 @@ The Rules section introduced some skills. If some skill is missing, please ask u
 - `docs/adr/` holds one file per decision, numbered; add one when a decision is hard to reverse and would look arbitrary without the reason.
 - Weigh every decision for whether it deserves an ADR, and ask the user before taking it: state the choice, the alternatives, and your ADR verdict, then wait for the answer. Nothing gets decided silently.
 - Follow the `domain-modeling` skill for both.
+
+- `docs/handoffs/` records what one session discussed at that time. It is archived history, not current truth: a handoff may be out of date, and a later ADR or a later document overrides it.
 
 - Do not modify old ADRs (excluding their front-matter) unless user explicitly asks.
 - Every ADR opens with YAML front-matter at the very top, above the title: `status` (e.g. `accepted` | `proposed` | `deprecated` | `superseded`), then the relation keys `supersedes` / `superseded_by` and `amends` / `amended_by`, each holding quoted ids (`['0001']`, never a bare `0001`, which YAML reads as octal).

@@ -35,7 +35,7 @@ namespace XSOverlayKeyboardIme.Host
         private ThreadManagerBridge _bridge;
         private CompositionService _service;
         private IWebView _target;
-        private bool _pageAttached;
+        private bool _pageMissingLogged;
         private int _finished;
         private static long _lastRefusalTicks;
 
@@ -89,13 +89,6 @@ namespace XSOverlayKeyboardIme.Host
             }
 
             _target = focus.TargetWebView;
-            if (!_pageAttached && _target != null)
-            {
-                // ADR 0004: the page gets the script when the take-over first needs it.
-                _pageAttached = true;
-                IWebView page = _target;
-                MainThreadDispatcher.Post(() => _page.Attach(page));
-            }
 
             foreach (KeyStroke stroke in strokes)
             {
@@ -193,8 +186,30 @@ namespace XSOverlayKeyboardIme.Host
             service.Attach(_bridge);
             _service = service;
             _window.PumpPending();
+
+            // The page may already exist, so the bar can show before the first key.
+            MainThreadDispatcher.Post(AttachKeyboardPage);
             HostLog.Info("take-over ready; keys are taken from the keyboard composer");
             return true;
+        }
+
+        /// <summary>Puts the candidate bar on the page before the first key arrives.</summary>
+        internal void AttachKeyboardPage()
+        {
+            IWebView page = KeyboardOverlayScope.FindPage();
+            if (page == null)
+            {
+                if (!_pageMissingLogged)
+                {
+                    _pageMissingLogged = true;
+                    HostLog.Info("the keyboard page does not exist yet; the bar waits for it");
+                }
+
+                return;
+            }
+
+            _pageMissingLogged = false;
+            _page.Attach(page);
         }
 
         private void OnHostMessage(uint message)

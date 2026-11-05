@@ -12,12 +12,33 @@ namespace XSOverlayKeyboardIme.Page
     /// </summary>
     internal sealed class KeyboardPage
     {
-        private const string InsertText = "window.__xsoKeyboardIme && window.__xsoKeyboardIme.insertText";
-        private const string ShowComposition = "window.__xsoKeyboardIme && window.__xsoKeyboardIme.showComposition";
+        /// <summary>Calls a page function whose result matters; the sentinel means the bundle is gone.</summary>
+        private static string CallReturning(string method, string arguments)
+        {
+            return Wrap(method, "return a." + method + "(" + arguments + ")");
+        }
+
+        /// <summary>Calls a page function that answers nothing; the sentinel means the bundle is gone.</summary>
+        private static string CallVoid(string method, string arguments)
+        {
+            return Wrap(method, "try{a." + method + "(" + arguments + ");return 'ok'}catch(e){return 'error:' + e}");
+        }
+
+        private static string Wrap(string method, string body)
+        {
+            return "(function(){var a=window.__xsoKeyboardIme;if(!a||!a."
+                + method
+                + ")return '"
+                + PageScript.Missing
+                + "';"
+                + body
+                + "})()";
+        }
 
         private EventHandler<EventArgs<string>> _messageHandler;
         private IWebView _listening;
         private IWebView _injected;
+        private bool _confirmed;
 
         /// <summary>Injects the bundle and starts reading what the page reports.</summary>
         internal void Attach(IWebView webView)
@@ -27,10 +48,25 @@ namespace XSOverlayKeyboardIme.Page
                 return;
             }
 
-            if (!ReferenceEquals(webView, _injected))
+            // The page confirms the bundle with its ready message. Until that arrives the
+            // injection may have landed on an unloaded page, so it is worth repeating.
+            if (!ReferenceEquals(webView, _injected) || !_confirmed)
             {
                 _injected = webView;
-                PageScript.Inject(webView, outcome => HostLog.Info("page script injected -> " + outcome));
+                bool repeat = _confirmed == false && !ReferenceEquals(webView, _listening);
+                PageScript.Inject(
+                    webView,
+                    outcome =>
+                    {
+                        if (repeat)
+                        {
+                            HostLog.Info("page script injected again; the page has not confirmed yet");
+                            return;
+                        }
+
+                        HostLog.Info("page script injected -> " + outcome);
+                    }
+                );
             }
 
             Listen(webView);
@@ -48,8 +84,17 @@ namespace XSOverlayKeyboardIme.Page
             Call(
                 webView,
                 "writeback",
-                "(" + InsertText + ")(" + JavaScriptString.Literal(text) + ") ?? '" + PageScript.Missing + "'",
-                outcome => HostLog.Info("writeback '" + text + "' -> " + outcome)
+                CallReturning("insertText", JavaScriptString.Literal(text)),
+                outcome =>
+                {
+                    if (outcome == null || outcome.StartsWith("error", StringComparison.Ordinal))
+                    {
+                        HostLog.Warn("writeback '" + text + "' -> " + outcome);
+                        return;
+                    }
+
+                    HostLog.Info("writeback '" + text + "' -> " + outcome);
+                }
             );
         }
 
@@ -60,10 +105,10 @@ namespace XSOverlayKeyboardIme.Page
             Call(
                 webView,
                 "composition",
-                "(" + ShowComposition + ")(" + CompositionPayload.Build(view) + ") ?? '" + PageScript.Missing + "'",
+                CallVoid("showComposition", CompositionPayload.Build(view)),
                 outcome =>
                 {
-                    if (outcome == null || outcome.Contains(PageScript.Missing))
+                    if (outcome != "ok")
                     {
                         HostLog.Warn("the composition did not reach the page: " + outcome);
                     }
@@ -129,6 +174,7 @@ namespace XSOverlayKeyboardIme.Page
         /// <summary>The page reports that the bundle runs; nothing else travels this way.</summary>
         private void OnMessage(object sender, EventArgs<string> args)
         {
+            _confirmed = true;
             HostLog.Info("page message: " + args.Value);
         }
     }
