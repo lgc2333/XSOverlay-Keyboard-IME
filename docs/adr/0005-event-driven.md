@@ -1,0 +1,15 @@
+---
+status: accepted
+supersedes: []
+superseded_by: []
+amends: []
+amended_by: []
+---
+
+# 输入法状态一律事件驱动，不轮询
+
+候选、组字串与提交文本全部来自 TSF 回调，没有任何一处需要定时采样；轮询只会引入延迟与不可预测的时序。因此本项目禁止轮询，包括"比对窗口文本取提交"这类变通做法。
+
+## Consequences
+
+- 排除了以窗口文本比对获取提交的宿主方案，见 [0006](./0006-composition-host.md)。

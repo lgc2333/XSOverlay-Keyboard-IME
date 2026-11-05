@@ -1,0 +1,16 @@
+---
+status: accepted
+supersedes: []
+superseded_by: []
+amends: []
+amended_by: []
+---
+
+# 仅在键盘自带的输入框激活时接管按键
+
+需求限定输入法只在 XSOverlay 键盘自己的输入框里可用。因此接管条件是键盘焦点存在、且其所属 overlay 就是键盘 overlay；其余情形一律保持原路径，不接管任何按键。
+
+## Consequences
+
+- 明确不支持在游戏或桌面里直接打字，也不支持浏览器地址栏等其他输入框。这是 v1 的有意取舍，不是缺陷。
+- 接管判定依赖 XSOverlay 的键盘焦点状态，而不是页面自报。

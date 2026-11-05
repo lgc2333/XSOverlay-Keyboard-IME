@@ -8,6 +8,7 @@
 - XSOverlay Beta 695，其他版本未经验证。
 - BepInEx 5.4.23.6，x64 版本，其他版本未经验证。
 - 仅支持支持 TSF 的输入法。本仓库使用小狼毫（Rime Windows 版）验证。
+- 输入法需要开启行内预编辑，否则只能看到候选，看不到正在输入的编码。小狼毫在 `weasel.custom.yaml` 中设置 `style/inline_preedit: true`。
 
 ## 现状
 
