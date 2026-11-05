@@ -1,12 +1,28 @@
-import { insertText } from './composer'
+import { createCandidateBar } from './candidate-bar'
+import { clearPreedit, insertText, showPreedit } from './composer'
+import type { CompositionView } from './ime-view'
 import { postToPlugin } from './native-bridge'
 
 /**
  * Entry point of the injected script. The keyboard page imports it for its side
- * effect: publish the plugin API, then announce that the page is patched.
+ * effect: publish the plugin API, then announce that the page is patched. Injecting
+ * twice is harmless, so the script guards the install instead of each call.
  */
 function install(): void {
-  window.__xsoKeyboardIme = { insertText }
+  const bar = createCandidateBar()
+
+  window.__xsoKeyboardIme = {
+    insertText,
+    showComposition: (view: CompositionView) => {
+      if (view.preedit.length > 0) {
+        showPreedit(view.preedit)
+      } else {
+        clearPreedit()
+      }
+
+      bar.render(view)
+    },
+  }
 
   if (!postToPlugin({ kind: 'ready' })) {
     console.warn(
@@ -15,4 +31,6 @@ function install(): void {
   }
 }
 
-install()
+if (window.__xsoKeyboardIme == null) {
+  install()
+}

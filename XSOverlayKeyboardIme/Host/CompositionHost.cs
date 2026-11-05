@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading;
 using Vuplex.WebView;
 using XSOverlay;
+using XSOverlayKeyboardIme.Composition;
 using XSOverlayKeyboardIme.Diagnostics;
 using XSOverlayKeyboardIme.Game;
 using XSOverlayKeyboardIme.Interop;
@@ -27,6 +28,8 @@ namespace XSOverlayKeyboardIme.Host
         private static volatile CompositionHost _current;
 
         private readonly ConcurrentQueue<KeyStroke> _strokes = new ConcurrentQueue<KeyStroke>();
+        private readonly ConcurrentQueue<BarAction> _barActions = new ConcurrentQueue<BarAction>();
+        private readonly KeyboardPage _page;
 
         private HostWindow _window;
         private ForegroundLease _lease;
@@ -36,6 +39,11 @@ namespace XSOverlayKeyboardIme.Host
         private bool _pageAttached;
         private int _finished;
         private static long _lastRefusalTicks;
+
+        internal CompositionHost()
+        {
+            _page = new KeyboardPage(OnBarAction);
+        }
 
         internal static void Start()
         {
@@ -87,7 +95,7 @@ namespace XSOverlayKeyboardIme.Host
                 // ADR 0004: the page gets the script when the take-over first needs it.
                 _pageAttached = true;
                 IWebView page = _target;
-                MainThreadDispatcher.Post(() => KeyboardPageBridge.Attach(page));
+                MainThreadDispatcher.Post(() => _page.Attach(page));
             }
 
             foreach (KeyStroke stroke in strokes)
@@ -173,7 +181,10 @@ namespace XSOverlayKeyboardIme.Host
 
         private bool StartTakeOver(KeyFeeder feeder)
         {
-            CompositionService service = new CompositionService(_window, _lease, feeder, OnCommitted);
+            ImeIdentity ime = ImeProfile.ReadDefault();
+            HostLog.Info("ime name: " + (ime.Name.Length == 0 ? "unreadable" : ime.Name));
+
+            CompositionService service = new CompositionService(_window, _lease, feeder, OnCommitted, OnView, ime);
             _bridge = ThreadManagerBridge.Open(service);
             if (_bridge == null)
             {
@@ -192,6 +203,12 @@ namespace XSOverlayKeyboardIme.Host
             if (message == HostWindow.StrokeMessage)
             {
                 DrainStrokes();
+                return;
+            }
+
+            if (message == HostWindow.BarActionMessage)
+            {
+                DrainBarActions();
                 return;
             }
 
@@ -226,7 +243,54 @@ namespace XSOverlayKeyboardIme.Host
         private void OnCommitted(string text)
         {
             IWebView target = _target;
-            MainThreadDispatcher.Post(() => KeyboardPageBridge.WriteBack(target, text));
+            MainThreadDispatcher.Post(() => _page.WriteBack(target, text));
+        }
+
+        /// <summary>Hands the composition to the page, which shows it under the keys.</summary>
+        private void OnView(CompositionView view)
+        {
+            IWebView target = _target;
+            if (target == null)
+            {
+                return;
+            }
+
+            MainThreadDispatcher.Post(() => _page.Show(target, view));
+        }
+
+        /// <summary>Called on Unity's main thread when the candidate bar acts.</summary>
+        private void OnBarAction(BarAction action)
+        {
+            if (action.Kind == BarActionKind.Ready)
+            {
+                HostLog.Info("the keyboard page runs the injected script");
+                return;
+            }
+
+            _barActions.Enqueue(action);
+            HostWindow window = _window;
+            window?.Post(HostWindow.BarActionMessage);
+        }
+
+        private void DrainBarActions()
+        {
+            CompositionService service = _service;
+            if (service == null)
+            {
+                return;
+            }
+
+            while (_barActions.TryDequeue(out BarAction action))
+            {
+                if (action.Kind == BarActionKind.Pick)
+                {
+                    service.PickCandidate(action.Value);
+                }
+                else if (action.Kind == BarActionKind.Turn)
+                {
+                    service.TurnCandidates(action.Value);
+                }
+            }
         }
 
         private void Finish()

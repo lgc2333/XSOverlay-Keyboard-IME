@@ -27,6 +27,7 @@ namespace XSOverlayKeyboardIme.Interop
         internal const uint MapVirtualKeyToScan = 0;
 
         internal const uint CoInitApartmentThreaded = 0x2;
+        internal const uint ClsCtxInProcServer = 0x1;
 
         internal const uint SemFailCriticalErrors = 0x0001;
         internal const uint SemNoOpenFileErrorBox = 0x8000;
@@ -144,6 +145,15 @@ namespace XSOverlayKeyboardIme.Interop
 
         [DllImport("ole32.dll")]
         internal static extern void CoUninitialize();
+
+        [DllImport("ole32.dll")]
+        internal static extern int CoCreateInstance(
+            ref Guid clsid,
+            IntPtr outer,
+            uint context,
+            ref Guid iid,
+            out IntPtr instance
+        );
 
         [DllImport("imm32.dll")]
         internal static extern IntPtr ImmGetContext(IntPtr hwnd);
