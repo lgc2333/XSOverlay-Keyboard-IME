@@ -4,14 +4,19 @@
 
 ```text
 XSOverlayKeyboardIme/              BepInEx 5 plugin; the only shipped artifact
-  KeyboardImePlugin.cs             entry point; binds config and starts the self-check
+  KeyboardImePlugin.cs             entry point; binds config, patches the game, starts the host
   Host/                            STA thread, hidden window, foreground lease, key feeding
+  Takeover/                        decides which keyboard page keys belong to the plugin
+  Game/                            reads the game's keyboard overlay state
+  Page/                            injects the page script and writes committed text back
   Composition/                     composition state machine and inline-preedit watch; pure logic
   Candidates/                      reads the candidate page the IME publishes
   Sinks/                           ITfUIElementSink and the UI element event queue
   Interop/                         TSF interfaces, Win32 P/Invoke, IMM text reader
+  SelfCheck/                       diagnostic self-check; only in a build with -p:SelfCheck=true
   Diagnostics/                     logging
 XSOverlayKeyboardIme.Tests/        unit tests; compile the dependency-free sources directly
+web/                               keyboard page script; TypeScript, bundled for injection
 Directory.Build.props              shared compile settings
 Directory.Build.targets            optional deploy target
 docs/adr/                          one file per decision, numbered
@@ -29,16 +34,29 @@ dotnet build -c Release
 # build and copy the plugin into the game
 dotnet build -c Release -p:DeployToGame=true
 
+# diagnostic build that also compiles the self-check
+dotnet build -c Release -p:SelfCheck=true
+
 # run unit tests
 dotnet test XSOverlayKeyboardIme.Tests
 
 # format C# and msbuild XML
 dotnet csharpier format .
 
-# verify formatting without writing
+# verify C# and msbuild XML formatting without writing
 dotnet csharpier check .
+
+# verify markdown and structured data formatting without writing
+node web/node_modules/prettier/bin/prettier.cjs --check "**/*.{md,json,yaml,yml,toml}"
+
+# Page script check, lint, build
+pnpm --dir web typecheck
+pnpm --dir web lint
+pnpm --dir web build
 ```
 
+- Build the page script before the plugin: `pnpm --dir web build` writes `web/dist/keyboard-ime.js`, which the plugin embeds and refuses to build without.
+- Never ship a self-check build. The self-check is behind `#if IME_SELF_CHECK`; add code for it only under `SelfCheck/`.
 - CSharpier is a pinned local tool. Run `dotnet tool restore` once after cloning, and after any change to `.config/dotnet-tools.json`.
 - The game path defaults to `D:\SteamLibrary\steamapps\common\XSOverlay_Beta`. Override it with `-p:GameDir=<path>`.
 - Logs land in the game folder at `BepInEx\LogOutput.log`.
@@ -72,6 +90,7 @@ The Rules section introduced some skills. If some skill is missing, please ask u
 
 - One formatter per file type. `CSharpier` formats C# and msbuild XML (`*.cs`, `*.csproj`, `*.props`, `*.targets`, `*.slnx`); `prettier` formats markdown and structured data (`*.{md,json,yaml,toml}`).
 - Never run `dotnet format` barely, it would revert CSharpier's change. Its only role here is `dotnet format analyzers`.
+- If Prettier conflicts with an ESLint rule, turn off that rule, keep Prettier's change.
 
 - Docstrings stay short: the key point, nothing else. What an ADR already reasons through is not repeated in code — link the ADR instead.
 

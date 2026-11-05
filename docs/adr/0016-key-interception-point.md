@@ -1,0 +1,32 @@
+---
+status: accepted
+supersedes: []
+superseded_by: []
+amends: []
+amended_by: []
+---
+
+# 在游戏的 HandleKeypress 处拦截按键
+
+接管必须在游戏处理按键之前发生，否则组字中的回车会被游戏的"回车释放键盘焦点"逻辑先吃掉，Esc 同理会直接释放焦点而不是取消组字。因此用 Harmony 前缀补丁挂在 `XSOverlay.InputManager.HandleKeypress`，判定为本插件所有时返回 false，其余情况原样放行。
+
+判定为所有，需要同时满足：键盘焦点存在、焦点所属 overlay 是键盘 overlay（见 [0007](./0007-composer-scope.md)），并且该按键按下面的规则属于输入法。
+
+## 按键规则
+
+- 文本键（单个字符，空格除外）在焦点属于键盘 overlay 时总被接管；组字尚未开始时，它们用来启动组字。
+- 控制键（回车、退格、方向键、翻页键、Esc、Delete）只在输入法已经发布 UI 元素、确认正在组字时接管；否则留在游戏原路径。
+- 组字中的回车交给输入法，由输入法决定提交什么，通常是原始编码；退格与方向键用于修正组字。
+- 非组字时，回车与空格走游戏原逻辑：回车触发键盘页自己的发送，空格照常输入。
+
+## Considered Options
+
+- 补 `InputManager.HandleFocusedWebViewKeypress`（早先的路线）：它在回车与 Esc 的焦点释放之后才执行，组字中的回车根本到不了插件，否决。
+- 在键盘页 JS 里拦截 keydown：页面同样拿不到已被游戏先行消费的回车，且与 [0004](./0004-inject-page-script.md) 的注入范围不符，否决。
+- 补 `HandleKeypress` 前缀：采纳。
+
+## Consequences
+
+- 依赖游戏私有方法的类型名、方法名与参数签名。Steam 更新若改名，补丁会在启动时报错，日志可见；此时接管失效，游戏回到原路径，不会崩。
+- 组字中 Esc 不释放键盘焦点，这是有意的：第一次 Esc 取消组字，取消之后再按才走游戏的释放逻辑。
+- 关闭接管只需把 `Takeover/Enabled` 置 false；补丁不再挂载，行为与未安装插件一致。

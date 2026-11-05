@@ -3,7 +3,7 @@ status: accepted
 supersedes: []
 superseded_by: []
 amends: []
-amended_by: ["0014", "0015"]
+amended_by: ['0014', '0015']
 ---
 
 # 由插件托管 TSF 组字上下文
