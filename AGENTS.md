@@ -49,6 +49,9 @@ dotnet csharpier check .
 # verify markdown and structured data formatting without writing
 node web/node_modules/prettier/bin/prettier.cjs --check "**/*.{md,json,yaml,yml,toml}"
 
+# run the C# analyzers over the solution without writing
+dotnet format analyzers --verify-no-changes --severity info
+
 # Page script check, lint, build
 pnpm --dir web typecheck
 pnpm --dir web lint

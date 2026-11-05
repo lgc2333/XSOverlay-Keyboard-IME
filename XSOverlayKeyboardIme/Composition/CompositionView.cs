@@ -4,7 +4,7 @@ namespace XSOverlayKeyboardIme.Composition
     /// progress, its candidate page and the IME name for the bar's chip.</summary>
     internal sealed class CompositionView
     {
-        private static readonly string[] NoCandidates = new string[0];
+        private static readonly string[] NoCandidates = System.Array.Empty<string>();
 
         private static readonly CompositionView Empty = new CompositionView(
             string.Empty,
