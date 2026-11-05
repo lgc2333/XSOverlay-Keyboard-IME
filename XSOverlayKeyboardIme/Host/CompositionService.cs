@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using XSOverlayKeyboardIme.Candidates;
 using XSOverlayKeyboardIme.Composition;
 using XSOverlayKeyboardIme.Diagnostics;
+using XSOverlayKeyboardIme.Input;
 using XSOverlayKeyboardIme.Interop;
 using XSOverlayKeyboardIme.Sinks;
 using XSOverlayKeyboardIme.Takeover;
@@ -11,7 +12,8 @@ namespace XSOverlayKeyboardIme.Host
 {
     /// <summary>
     /// Live composition: every taken key goes to the host editor and the IME decides
-    /// when to commit. See ADR 0006, ADR 0007 and ADR 0010.
+    /// when to commit. Text the IME does not compose is written back as it is typed.
+    /// See ADR 0006, ADR 0007, ADR 0008 and ADR 0016.
     /// </summary>
     internal sealed class CompositionService : IUIElementObserver
     {
@@ -19,14 +21,13 @@ namespace XSOverlayKeyboardIme.Host
         private readonly ForegroundLease _lease;
         private readonly KeyFeeder _feeder;
         private readonly Action<string> _onCommitted;
-        private readonly CompositionSession _session = new CompositionSession();
         private readonly InlinePreeditWatch _preeditWatch = new InlinePreeditWatch();
         private readonly ConcurrentQueue<UIElementEvent> _elements = new ConcurrentQueue<UIElementEvent>();
 
         private ThreadManagerBridge _bridge;
+        private volatile bool _open;
         private volatile bool _composing;
-        private volatile bool _confirmed;
-        private string _baseline = string.Empty;
+        private uint _elementId;
 
         internal CompositionService(
             HostWindow window,
@@ -41,10 +42,10 @@ namespace XSOverlayKeyboardIme.Host
             _onCommitted = onCommitted;
         }
 
-        /// <summary>Read by the main thread: the IME published an element, so control keys belong here.</summary>
-        internal bool ConfirmedComposing
+        /// <summary>Read on Unity's main thread: a commit means these keys belong to the IME.</summary>
+        internal bool Composing
         {
-            get { return _confirmed; }
+            get { return _composing; }
         }
 
         internal void Attach(ThreadManagerBridge bridge)
@@ -54,50 +55,116 @@ namespace XSOverlayKeyboardIme.Host
 
         internal void HandleMessage(uint message)
         {
-            if (message == HostWindow.BeatMessage)
-            {
-                OnBeat();
-            }
-            else if (message == HostWindow.ElementMessage)
+            if (message == HostWindow.ElementMessage)
             {
                 DrainElements();
             }
         }
 
-        /// <summary>Feeds one taken key, starting a composition when the previous one ended.</summary>
+        /// <summary>Feeds one taken key, then commits or writes through what it produced.</summary>
         internal void Send(KeyStroke stroke)
         {
-            if (!_composing)
+            if (!_open)
             {
                 Begin();
             }
 
             HostLog.Info("feed " + stroke.Describe());
             _feeder.Send(stroke);
+
+            // The IME answers through this thread's queue, so dispatch before deciding:
+            // the element events and the commit arrive that way.
+            _window.PumpPending();
+
+            if (stroke.EndsComposition)
+            {
+                Commit(stroke.Describe());
+                return;
+            }
+
+            if (HasComposition())
+            {
+                _composing = true;
+                return;
+            }
+
+            // The IME composed nothing, so the control holds plain text: pass it on now.
+            _composing = false;
+            string typed = ReadControlText();
+            if (typed.Length > 0)
+            {
+                Win32Native.SetWindowTextW(_window.Editor, string.Empty);
+                _onCommitted(typed);
+            }
         }
 
         private void Begin()
         {
-            _composing = true;
-            _session.Reset();
-            _session.BeginTyping();
-            _baseline = ImmTextReader.ReadWindowText(_window.Editor).Trim();
+            _open = true;
+            _composing = false;
+            _elementId = 0;
+            Win32Native.SetWindowTextW(_window.Editor, string.Empty);
             _lease.Acquire();
             _bridge?.ImeOpen?.Open();
-            _window.Post(HostWindow.BeatMessage);
+            _window.PumpPending();
         }
 
-        private void OnBeat()
+        /// <summary>
+        /// Ends the session. A composition the IME did not commit on this key is taken as
+        /// raw codes, which is what the composer shows while the IME is still composing.
+        /// </summary>
+        private void Commit(string reason)
         {
-            CompositionMove move = _session.Beat();
-            if (move == CompositionMove.ReportNotComposing)
+            if (!_open)
             {
-                HostLog.Warn("the IME did not start composing; the key was dropped");
-                End();
+                return;
             }
-            else if (move == CompositionMove.ReadResult)
+
+            string composition = ImmTextReader.ReadComposition(_window.Editor);
+            if (composition.Length > 0)
             {
-                FinishComposition();
+                HostLog.Info("the IME kept composing after " + reason + "; taking the raw codes");
+                _feeder.Send(VirtualKey.Escape, false);
+                _window.PumpPending();
+            }
+
+            string committed = ReadControlText();
+            if (composition.Length > 0)
+            {
+                committed += composition;
+            }
+
+            Finish(committed);
+        }
+
+        /// <summary>
+        /// The control text holds what already landed. The IMM result covers a commit that
+        /// the control has not taken yet, as ADR 0006 requires.
+        /// </summary>
+        private string ReadControlText()
+        {
+            string text = ImmTextReader.ReadWindowText(_window.Editor);
+            return text.Length > 0 ? text : ImmTextReader.ReadResult(_window.Editor);
+        }
+
+        private bool HasComposition()
+        {
+            return ImmTextReader.ReadComposition(_window.Editor).Length > 0;
+        }
+
+        private void Finish(string committed)
+        {
+            _open = false;
+            _composing = false;
+            _elementId = 0;
+            Win32Native.SetWindowTextW(_window.Editor, string.Empty);
+            _lease.Restore();
+            _bridge?.ImeOpen?.Close();
+            HostLog.Info("committed '" + committed + "'");
+
+            if (committed.Length > 0)
+            {
+                _onCommitted(committed);
             }
         }
 
@@ -122,34 +189,34 @@ namespace XSOverlayKeyboardIme.Host
 
         private void OnElementBegun(uint elementId)
         {
-            if (_session.ElementBegun(elementId) != CompositionMove.ReadCompositionAndCandidates)
+            if (!_open)
             {
                 return;
             }
 
-            _confirmed = true;
+            _elementId = elementId;
+            _composing = true;
             HostLog.Info("composition started, element " + elementId);
             ReadElement(elementId);
         }
 
         private void OnElementUpdated(uint elementId)
         {
-            if (_session.Phase != CompositionPhase.Composing)
+            if (_open)
             {
-                return;
+                ReadElement(elementId);
             }
-
-            ReadElement(elementId);
         }
 
+        /// <summary>The IME ended its own element, which is how a candidate pick commits.</summary>
         private void OnElementEnded(uint elementId)
         {
-            if (_session.ElementEnded(elementId) != CompositionMove.ReadResult)
+            if (!_open || elementId != _elementId)
             {
                 return;
             }
 
-            FinishComposition();
+            Finish(ReadControlText());
         }
 
         private void ReadElement(uint elementId)
@@ -163,38 +230,6 @@ namespace XSOverlayKeyboardIme.Host
             }
 
             CandidateReader.Read(_bridge.ElementManager, elementId);
-        }
-
-        /// <summary>Keeps the control text as a fallback when IMM has no result, then clears it.</summary>
-        private void FinishComposition()
-        {
-            string committed = ImmTextReader.ReadResult(_window.Editor);
-            if (committed.Length == 0)
-            {
-                string windowText = ImmTextReader.ReadWindowText(_window.Editor).Trim();
-                committed = windowText.StartsWith(_baseline, StringComparison.Ordinal)
-                    ? windowText.Substring(_baseline.Length).Trim()
-                    : windowText;
-            }
-
-            Win32Native.SetWindowTextW(_window.Editor, string.Empty);
-            HostLog.Info("committed text '" + committed + "'");
-
-            if (committed.Length > 0)
-            {
-                _onCommitted(committed);
-            }
-
-            End();
-        }
-
-        private void End()
-        {
-            _composing = false;
-            _confirmed = false;
-            _session.Reset();
-            _lease.Restore();
-            _bridge?.ImeOpen?.Close();
         }
 
         void IUIElementObserver.ElementBegun(uint elementId)

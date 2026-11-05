@@ -35,6 +35,7 @@ namespace XSOverlayKeyboardIme.Host
         private IWebView _target;
         private bool _pageAttached;
         private int _finished;
+        private static long _lastRefusalTicks;
 
         internal static void Start()
         {
@@ -68,13 +69,15 @@ namespace XSOverlayKeyboardIme.Host
 
             if (!KeyboardOverlayScope.TryGetFocusedOverlay(out KeyboardInputFocusManager focus))
             {
+                LogRefusal("no focus on the keyboard overlay: " + KeyboardOverlayScope.Describe());
                 return false;
             }
 
-            bool composing = service.ConfirmedComposing;
+            bool composing = service.Composing;
             var strokes = new List<KeyStroke>(4);
             if (!KeyStrokeReader.TryRead(keyEvent, composing, strokes))
             {
+                LogRefusal("the key was not taken: " + DescribeKey(keyEvent));
                 return false;
             }
 
@@ -94,6 +97,35 @@ namespace XSOverlayKeyboardIme.Host
 
             _window.Post(HostWindow.StrokeMessage);
             return true;
+        }
+
+        /// <summary>Explains a refusal, at most once every two seconds.</summary>
+        private static void LogRefusal(string reason)
+        {
+            long now = DateTime.UtcNow.Ticks;
+            if (now - Interlocked.Read(ref _lastRefusalTicks) < TimeSpan.TicksPerSecond * 2)
+            {
+                return;
+            }
+
+            Interlocked.Exchange(ref _lastRefusalTicks, now);
+            HostLog.Info("key refused: " + reason);
+        }
+
+        private static string DescribeKey(XSOverlay.Websockets.API.Objects.KeyboardEvent keyEvent)
+        {
+            if (keyEvent == null)
+            {
+                return "(null)";
+            }
+
+            string values = keyEvent.value == null ? "(null)" : string.Join(",", keyEvent.value);
+            return "style="
+                + keyEvent.keyPressStyle
+                + " values=["
+                + values
+                + "] web="
+                + (keyEvent.webValue ?? "(null)");
         }
 
         private void Run()

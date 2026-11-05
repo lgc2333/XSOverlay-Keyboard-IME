@@ -28,7 +28,7 @@ namespace XSOverlayKeyboardIme.Takeover
             // The page already resolved the character, including the shift state. A space
             // never starts a composition, so while idle it stays with the page.
             string text = keyEvent.webValue;
-            if (text != null && text.Length == 1 && (includeNamedKeys || text[0] != ' '))
+            if (text != null && text.Length == 1 && text[0] != ' ')
             {
                 strokes.Add(KeyStroke.FromText(text[0]));
                 return true;
@@ -63,6 +63,12 @@ namespace XSOverlayKeyboardIme.Takeover
                 }
 
                 strokes.Add(KeyStroke.FromKey(key, shift));
+            }
+
+            // A page that reports no key name for the space still commits with it.
+            if (strokes.Count == 0 && text == " ")
+            {
+                strokes.Add(KeyStroke.FromKey(VirtualKey.Space, false));
             }
 
             return strokes.Count > 0;

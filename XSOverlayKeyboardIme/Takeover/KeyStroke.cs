@@ -21,6 +21,12 @@ namespace XSOverlayKeyboardIme.Takeover
 
         internal bool Shift { get; }
 
+        /// <summary>Space and Enter commit the composition and end the session. See ADR 0007.</summary>
+        internal bool EndsComposition
+        {
+            get { return !IsText && (Key == VirtualKey.Space || Key == VirtualKey.Return); }
+        }
+
         internal static KeyStroke FromText(char text)
         {
             return new KeyStroke(text, default, false, true);
