@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      # The plugin project references the game's Managed assemblies, so only the
+      # test project builds here; it compiles the dependency-free sources directly.
+      - run: dotnet test XSOverlayKeyboardIme.Tests/XSOverlayKeyboardIme.Tests.csproj -c Release --nologo
+
+  format:
+    name: Format check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet tool restore
+      - run: dotnet csharpier check .
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: '11'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpx prettier --check "**/*.{md,json,yaml,yml,toml}"
