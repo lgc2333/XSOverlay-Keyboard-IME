@@ -15,18 +15,11 @@ namespace XSOverlayKeyboardIme.Page
         private const string InsertText = "window.__xsoKeyboardIme && window.__xsoKeyboardIme.insertText";
         private const string ShowComposition = "window.__xsoKeyboardIme && window.__xsoKeyboardIme.showComposition";
 
-        private readonly Action<BarAction> _onAction;
-
         private EventHandler<EventArgs<string>> _messageHandler;
         private IWebView _listening;
         private IWebView _injected;
 
-        internal KeyboardPage(Action<BarAction> onAction)
-        {
-            _onAction = onAction;
-        }
-
-        /// <summary>Injects the bundle and starts reading what the page sends back.</summary>
+        /// <summary>Injects the bundle and starts reading what the page reports.</summary>
         internal void Attach(IWebView webView)
         {
             if (webView == null || webView.IsDisposed)
@@ -60,7 +53,7 @@ namespace XSOverlayKeyboardIme.Page
             );
         }
 
-        /// <summary>Shows the composition string, the candidates and the idle state.</summary>
+        /// <summary>Shows the composing string, the candidates and the idle state.</summary>
         internal void Show(IWebView webView, CompositionView view)
         {
             Attach(webView);
@@ -133,15 +126,10 @@ namespace XSOverlayKeyboardIme.Page
             webView.MessageEmitted += _messageHandler;
         }
 
+        /// <summary>The page reports that the bundle runs; nothing else travels this way.</summary>
         private void OnMessage(object sender, EventArgs<string> args)
         {
-            if (!BarAction.TryParse(args.Value, out BarAction action))
-            {
-                HostLog.Warn("the page sent an unknown message: " + args.Value);
-                return;
-            }
-
-            _onAction(action);
+            HostLog.Info("page message: " + args.Value);
         }
     }
 }

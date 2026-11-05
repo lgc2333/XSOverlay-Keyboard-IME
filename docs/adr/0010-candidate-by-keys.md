@@ -3,7 +3,7 @@ status: accepted
 supersedes: []
 superseded_by: []
 amends: []
-amended_by: []
+amended_by: ['0018']
 ---
 
 # 候选只能靠喂按键选中

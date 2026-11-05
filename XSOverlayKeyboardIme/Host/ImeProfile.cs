@@ -1,6 +1,5 @@
 using System;
 using System.Runtime.InteropServices;
-using XSOverlayKeyboardIme.Composition;
 using XSOverlayKeyboardIme.Diagnostics;
 using XSOverlayKeyboardIme.Interop;
 
@@ -15,12 +14,13 @@ namespace XSOverlayKeyboardIme.Host
         private static readonly Guid InputProcessorProfiles = new Guid("33C53A50-F456-4884-B049-85FD643ECFED");
         private static readonly Guid KeyboardCategory = new Guid("34745C63-B2F0-4784-8B67-5E12C8701A31");
 
-        internal static ImeIdentity ReadDefault()
+        /// <summary>Empty when the profile cannot be read.</summary>
+        internal static string ReadName()
         {
             ITfInputProcessorProfiles profiles = Create();
             if (profiles == null)
             {
-                return ImeIdentity.Unknown;
+                return string.Empty;
             }
 
             try
@@ -30,7 +30,7 @@ namespace XSOverlayKeyboardIme.Host
                 if (hr < 0)
                 {
                     HostLog.Warn("no composing language, hr=0x" + hr.ToString("x"));
-                    return ImeIdentity.Unknown;
+                    return string.Empty;
                 }
 
                 Guid category = KeyboardCategory;
@@ -42,10 +42,10 @@ namespace XSOverlayKeyboardIme.Host
                     HostLog.Warn(
                         "no default IME for language 0x" + language.ToString("x4") + ", hr=0x" + hr.ToString("x")
                     );
-                    return ImeIdentity.Unknown;
+                    return string.Empty;
                 }
 
-                return new ImeIdentity(Describe(profiles, clsid, language, profileId));
+                return Describe(profiles, clsid, language, profileId);
             }
             finally
             {

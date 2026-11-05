@@ -8,8 +8,8 @@ XSOverlayKeyboardIme/              BepInEx 5 plugin; the only shipped artifact
   Host/                            STA thread, hidden window, foreground lease, key feeding
   Takeover/                        decides which keyboard page keys belong to the plugin
   Game/                            reads the game's keyboard overlay state
-  Page/                            injects the page script and writes committed text back
-  Composition/                     composition state machine and inline-preedit watch; pure logic
+  Page/                            injects the page script, writes committed text back, shows the composition
+  Composition/                     composition state, view and inline-preedit watch; pure logic
   Candidates/                      reads the candidate page the IME publishes
   Sinks/                           ITfUIElementSink and the UI element event queue
   Interop/                         TSF interfaces, Win32 P/Invoke, IMM text reader

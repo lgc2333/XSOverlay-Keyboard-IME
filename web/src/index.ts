@@ -1,7 +1,7 @@
 import { createCandidateBar } from './candidate-bar'
 import { clearPreedit, insertText, showPreedit } from './composer'
 import type { CompositionView } from './ime-view'
-import { postToPlugin } from './native-bridge'
+import { announceReady } from './native-bridge'
 
 /**
  * Entry point of the injected script. The keyboard page imports it for its side
@@ -24,7 +24,7 @@ function install(): void {
     },
   }
 
-  if (!postToPlugin({ kind: 'ready' })) {
+  if (!announceReady()) {
     console.warn(
       '[xso-ime] the Vuplex message host is missing; the plugin cannot see this page',
     )

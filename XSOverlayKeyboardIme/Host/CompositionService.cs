@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using XSOverlayKeyboardIme.Candidates;
 using XSOverlayKeyboardIme.Composition;
 using XSOverlayKeyboardIme.Diagnostics;
@@ -14,7 +13,7 @@ namespace XSOverlayKeyboardIme.Host
     /// <summary>
     /// Live composition: every taken key goes to the host editor and the IME decides
     /// when to commit. Text the IME does not compose is written back as it is typed.
-    /// See ADR 0006, ADR 0007, ADR 0008, ADR 0010 and ADR 0016.
+    /// See ADR 0006, ADR 0007, ADR 0008 and ADR 0016.
     /// </summary>
     internal sealed class CompositionService : IUIElementObserver
     {
@@ -23,10 +22,9 @@ namespace XSOverlayKeyboardIme.Host
         private readonly KeyFeeder _feeder;
         private readonly Action<string> _onCommitted;
         private readonly Action<CompositionView> _onView;
-        private readonly ImeIdentity _ime;
+        private readonly string _imeName;
         private readonly InlinePreeditWatch _preeditWatch = new InlinePreeditWatch();
         private readonly ConcurrentQueue<UIElementEvent> _elements = new ConcurrentQueue<UIElementEvent>();
-        private readonly List<KeyStroke> _strokes = new List<KeyStroke>(4);
 
         private ThreadManagerBridge _bridge;
         private volatile bool _open;
@@ -40,7 +38,7 @@ namespace XSOverlayKeyboardIme.Host
             KeyFeeder feeder,
             Action<string> onCommitted,
             Action<CompositionView> onView,
-            ImeIdentity ime
+            string imeName
         )
         {
             _window = window;
@@ -48,7 +46,7 @@ namespace XSOverlayKeyboardIme.Host
             _feeder = feeder;
             _onCommitted = onCommitted;
             _onView = onView;
-            _ime = ime;
+            _imeName = imeName;
         }
 
         /// <summary>Read on Unity's main thread: a commit means these keys belong to the IME.</summary>
@@ -103,57 +101,6 @@ namespace XSOverlayKeyboardIme.Host
                 Win32Native.SetWindowTextW(_window.Editor, string.Empty);
                 _onCommitted(typed);
             }
-        }
-
-        /// <summary>Selects the candidate at a page index, through the keys the IME reads.</summary>
-        internal void PickCandidate(int index)
-        {
-            if (!_open)
-            {
-                return;
-            }
-
-            if (!CandidateKeys.ForPick(index, _ime.ReadsCandidateDigits, _strokes))
-            {
-                HostLog.Warn("candidate " + index + " has no key on this IME");
-                return;
-            }
-
-            HostLog.Info("pick candidate " + index);
-            Feed(_strokes);
-        }
-
-        /// <summary>Turns the candidate page forwards or backwards.</summary>
-        internal void TurnCandidates(int delta)
-        {
-            if (!_open || delta == 0)
-            {
-                return;
-            }
-
-            CandidateKeys.ForTurn(delta, _strokes);
-            HostLog.Info("turn candidates " + delta);
-            Feed(_strokes);
-        }
-
-        /// <summary>Feeds keys the page asked for, then reads what the IME made of them.</summary>
-        private void Feed(List<KeyStroke> strokes)
-        {
-            foreach (KeyStroke stroke in strokes)
-            {
-                HostLog.Info("feed " + stroke.Describe());
-                _feeder.Send(stroke);
-            }
-
-            _window.PumpPending();
-
-            // The last key may have committed and ended the session through an element event.
-            if (!_open || ShowComposition())
-            {
-                return;
-            }
-
-            Finish(ReadControlText());
         }
 
         private void Begin()
@@ -249,7 +196,7 @@ namespace XSOverlayKeyboardIme.Host
             _lease.Restore();
             _bridge?.ImeOpen?.Close();
             HostLog.Info("committed '" + committed + "'");
-            _onView(CompositionView.Idle(_ime.Name));
+            _onView(CompositionView.Idle(_imeName));
 
             if (committed.Length > 0)
             {
@@ -330,7 +277,7 @@ namespace XSOverlayKeyboardIme.Host
                 candidates = CandidateReader.Read(_bridge.ElementManager, _elementId);
             }
 
-            _onView(new CompositionView(preedit, candidates.Items, candidates.Selected, _ime.Name));
+            _onView(new CompositionView(preedit, candidates.Items, candidates.Selected, _imeName));
         }
 
         void IUIElementObserver.ElementBegun(uint elementId)

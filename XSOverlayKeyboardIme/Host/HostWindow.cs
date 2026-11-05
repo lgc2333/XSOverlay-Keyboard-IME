@@ -11,7 +11,6 @@ namespace XSOverlayKeyboardIme.Host
         internal const uint BeatMessage = Win32Native.WmApp + 1;
         internal const uint ElementMessage = Win32Native.WmApp + 2;
         internal const uint StrokeMessage = Win32Native.WmApp + 4;
-        internal const uint BarActionMessage = Win32Native.WmApp + 5;
 
         private const string WindowClassName = "XSOverlayKeyboardImeHost";
         private const string EditorClassName = "RICHEDIT50W";
