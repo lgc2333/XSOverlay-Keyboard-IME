@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
@@ -13,8 +14,8 @@ namespace XSOverlayKeyboardIme
     [BepInPlugin(MyPluginInfo.PLUGIN_GUID, MyPluginInfo.PLUGIN_NAME, MyPluginInfo.PLUGIN_VERSION)]
     public sealed class KeyboardImePlugin : BaseUnityPlugin
     {
+        private static Harmony _harmony;
         private ConfigEntry<bool> _takeoverEnabled;
-        private Harmony _harmony;
 
         private void Awake()
         {
@@ -45,27 +46,57 @@ namespace XSOverlayKeyboardIme
             _harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
             _harmony.PatchAll(Assembly.GetExecutingAssembly());
 
-            MethodInfo target = typeof(XSOverlay.InputManager).GetMethod(
-                "HandleKeypress",
-                BindingFlags.Instance | BindingFlags.NonPublic
+            bool keyTaken = HasPatch(
+                typeof(XSOverlay.InputManager).GetMethod(
+                    "HandleKeypress",
+                    BindingFlags.Instance | BindingFlags.NonPublic
+                ),
+                postfix: false
             );
-            Patches applied = target == null ? null : Harmony.GetPatchInfo(target);
-            if (applied == null || applied.Prefixes.Count == 0)
+            bool pumpRuns = HasPatch(
+                typeof(XSOverlay.InputManager).GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic),
+                postfix: true
+            );
+            if (!keyTaken || !pumpRuns)
             {
-                HostLog.Error("take-over patch did not apply; keys stay with the game");
+                HostLog.Error(
+                    "patches did not apply (keys=" + keyTaken + ", pump=" + pumpRuns + "); the plugin stays idle"
+                );
                 return;
             }
 
-            HostLog.Info("take-over patched onto " + typeof(XSOverlay.InputManager).FullName);
+            HostLog.Info("patched " + typeof(XSOverlay.InputManager).FullName + "; keys and frame pump are ours");
             CompositionHost.Start();
         }
 
-        private void Update()
+        /// <summary>The game may carry other patchers, so the check asks for our own owner.</summary>
+        private static bool HasPatch(MethodInfo method, bool postfix)
         {
-            MainThreadDispatcher.Drain();
+            Patches info = method == null ? null : Harmony.GetPatchInfo(method);
+            if (info == null)
+            {
+                return false;
+            }
+
+            IList<Patch> patches = postfix ? info.Postfixes : info.Prefixes;
+            for (int index = 0; index < patches.Count; index++)
+            {
+                if (patches[index].owner == MyPluginInfo.PLUGIN_GUID)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void OnDestroy()
+        {
+            // The game destroys the loader object. The patches must outlive it, so leave them in place.
+            HostLog.Info("loader object destroyed by the game; patches stay active");
+        }
+
+        private void OnApplicationQuit()
         {
             if (_harmony != null)
             {
