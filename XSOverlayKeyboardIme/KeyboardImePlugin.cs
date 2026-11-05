@@ -77,6 +77,12 @@ namespace XSOverlayKeyboardIme
                 HostLog.Warn("the page attach patch is missing; the candidate bar appears on the first key");
             }
 
+            bool focusKept = HasPatch(typeof(XSOverlay.KeyboardInputFocusManager).GetMethod("Request"), postfix: false);
+            if (!focusKept)
+            {
+                HostLog.Warn("the focus grant patch is missing; the composer focus may flicker");
+            }
+
             HostLog.Info("patched " + typeof(XSOverlay.InputManager).FullName + "; keys and frame pump are ours");
             CompositionHost.Start();
         }

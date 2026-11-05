@@ -4,11 +4,8 @@ using XSOverlayKeyboardIme.Diagnostics;
 namespace XSOverlayKeyboardIme.Host
 {
     /// <summary>
-    /// Keeps the composer focused when the keyboard page asks for the keyboard focus a
-    /// second time. The game's manager releases the current grant and grants it again,
-    /// and that release blurs the input; the blur fires another request, so the two sides
-    /// keep bouncing focus. A repeated request for the overlay that already holds it is
-    /// answered without touching the grant.
+    /// Answers a repeated keyboard focus request for the overlay that already holds it,
+    /// so the game does not release and regrant the focus. See ADR 0021.
     /// </summary>
     [HarmonyPatch(typeof(XSOverlay.KeyboardInputFocusManager), "Request")]
     internal static class KeyboardFocusGrantPatch
