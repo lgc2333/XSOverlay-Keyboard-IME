@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>XSOverlayKeyboardIme</AssemblyName>
+    <RootNamespace>XSOverlayKeyboardIme</RootNamespace>
+    <Product>XSOverlay Keyboard IME</Product>
+    <Version>0.1.0</Version>
+    <BepInExPluginGuid>cc.lgck.xsoverlay.keyboardime</BepInExPluginGuid>
+  </PropertyGroup>
+</Project>

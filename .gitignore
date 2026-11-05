@@ -1,0 +1,19 @@
+# Build output
+bin/
+obj/
+
+# Local scratch space: game snapshots, downloads, dumps, probe logs
+temp/
+
+# Tooling state
+.vs/
+.idea/
+*.user
+*.suo
+
+# Local overrides
+Directory.Build.props.user
+
+# Agent skills
+.agents/skills/*
+AGENTS.local.md

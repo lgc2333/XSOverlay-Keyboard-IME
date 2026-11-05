@@ -1,0 +1,10 @@
+<Project>
+
+  <!-- Optional deploy step: dotnet build -p:DeployToGame=true -->
+  <Target Name="DeployPlugin" AfterTargets="Build" Condition="'$(DeployToGame)' == 'true' and '$(IsProbe)' != 'true'">
+    <Message Importance="high" Text="Deploying $(TargetFileName) to $(PluginsDir)" />
+    <MakeDir Directories="$(PluginsDir)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(PluginsDir)" />
+  </Target>
+
+</Project>
