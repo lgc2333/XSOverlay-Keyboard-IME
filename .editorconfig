@@ -1,0 +1,26 @@
+# Formatting belongs to CSharpier (see .csharpierrc.json).
+# This file pins character set and line endings, and mirrors CSharpier's
+# indentation so the IDE agrees with the formatter.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{cs,csx}]
+indent_style = space
+indent_size = 4
+
+[*.{csproj,props,targets,slnx,xml}]
+indent_style = space
+indent_size = 2
+
+[*.{json,yml,yaml,md}]
+indent_style = space
+indent_size = 2
+
+# Markdown hard line breaks are two trailing spaces.
+[*.md]
+trim_trailing_whitespace = false

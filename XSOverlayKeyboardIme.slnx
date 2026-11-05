@@ -1,5 +1,4 @@
 <Solution>
-  <Folder Name="/src/">
-    <Project Path="src/XSOverlayKeyboardIme/XSOverlayKeyboardIme.csproj" />
-  </Folder>
+  <Project Path="XSOverlayKeyboardIme/XSOverlayKeyboardIme.csproj" />
+  <Project Path="XSOverlayKeyboardIme.Tests/XSOverlayKeyboardIme.Tests.csproj" />
 </Solution>

@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>XSOverlayKeyboardIme</AssemblyName>
+    <RootNamespace>XSOverlayKeyboardIme</RootNamespace>
+    <Product>XSOverlay Keyboard IME</Product>
+    <Version>0.1.0</Version>
+    <BepInExPluginGuid>cc.lgck.xsoverlay.keyboardime</BepInExPluginGuid>
+  </PropertyGroup>
+
+  <!-- Unity 2022.3 runs the plugin on Mono, and its assemblies are compiled
+       against netstandard 2.1, so this must stay at 2.1 or higher. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <GameDir Condition="'$(GameDir)' == ''">D:\SteamLibrary\steamapps\common\XSOverlay_Beta</GameDir>
+    <ManagedDir>$(GameDir)\XSOverlay_Data\Managed</ManagedDir>
+    <PluginsDir>$(GameDir)\BepInEx\plugins</PluginsDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
+    <PackageReference Include="BepInEx.Core" Version="5.*" />
+    <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
+  </ItemGroup>
+
+  <!-- Reference the real game assemblies instead of stub packages: this keeps the
+       compile-time API surface identical to the runtime. -->
+  <ItemGroup>
+    <Reference Include="UnityEngine">
+      <HintPath>$(ManagedDir)\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(ManagedDir)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>

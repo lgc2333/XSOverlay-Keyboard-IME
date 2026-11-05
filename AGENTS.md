@@ -3,13 +3,21 @@
 ## Project Structure
 
 ```text
-src/XSOverlayKeyboardIme/   BepInEx 5 plugin; the only shipped artifact
-Directory.Build.props       shared target framework, game references, BepInEx packages
-Directory.Build.targets     optional deploy target
-docs/adr/                   one file per decision, numbered
-docs/handoffs/              dated session handoffs, one file per session
-CONTEXT.md                  domain glossary
-temp/                       local scratch and probe projects; git-ignored
+XSOverlayKeyboardIme/              BepInEx 5 plugin; the only shipped artifact
+  KeyboardImePlugin.cs             entry point; binds config and starts the self-check
+  Host/                            STA thread, hidden window, foreground lease, key feeding
+  Composition/                     composition state machine and inline-preedit watch; pure logic
+  Candidates/                      reads the candidate page the IME publishes
+  Sinks/                           ITfUIElementSink and the UI element event queue
+  Interop/                         TSF interfaces, Win32 P/Invoke, IMM text reader
+  Diagnostics/                     logging
+XSOverlayKeyboardIme.Tests/        unit tests; compile the dependency-free sources directly
+Directory.Build.props              shared compile settings
+Directory.Build.targets            optional deploy target
+docs/adr/                          one file per decision, numbered
+docs/handoffs/                     dated session handoffs, one file per session
+CONTEXT.md                         domain glossary
+temp/                              local scratch and probe projects; git-ignored
 ```
 
 ## Commands
@@ -20,8 +28,18 @@ dotnet build -c Release
 
 # build and copy the plugin into the game
 dotnet build -c Release -p:DeployToGame=true
+
+# run unit tests
+dotnet test XSOverlayKeyboardIme.Tests
+
+# format C# and msbuild XML
+dotnet csharpier format .
+
+# verify formatting without writing
+dotnet csharpier check .
 ```
 
+- CSharpier is a pinned local tool. Run `dotnet tool restore` once after cloning, and after any change to `.config/dotnet-tools.json`.
 - The game path defaults to `D:\SteamLibrary\steamapps\common\XSOverlay_Beta`. Override it with `-p:GameDir=<path>`.
 - Logs land in the game folder at `BepInEx\LogOutput.log`.
 
@@ -52,7 +70,8 @@ The Rules section introduced some skills. If some skill is missing, please ask u
 
 ### Code Flavor Rules
 
-- Format documentation (`*.md`) and structured data (`*.{json,yaml,toml}`, etc.) with `prettier` when it is available.
+- One formatter per file type. `CSharpier` formats C# and msbuild XML (`*.cs`, `*.csproj`, `*.props`, `*.targets`, `*.slnx`); `prettier` formats markdown and structured data (`*.{md,json,yaml,toml}`).
+- Never run `dotnet format` barely, it would revert CSharpier's change. Its only role here is `dotnet format analyzers`.
 
 - Docstrings stay short: the key point, nothing else. What an ADR already reasons through is not repeated in code — link the ADR instead.
 

@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>XSOverlayKeyboardIme.Tests</RootNamespace>
+    <AssemblyName>XSOverlayKeyboardIme.Tests</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <!-- Compile the dependency-free sources under test instead of referencing the
+       plugin assembly, which needs UnityEngine when it loads. -->
+  <ItemGroup>
+    <Compile Include="..\XSOverlayKeyboardIme\Composition\**\*.cs" LinkBase="Linked\Composition" />
+    <Compile Include="..\XSOverlayKeyboardIme\Input\**\*.cs" LinkBase="Linked\Input" />
+    <Compile Include="..\XSOverlayKeyboardIme\Interop\Win32Structs.cs" LinkBase="Linked\Interop" />
+  </ItemGroup>
+</Project>
