@@ -15,11 +15,9 @@ namespace XSOverlayKeyboardIme.Host
         private const string WindowClassName = "XSOverlayKeyboardImeHost";
         private const string EditorClassName = "RICHEDIT50W";
         private const string WindowTitle = "XSOverlay Keyboard IME host";
-        private const uint WsPopup = 0x80000000;
-        private const uint WsExTopmost = 0x00000008;
-        private const uint WsExToolWindow = 0x00000080;
         private const int OffscreenCoordinate = -32000;
         private const int BackgroundBrush = 6;
+        private const int DrainLimit = 512;
 
         // The window procedure is a static entry point, so exactly one host window
         // may exist per process; the plugin never needs a second one.
@@ -81,21 +79,42 @@ namespace XSOverlayKeyboardIme.Host
         }
 
         /// <summary>
-        /// Lives off screen with no taskbar entry. It still has to be shown and focused,
-        /// because the IME only composes into the foreground window.
+        /// Dispatches keyboard messages the injected keys left in this thread's queue.
+        /// Posted messages outrank pending input, so a read that follows a send sees
+        /// stale text until the input queue is drained.
         /// </summary>
+        internal int DrainKeyboardInput()
+        {
+            return DrainMessages(Win32Native.WmKeyFirst, Win32Native.WmKeyLast);
+        }
+
         /// <summary>Drains queued messages, so the window is responsive before it takes the foreground.</summary>
         internal void PumpPending()
         {
+            DrainMessages(0, 0);
+        }
+
+        private static int DrainMessages(uint first, uint last)
+        {
             const uint PmRemove = 1;
-            int guard = 0;
-            while (guard++ < 200 && Win32Native.PeekMessageW(out Win32Native.Msg message, IntPtr.Zero, 0, 0, PmRemove))
+            int count = 0;
+            while (
+                count < DrainLimit
+                && Win32Native.PeekMessageW(out Win32Native.Msg message, IntPtr.Zero, first, last, PmRemove)
+            )
             {
                 Win32Native.TranslateMessage(ref message);
                 Win32Native.DispatchMessageW(ref message);
+                count++;
             }
+
+            return count;
         }
 
+        /// <summary>
+        /// Lives off screen with no taskbar entry. It still has to be shown and focused,
+        /// because the IME only composes into the foreground window.
+        /// </summary>
         private void CreateNative()
         {
             Win32Native.LoadLibraryW("msftedit.dll");
@@ -112,12 +131,12 @@ namespace XSOverlayKeyboardIme.Host
             Win32Native.RegisterClassExW(ref windowClass);
 
             _handle = Win32Native.CreateWindowExW(
-                WsExTopmost,
+                Win32Native.WsExTopmost | Win32Native.WsExToolWindow,
                 WindowClassName,
                 WindowTitle,
-                Win32Native.WsOverlappedWindow | Win32Native.WsVisible,
-                40,
-                40,
+                Win32Native.WsPopup | Win32Native.WsVisible,
+                OffscreenCoordinate,
+                OffscreenCoordinate,
                 480,
                 160,
                 IntPtr.Zero,

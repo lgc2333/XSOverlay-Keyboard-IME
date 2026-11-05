@@ -14,10 +14,12 @@ namespace XSOverlayKeyboardIme.Host
     internal sealed class KeyFeeder
     {
         private const int StrokePauseMilliseconds = 120;
+        private readonly HostWindow _window;
         private readonly ForegroundLease _lease;
 
-        internal KeyFeeder(ForegroundLease lease)
+        internal KeyFeeder(HostWindow window, ForegroundLease lease)
         {
+            _window = window;
             _lease = lease;
         }
 
@@ -26,14 +28,24 @@ namespace XSOverlayKeyboardIme.Host
             _lease.Ensure();
             _lease.BeginAttach();
 
+            bool sent;
             try
             {
-                return SendAttached(key, shift);
+                sent = SendAttached(key, shift);
             }
             finally
             {
                 _lease.EndAttach();
             }
+
+            // Only after detaching: while attached, the peek would read the shared queue
+            // and dispatch another thread's window procedures on this one.
+            if (sent)
+            {
+                _window.DrainKeyboardInput();
+            }
+
+            return sent;
         }
 
         private bool SendAttached(VirtualKey key, bool shift)

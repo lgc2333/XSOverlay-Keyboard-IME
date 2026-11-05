@@ -111,6 +111,42 @@ namespace XSOverlayKeyboardIme.Interop
         int GetCurrentPage(out uint page);
     }
 
+    [ComImport, Guid("7DCF57AC-18AD-438B-824D-979BFFB74B7C"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    internal interface ITfCompartmentMgr
+    {
+        [PreserveSig]
+        int GetCompartment(ref Guid guid, out ITfCompartment compartment);
+
+        [PreserveSig]
+        int ClearCompartment(int clientId, ref Guid guid);
+
+        [PreserveSig]
+        int EnumCompartments(out IntPtr enumerator);
+    }
+
+    /// <summary>A VARIANT carrying an integer. Sized for x64, the only platform the game runs on.</summary>
+    [StructLayout(LayoutKind.Explicit, Size = 24)]
+    internal struct NativeVariant
+    {
+        internal const ushort TypeInt32 = 3;
+
+        [FieldOffset(0)]
+        internal ushort Type;
+
+        [FieldOffset(8)]
+        internal int Integer;
+    }
+
+    [ComImport, Guid("BB08F7A9-607A-4384-8623-056892B64371"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    internal interface ITfCompartment
+    {
+        [PreserveSig]
+        int SetValue(int clientId, ref NativeVariant value);
+
+        [PreserveSig]
+        int GetValue(out NativeVariant value);
+    }
+
     /// <summary>Implemented by managed code; the native side calls back through the classic CCW.</summary>
     [ComImport, Guid("EA1EA136-19DF-11D7-A6D2-00065B84435C"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     internal interface ITfUIElementSink

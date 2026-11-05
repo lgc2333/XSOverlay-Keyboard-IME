@@ -6,12 +6,13 @@ using XSOverlayKeyboardIme.Sinks;
 
 namespace XSOverlayKeyboardIme.Host
 {
-    /// <summary>Takes the thread manager and keeps the UI element sink advised on it.</summary>
+    /// <summary>Owns the thread's TSF handles: the element manager, the advised sink and the IME open state.</summary>
     internal sealed class ThreadManagerBridge : IDisposable
     {
         private readonly ITfThreadMgr _threadManager;
         private readonly ITfSource _source;
         private readonly UIElementSink _sink;
+        private readonly ImeOpenCompartment _imeOpen;
         private readonly uint _cookie;
         private bool _disposed;
 
@@ -20,17 +21,25 @@ namespace XSOverlayKeyboardIme.Host
             ITfSource source,
             UIElementSink sink,
             ITfUIElementMgr elementManager,
-            uint cookie
+            uint cookie,
+            ImeOpenCompartment imeOpen
         )
         {
             _threadManager = threadManager;
             _source = source;
             _sink = sink;
             _cookie = cookie;
+            _imeOpen = imeOpen;
             ElementManager = elementManager;
         }
 
         internal ITfUIElementMgr ElementManager { get; }
+
+        /// <summary>Null when the thread manager exposes no keyboard compartment.</summary>
+        internal ImeOpenCompartment ImeOpen
+        {
+            get { return _imeOpen; }
+        }
 
         internal static ThreadManagerBridge Open(IUIElementObserver observer)
         {
@@ -57,6 +66,16 @@ namespace XSOverlayKeyboardIme.Host
                 HostLog.Error("thread manager does not expose ITfThreadMgr");
                 return null;
             }
+
+            int clientId;
+            int activateHr = threadManager.Activate(out clientId);
+            if (activateHr < 0)
+            {
+                HostLog.Error("thread manager does not activate, hr=0x" + activateHr.ToString("x"));
+                return null;
+            }
+
+            HostLog.Info("thread manager activated, client=" + clientId);
 
             var elementManager = threadManager as ITfUIElementMgr;
             var source = threadManager as ITfSource;
@@ -86,7 +105,8 @@ namespace XSOverlayKeyboardIme.Host
                 Marshal.Release(unknown);
             }
 
-            return new ThreadManagerBridge(threadManager, source, sink, elementManager, cookie);
+            var imeOpen = ImeOpenCompartment.Attach(threadManager, clientId);
+            return new ThreadManagerBridge(threadManager, source, sink, elementManager, cookie, imeOpen);
         }
 
         public void Dispose()
@@ -112,6 +132,12 @@ namespace XSOverlayKeyboardIme.Host
 
             Release(_sink);
             Release(_source);
+
+            if (_imeOpen != null)
+            {
+                _imeOpen.Dispose();
+            }
+
             Release(_threadManager);
         }
 

@@ -10,9 +10,13 @@ namespace XSOverlayKeyboardIme.Interop
         internal const uint WmDestroy = 0x0002;
         internal const uint WmClose = 0x0010;
         internal const uint WmApp = 0x8000;
+        internal const uint WmKeyFirst = 0x0100;
+        internal const uint WmKeyLast = 0x0109;
 
-        internal const uint WsOverlappedWindow = 0xCF0000;
+        internal const uint WsPopup = 0x80000000;
         internal const uint WsVisible = 0x10000000;
+        internal const uint WsExTopmost = 0x00000008;
+        internal const uint WsExToolWindow = 0x00000080;
         internal const uint WsChild = 0x40000000;
         internal const uint WsVScroll = 0x200000;
         internal const uint EsMultiline = 0x0004;

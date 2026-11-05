@@ -47,9 +47,12 @@ namespace XSOverlayKeyboardIme.Host
                 }
 
                 Thread.Sleep(StartupSettleMilliseconds);
+                HostLog.Info(
+                    "foreground before the lease: " + ForegroundLease.Describe(Win32Native.GetForegroundWindow())
+                );
                 _window = HostWindow.Create(OnHostMessage);
                 _lease = new ForegroundLease(_window.Handle, _window.Editor);
-                var feeder = new KeyFeeder(_lease);
+                var feeder = new KeyFeeder(_window, _lease);
                 _run = new SelfCheckRun(_window, feeder, _typingText, Finish);
 
                 _bridge = ThreadManagerBridge.Open(_run);

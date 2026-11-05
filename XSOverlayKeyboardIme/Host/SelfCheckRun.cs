@@ -63,6 +63,7 @@ namespace XSOverlayKeyboardIme.Host
         {
             _attempts++;
             _session.BeginTyping();
+            _bridge.ImeOpen?.Open();
             _baselineWindowText = ImmTextReader.ReadWindowText(_window.Editor).Trim();
             _feeder.Send(_typingText);
             _window.Post(HostWindow.BeatMessage);
@@ -87,21 +88,13 @@ namespace XSOverlayKeyboardIme.Host
         {
             if (_attempts >= MaxAttempts)
             {
-                HostLog.Warn(
-                    "the IME did not start composing after "
-                        + _attempts
-                        + " attempts; check that the active IME is in Chinese mode and has inline preedit enabled"
-                );
+                HostLog.Warn("the IME did not start composing after " + _attempts + " attempts");
                 Finish();
                 return;
             }
 
             HostLog.Info("no composition yet, retrying (" + _attempts + " of " + MaxAttempts + ")");
             ClearEditor();
-
-            // Flip the IME between its English and Chinese states. The state is not
-            // readable from here, so the retry covers both instead of guessing.
-            _feeder.Send(VirtualKey.Shift, false);
             BeginAttempt();
         }
 

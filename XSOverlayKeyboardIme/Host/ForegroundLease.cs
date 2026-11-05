@@ -36,13 +36,15 @@ namespace XSOverlayKeyboardIme.Host
             Take();
         }
 
-        /// <summary>Re-asserts only when something else stole the foreground.</summary>
+        /// <summary>Re-asserts only when the foreground or the editor focus was lost.</summary>
         internal void Ensure()
         {
-            if (Win32Native.GetForegroundWindow() != _hostWindow)
+            if (Win32Native.GetForegroundWindow() == _hostWindow && Win32Native.GetFocus() == _focusWindow)
             {
-                Take();
+                return;
             }
+
+            Take();
         }
 
         /// <summary>
@@ -177,7 +179,7 @@ namespace XSOverlayKeyboardIme.Host
             return input;
         }
 
-        private static string Describe(IntPtr hwnd)
+        internal static string Describe(IntPtr hwnd)
         {
             if (hwnd == IntPtr.Zero)
             {
