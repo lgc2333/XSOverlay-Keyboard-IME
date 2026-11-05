@@ -1,5 +1,5 @@
 import { createCandidateBar } from './candidate-bar'
-import { clearPreedit, insertText, showPreedit } from './composer'
+import { clearPreedit, insertText, keepComposerFocus, showPreedit } from './composer'
 import type { CompositionView } from './ime-view'
 import { announceReady } from './native-bridge'
 
@@ -10,6 +10,7 @@ import { announceReady } from './native-bridge'
  */
 function install(): void {
   const bar = createCandidateBar()
+  keepComposerFocus()
 
   window.__xsoKeyboardIme = {
     insertText,

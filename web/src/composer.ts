@@ -5,7 +5,7 @@
 const ComposerId = 'keyboard-voice-input'
 const SendButtonId = 'keyboard-voice-send'
 const UnderlineId = 'keyboard-ime-preedit-underline'
-const UnderlineColor = '#9fd8e6'
+const UnderlineColor = '#5cfbe9'
 
 export type WritebackOutcome = 'inserted' | 'empty' | 'focus-lost' | 'rejected'
 
@@ -22,6 +22,43 @@ let measure: CanvasRenderingContext2D | null = null
  * drawn on top of them, the way a native IME marks its preedit.
  */
 let underline: HTMLDivElement | null = null
+
+/** The composer the user last put the caret into. */
+let focused: HTMLInputElement | null = null
+
+/**
+ * The page rebuilds its toolbar on layout and state updates, which replaces the input
+ * and takes the focus with it. Put the focus back only when the old input was removed;
+ * a click on another control leaves the old input in place, so the user wins.
+ */
+export function keepComposerFocus(): void {
+  document.addEventListener(
+    'focusin',
+    (event) => {
+      const composer = findComposer()
+      if (composer != null && event.target === composer) {
+        focused = composer
+      }
+    },
+    true,
+  )
+
+  const observer = new MutationObserver(() => {
+    if (focused == null || focused.isConnected) {
+      return
+    }
+
+    const composer = findComposer()
+    if (composer == null) {
+      focused = null
+      return
+    }
+
+    focused = composer
+    composer.focus()
+  })
+  observer.observe(document.documentElement, { childList: true, subtree: true })
+}
 
 export function findComposer(): HTMLInputElement | null {
   const element = document.getElementById(ComposerId)
@@ -100,10 +137,18 @@ function holdSendButton(): void {
   }
 }
 
-/** A rebuild replaces the send button, so the hold has to follow the new one. */
+/** A rebuild replaces the composer and the send button, so the holds follow them. */
 function watchRebuilds(): void {
-  observer ??= new MutationObserver(holdSendButton)
+  observer ??= new MutationObserver(reassert)
   observer.observe(document.documentElement, { childList: true, subtree: true })
+}
+
+function reassert(): void {
+  if (!composing) {
+    return
+  }
+
+  holdSendButton()
 }
 
 function drawUnderline(
@@ -117,14 +162,20 @@ function drawUnderline(
   }
 
   const style = getComputedStyle(composer)
-  context.font = style.font
+  context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
   const box = composer.getBoundingClientRect()
   const paddingLeft = Number.parseFloat(style.paddingLeft) || 0
-  const paddingBottom = Number.parseFloat(style.paddingBottom) || 0
   const start =
     box.left + paddingLeft + context.measureText(before).width - composer.scrollLeft
   const width = context.measureText(codes).width
   const right = box.right - (Number.parseFloat(style.paddingRight) || 0)
+
+  // Sit the line just below the baseline, not on the input's bottom edge.
+  const glyph = context.measureText('Hg')
+  const baseline =
+    box.top +
+    box.height / 2 +
+    (glyph.actualBoundingBoxAscent - glyph.actualBoundingBoxDescent) / 2
 
   if (codes.length === 0 || start >= right || start + width <= box.left + paddingLeft) {
     hideUnderline()
@@ -133,20 +184,21 @@ function drawUnderline(
 
   const element = ensureUnderline()
   element.style.left = `${Math.max(start, box.left + paddingLeft)}px`
-  element.style.top = `${box.bottom - paddingBottom - 2}px`
+  element.style.top = `${baseline + 3}px`
   element.style.width = `${Math.min(width, right - start)}px`
   element.style.display = 'block'
 }
 
 function ensureUnderline(): HTMLDivElement {
-  if (underline == null) {
+  if (underline == null || !document.body.contains(underline)) {
     underline = document.createElement('div')
     underline.id = UnderlineId
     Object.assign(underline.style, {
       position: 'fixed',
       height: '2px',
-      borderRadius: '1px',
+      borderRadius: '999px',
       background: UnderlineColor,
+      opacity: '0.65',
       pointerEvents: 'none',
       zIndex: '300',
     })

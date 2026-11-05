@@ -24,7 +24,8 @@ const BarStyle = `
   box-shadow: inset 0 0 0 0 var(--theme-accent);
   transition: background var(--keyboard-animation-time), box-shadow var(--keyboard-animation-time);
 }
-#${BarId} .ime-candidate .ime-number { font-weight: 700; color: #8b98a3; }
+#${BarId} .ime-candidate .ime-number { font-weight: 700; line-height: 1; color: #8b98a3; }
+#${BarId} .ime-candidate .ime-text { line-height: 1; }
 #${BarId} .ime-candidate.ime-selected {
   background: var(--theme-hi); box-shadow: inset 0 0 0 2px var(--theme-accent);
 }

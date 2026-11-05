@@ -52,8 +52,8 @@ namespace XSOverlayKeyboardIme.Page
             // injection may have landed on an unloaded page, so it is worth repeating.
             if (!ReferenceEquals(webView, _injected) || !_confirmed)
             {
+                bool repeat = ReferenceEquals(webView, _injected);
                 _injected = webView;
-                bool repeat = _confirmed == false && !ReferenceEquals(webView, _listening);
                 PageScript.Inject(
                     webView,
                     outcome =>

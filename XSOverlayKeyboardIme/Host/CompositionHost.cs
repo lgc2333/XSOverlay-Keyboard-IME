@@ -36,6 +36,7 @@ namespace XSOverlayKeyboardIme.Host
         private CompositionService _service;
         private IWebView _target;
         private bool _pageMissingLogged;
+        private string _imeName = string.Empty;
         private int _finished;
         private static long _lastRefusalTicks;
 
@@ -174,6 +175,7 @@ namespace XSOverlayKeyboardIme.Host
         private bool StartTakeOver(KeyFeeder feeder)
         {
             string imeName = ImeProfile.ReadName();
+            _imeName = imeName;
             HostLog.Info("ime name: " + (imeName.Length == 0 ? "unreadable" : imeName));
 
             CompositionService service = new CompositionService(_window, _lease, feeder, OnCommitted, OnView, imeName);
@@ -210,6 +212,9 @@ namespace XSOverlayKeyboardIme.Host
 
             _pageMissingLogged = false;
             _page.Attach(page);
+
+            // The bar can show the IME name before the first key needs a composition.
+            _page.Show(page, CompositionView.Idle(_imeName));
         }
 
         private void OnHostMessage(uint message)
