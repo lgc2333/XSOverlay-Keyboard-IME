@@ -153,7 +153,7 @@ namespace XSOverlayKeyboardIme.Interop
         internal static extern bool ImmReleaseContext(IntPtr hwnd, IntPtr imc);
 
         [DllImport("imm32.dll", CharSet = CharSet.Unicode)]
-        internal static extern int ImmGetCompositionStringW(IntPtr imc, int index, StringBuilder buffer, int length);
+        internal static extern int ImmGetCompositionStringW(IntPtr imc, int index, IntPtr buffer, int length);
 
         [DllImport("msctf.dll")]
         internal static extern int TF_GetThreadMgr(out IntPtr threadMgr);
