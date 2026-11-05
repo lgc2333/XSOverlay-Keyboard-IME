@@ -1,0 +1,39 @@
+import antfu from '@antfu/eslint-config'
+import prettier from 'eslint-config-prettier'
+
+export default antfu(
+  {
+    // Only the injected keyboard page script is linted here.
+    ignores: ['node_modules/**', 'dist/**', 'pnpm-workspace.yaml'],
+    markdown: false,
+    react: false,
+    vue: false,
+  },
+  prettier,
+  {
+    rules: {
+      'antfu/consistent-chaining': 'off',
+      'antfu/consistent-list-newline': 'off',
+      'antfu/if-newline': 'off',
+      'antfu/reasonable-newline': 'off',
+
+      'jsdoc/require-param-description': 'off',
+      'jsdoc/require-property-description': 'off',
+      'jsdoc/require-returns-description': 'off',
+      'jsdoc/require-template-description': 'off',
+      'jsdoc/require-throws-description': 'off',
+      'jsdoc/require-yields-description': 'off',
+
+      'jsonc/comma-dangle': 'off',
+
+      'perfectionist/sort-imports': 'off',
+      'perfectionist/sort-named-imports': 'off',
+
+      'unicorn/prefer-dom-node-text-content': 'off',
+
+      'ts/no-redeclare': ['error', { ignoreDeclarationMerge: true }],
+
+      'yaml/plain-scalar': 'off',
+    },
+  },
+)

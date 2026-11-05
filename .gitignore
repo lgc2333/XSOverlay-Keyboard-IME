@@ -14,6 +14,10 @@ temp/
 # Local overrides
 Directory.Build.props.user
 
-# Agent skills
+# Local agent files
 .agents/skills/*
 AGENTS.local.md
+
+# Web
+node_modules/
+web/dist/
