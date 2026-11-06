@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: proposed
 supersedes: []
 superseded_by: []
 amends: []

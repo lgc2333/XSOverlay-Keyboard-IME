@@ -27,22 +27,56 @@ TBD
 
 ## Requirements
 
+### System and software versions
+
 - Windows 10 or later, 64-bit.
 - XSOverlay Beta 695. Other versions are untested.
 - BepInEx 5.4.23.6, x64. Other versions are untested.
+
+### IME
+
 - Only IMEs that implement TSF are supported. This repository is verified with Weasel (Rime for Windows).
-- The IME may need inline preedit on. Otherwise you see only the candidates, not the code you are typing. In testing, Weasel required it. In Weasel, set `style/inline_preedit: true` in `weasel.custom.yaml`.
+- The IME may need inline preedit on. Otherwise you see only the candidates, not the code you are typing.
+  - In testing, Weasel required it. In Weasel, set `style/inline_preedit: true` in `weasel.custom.yaml`.
 
 ## Installation
 
 TBD
 
-## Roadmap
+## Design trade-offs
 
-The next step improves the VRC ChatBox experience. The current version only shows the candidate bar on the keyboard page.
+The behaviours in this section look like faults. They are deliberate.
 
-- When the ChatBox button is on, the composing string and the candidates go to the ChatBox in real time, and stay in sync while you type.
-- When the input box gains focus, the plugin reports the typing state to VRChat. When focus leaves, it cancels the state.
+### Why the candidates cannot be clicked
+
+The candidate bar is display only. Clicking a candidate does nothing. The bar has no paging buttons and no page numbers.
+
+#### What to do instead
+
+Pick candidates and page with the keyboard. A physical keyboard and the keys on the keyboard page both work. Press them the way you already use your IME on a physical keyboard. The plugin only hands the keys to the IME, and the IME decides what they mean. Your IME's own key bindings apply. A key the keyboard page does not have cannot be pressed, so pick a key that is there.
+
+For example, the default keys of rime-frost, the scheme I use:
+
+- Number keys, Space: pick a candidate; `-`, `=`: page
+- `↑`, `↓`: move between candidates; `←`, `→`: move the caret in the composing string; `[`, `]`: pick by word; and so on.
+
+#### Why it is designed this way
+
+This trade-off is deliberate, to keep the code as clean as possible. The plugin aims to work with any IME through public APIs only, and does not add per-IME special cases for now. The cost of that choice shows up here.
+
+Clicking a candidate would make the plugin press keys for you. The same keys do different things in different IMEs: they may move the candidate, page, or do nothing at all. So the keys stay in your hands, and the IME interprets them as it always does.
+
+Page numbers are the same. The numbers an IME reports are unreliable, so the bar shows none rather than a wrong one.
+
+The bar is also only so wide. Candidates that do not fit stay hidden, so page to see them.
+
+### Why it only works in the input box on the keyboard page
+
+Composing means taking the foreground and pressing keys for you. Widen the scope and it reaches into other windows, which costs more than it gains. So the plugin takes the keys of the keyboard page's own input box only. Other input boxes in the game, the desktop and other applications are out of scope, and will stay out of scope.
+
+### Why the send button is grey while composing
+
+The composing string sits in the input box for a moment. The keyboard page enables send whenever the box is not empty, so the pinyin can go out without warning. The plugin therefore keeps send disabled while composing. It returns to normal once the text is committed or cancelled.
 
 ## Build
 
