@@ -1,6 +1,6 @@
 namespace XSOverlayKeyboardIme.Input
 {
-    /// <summary>Virtual-key codes this plugin feeds to the composition host.</summary>
+    /// <summary>Virtual-key codes this plugin feeds to the composition host or reads as held.</summary>
     internal enum VirtualKey : ushort
     {
         Back = 0x08,
@@ -19,5 +19,13 @@ namespace XSOverlayKeyboardIme.Input
         Right = 0x27,
         Down = 0x28,
         Delete = 0x2E,
+        LeftWin = 0x5B,
+        RightWin = 0x5C,
+        LeftShift = 0xA0,
+        RightShift = 0xA1,
+        LeftControl = 0xA2,
+        RightControl = 0xA3,
+        LeftAlt = 0xA4,
+        RightAlt = 0xA5,
     }
 }
