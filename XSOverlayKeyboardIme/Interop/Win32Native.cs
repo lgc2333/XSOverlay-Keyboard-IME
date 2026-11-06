@@ -30,9 +30,6 @@ namespace XSOverlayKeyboardIme.Interop
         internal const uint SemFailCriticalErrors = 0x0001;
         internal const uint SemNoOpenFileErrorBox = 0x8000;
 
-        internal const uint QsAllInput = 0x04FF;
-        internal const uint MwmoInputAvailable = 0x00000004;
-
         internal delegate IntPtr WndProcDelegate(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
@@ -83,15 +80,6 @@ namespace XSOverlayKeyboardIme.Interop
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         internal static extern bool PeekMessageW(out Msg message, IntPtr hwnd, uint min, uint max, uint remove);
-
-        [DllImport("user32.dll")]
-        internal static extern uint MsgWaitForMultipleObjectsEx(
-            uint count,
-            IntPtr handles,
-            uint milliseconds,
-            uint wakeMask,
-            uint flags
-        );
 
         [DllImport("user32.dll")]
         internal static extern bool TranslateMessage(ref Msg message);
@@ -152,9 +140,6 @@ namespace XSOverlayKeyboardIme.Interop
             ref Guid iid,
             out IntPtr instance
         );
-
-        [DllImport("msctf.dll")]
-        internal static extern int TF_GetThreadMgr(out IntPtr threadMgr);
 
         [StructLayout(LayoutKind.Sequential)]
         internal struct Msg

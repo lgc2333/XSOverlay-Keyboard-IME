@@ -7,31 +7,26 @@ namespace XSOverlayKeyboardIme.Ime
     /// <summary>
     /// One take-over session: from the first taken key to the commit that ends it. Keys
     /// go to the IME, which reports what it did with them; text it did not compose is
-    /// written back as it is typed. See ADR 0007, ADR 0008 and ADR 0025.
+    /// written back as it is typed. See ADR 0007, ADR 0008 and ADR 0026.
     /// </summary>
     internal sealed class CompositionSession
     {
-        private const int ModeConfirmMilliseconds = 500;
-
         private readonly ImeContext _ime;
         private readonly HostWindow _window;
         private readonly ForegroundLease _lease;
         private readonly KeyFeeder _feeder;
-        private readonly ImeCompartments _compartments;
         private readonly Action<string> _onCommitted;
         private readonly Action<CompositionView> _onView;
         private readonly InlinePreeditWatch _preeditWatch = new InlinePreeditWatch();
 
         private CompositionView _view;
         private bool _open;
-        private bool _flipLost;
 
         internal CompositionSession(
             ImeContext ime,
             HostWindow window,
             ForegroundLease lease,
             KeyFeeder feeder,
-            ImeCompartments compartments,
             string imeName,
             Action<string> onCommitted,
             Action<CompositionView> onView
@@ -41,7 +36,6 @@ namespace XSOverlayKeyboardIme.Ime
             _window = window;
             _lease = lease;
             _feeder = feeder;
-            _compartments = compartments;
             _onCommitted = onCommitted;
             _onView = onView;
             _view = CompositionView.Idle(imeName);
@@ -55,12 +49,6 @@ namespace XSOverlayKeyboardIme.Ime
         internal bool Composing
         {
             get { return _ime.Composing; }
-        }
-
-        /// <summary>Read on Unity's main thread: a session that has taken the keyboard.</summary>
-        internal bool Open
-        {
-            get { return _open; }
         }
 
         /// <summary>Publishes the idle view, so the bar is on the page before the first key.</summary>
@@ -86,88 +74,45 @@ namespace XSOverlayKeyboardIme.Ime
                 return;
             }
 
-            WriteThroughTyped();
-            if (_open && stroke.EndsComposition)
+            // A session covers exactly one composition, so it ends as soon as the IME holds
+            // none: the characters went back to the page, the key ended it, or it did
+            // nothing at all, as a cancel does. See ADR 0026.
+            if (WriteThroughTyped() || stroke.EndsComposition || !_ime.Composing)
             {
                 End();
             }
         }
 
+        /// <summary>Takes the foreground and opens the session. See ADR 0026.</summary>
         private void Begin()
         {
             _open = true;
             _lease.Acquire();
-            EnsureComposing();
         }
 
         /// <summary>
-        /// Keys reach the IME only while it composes, so the mode is read first: a user
-        /// who already types Chinese must not be flipped into English. See ADR 0025.
+        /// Hands over the characters the IME chose not to compose. While it composes it
+        /// keeps the keys, so the buffer belongs to no composition and is left alone.
         /// </summary>
-        private void EnsureComposing()
-        {
-            ImeMode mode = _ime.Mode;
-            if (mode == ImeMode.Composing)
-            {
-                return;
-            }
-
-            if (mode == ImeMode.Unknown)
-            {
-                HostLog.Warn("the IME reported no input mode; the keys may arrive as plain text");
-                return;
-            }
-
-            // The write is a flip, so repeating it after one that did not take would
-            // toggle the user's mode on every key. One failed attempt is enough.
-            if (_flipLost)
-            {
-                return;
-            }
-
-            if (_compartments == null || !_compartments.TryFlip())
-            {
-                HostLog.Warn("the IME passes keys through and the mode was not flipped");
-                return;
-            }
-
-            // The report is asynchronous, so the callback is what settles the question.
-            _window.PumpUntil(() => _ime.Mode != ImeMode.Passthrough, ModeConfirmMilliseconds);
-            if (_ime.Mode == ImeMode.Composing)
-            {
-                HostLog.Info("the IME composes after the flip");
-                return;
-            }
-
-            _flipLost = true;
-            HostLog.Warn("the IME still passes keys through after the flip; they arrive as plain text");
-        }
-
-        /// <summary>
-        /// Hands over the characters the IME let through. While it composes it keeps the
-        /// keys, so the buffer belongs to no composition and is left alone.
-        /// </summary>
-        private void WriteThroughTyped()
+        private bool WriteThroughTyped()
         {
             if (_ime.Composing)
             {
-                return;
+                return false;
             }
 
             string typed = _window.TakeTyped();
             if (typed.Length == 0)
             {
-                return;
+                return false;
             }
 
             HostLog.Info("the IME passed through '" + typed + "'");
             _onCommitted(typed);
+            return true;
         }
 
-        /// <summary>
-        /// Ends the session and hands the foreground back. The input mode is deliberately
-        /// left alone: the user keeps whatever the IME ended on. See ADR 0025.
-        /// </summary>
+        /// <summary>Ends the session and hands the foreground back.</summary>
         private void End()
         {
             if (!_open)

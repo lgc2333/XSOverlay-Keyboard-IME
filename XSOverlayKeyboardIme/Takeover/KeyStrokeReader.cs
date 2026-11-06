@@ -6,25 +6,23 @@ namespace XSOverlayKeyboardIme.Takeover
 {
     /// <summary>
     /// Turns one page key into strokes for the composition host, as far as the current
-    /// gate allows. See ADR 0007.
+    /// gate allows. See ADR 0007 and ADR 0026.
     /// </summary>
     internal static class KeyStrokeReader
     {
-        private static readonly string[] ModifierNames = { "LSHIFT", "RSHIFT" };
+        // The page names keys the way LSHIFT and RSHIFT are named, and its exact spelling is
+        // undocumented, so the families are matched by token. Only Shift is read, because the
+        // page already folded it into the character; a key carrying any other modifier is a
+        // combination the page interprets. See ADR 0026.
+        private static readonly string[] ShiftMarkers = { "SHIFT" };
+        private static readonly string[] CombinationMarkers = { "CTRL", "CONTROL", "ALT", "WIN", "META" };
 
         internal static bool TryRead(PageKey key, TakeoverGate gate, List<KeyStroke> strokes)
         {
             strokes.Clear();
-            if (!key.IsSinglePress)
+            if (!key.IsSinglePress || HasAnyMarker(key.Names, CombinationMarkers))
             {
                 return false;
-            }
-
-            // The IME is passing keys through, so the page keeps every key but the one
-            // that ends the session. See ADR 0025.
-            if (gate == TakeoverGate.Session)
-            {
-                return TryReadSubmitKey(key, strokes);
             }
 
             // The page already resolved the character, including the shift state. A space
@@ -41,18 +39,20 @@ namespace XSOverlayKeyboardIme.Takeover
                 return false;
             }
 
-            bool shift = HasShift(key.Names);
+            bool shift = HasAnyMarker(key.Names, ShiftMarkers);
             foreach (string name in key.Names)
             {
-                if (IsModifier(name))
+                if (HasMarker(name, ShiftMarkers))
                 {
                     continue;
                 }
 
                 if (!TryMapNamedKey(name, out VirtualKey mapped))
                 {
+                    // The IME composes, so the page must not edit the composer under it. A
+                    // name that cannot be translated is dropped instead of handed on.
                     strokes.Clear();
-                    return false;
+                    return true;
                 }
 
                 strokes.Add(KeyStroke.FromKey(mapped, shift));
@@ -67,32 +67,11 @@ namespace XSOverlayKeyboardIme.Takeover
             return strokes.Count > 0;
         }
 
-        /// <summary>Space and Enter end a session even when the IME composes nothing.</summary>
-        private static bool TryReadSubmitKey(PageKey key, List<KeyStroke> strokes)
-        {
-            if (key.Text == " ")
-            {
-                strokes.Add(KeyStroke.FromKey(VirtualKey.Space, false));
-                return true;
-            }
-
-            foreach (string name in key.Names)
-            {
-                if (string.Equals(name, "RETURN", StringComparison.OrdinalIgnoreCase))
-                {
-                    strokes.Add(KeyStroke.FromKey(VirtualKey.Return, false));
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private static bool HasShift(string[] names)
+        private static bool HasAnyMarker(string[] names, string[] markers)
         {
             foreach (string name in names)
             {
-                if (IsModifier(name))
+                if (HasMarker(name, markers))
                 {
                     return true;
                 }
@@ -101,11 +80,16 @@ namespace XSOverlayKeyboardIme.Takeover
             return false;
         }
 
-        private static bool IsModifier(string name)
+        private static bool HasMarker(string name, string[] markers)
         {
-            foreach (string modifier in ModifierNames)
+            if (name == null)
             {
-                if (string.Equals(name, modifier, StringComparison.OrdinalIgnoreCase))
+                return false;
+            }
+
+            foreach (string marker in markers)
+            {
+                if (name.Contains(marker, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }

@@ -8,10 +8,10 @@ XSOverlayKeyboardIme/              BepInEx 5 plugin
   MainThreadDispatcher.cs          any thread to Unity's main thread
   Game/                            everything that touches the game; Patches/ holds the four Harmony patches
   Takeover/                        decides which page keys the plugin owns; pure data, no game types
-  Ime/                             composition host: STA thread, hidden window, IME context, mode, feeding
+  Ime/                             composition host: STA thread, hidden window, IME context, feeding
   Page/                            injects the page script, writes committed text back, shows the composition
   Input/                           virtual-key codes
-  Interop/                         raw declarations: Win32, TSF, the native shim's P/Invoke
+  Interop/                         raw declarations: Win32, the IME name's TSF interface, the shim's P/Invoke
   Diagnostics/                     logging
 XSOverlayKeyboardIme.Tests/        unit tests; compile the dependency-free sources directly
 native/                            CMake build for IngameIME.dll
@@ -75,7 +75,7 @@ These come from probing the live game process. Breaking one costs a crash or a w
 - The game runs Unity 2022.3.62 on Mono x64. Keep `TargetFramework` at `netstandard2.1` or higher; Unity assemblies fail `CS1705` below it.
 - Reference the game's own `Managed/*.dll`. Stub packages from other Unity versions do not match the real API surface.
 - Do not edit the game's `StreamingAssets` without a backup and a documented restore path.
-- The IME's Chinese/English state belongs to the user: never switch it from code, and never trust a reported mode. See ADR 0025 for the signal to read and the gate it drives.
+- The IME's Chinese/English state belongs to the user: never switch it from code, and never read a mode. Route keys by whether the IME composes. See ADR 0026.
 - XSOverlay runs elevated even though Steam does not, so a normal shell cannot stop it and deploying over a running game fails on the locked `IngameIME.dll`. Stop it from the Steam client's library page instead: the Steam Client Service runs as `LocalSystem` and terminates the game for Steam.
 - Restart the game through Steam: `steam.exe -applaunch 1173510`. After the processes die, Steam keeps reporting the app as running, and an early launch fails with "the game is already running". Wait until `HKCU\Software\Valve\Steam\Apps\1173510` reports `Running` as 0, then launch.
 

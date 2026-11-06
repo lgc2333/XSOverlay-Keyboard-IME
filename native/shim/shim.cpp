@@ -17,7 +17,6 @@ using namespace IngameIME;
 typedef void(__cdecl* IimePreEditFn)(int state, int selStart, int selEnd, const char* content, void* user);
 typedef void(__cdecl* IimeCommitFn)(const char* text, void* user);
 typedef void(__cdecl* IimeCandidatesFn)(int state, int selection, const char* const* items, int count, void* user);
-typedef void(__cdecl* IimeModeFn)(int mode, void* user);
 
 #define IIME_API extern "C" __declspec(dllexport)
 
@@ -28,7 +27,6 @@ struct ShimContext
     IimePreEditFn   preedit    = nullptr;
     IimeCommitFn    commit     = nullptr;
     IimeCandidatesFn candidates = nullptr;
-    IimeModeFn      mode       = nullptr;
 };
 
 // Always the TSF backend in UI-less mode: the plugin draws the composing string
@@ -76,12 +74,6 @@ IIME_API void* __cdecl iime_create(void* hwnd)
                              static_cast<int>(items.size()), shim->user);
         });
 
-    shim->ctx->IngameIME::InputModeCallbackHolder::setCallback(
-        [shim](const InputMode mode)
-        {
-            if (shim->mode) shim->mode(static_cast<int>(mode), shim->user);
-        });
-
     return shim;
 }
 
@@ -96,31 +88,23 @@ IIME_API void __cdecl iime_destroy(void* handle)
 }
 
 IIME_API void __cdecl iime_set_callbacks(void* handle, IimePreEditFn preedit, IimeCommitFn commit,
-                                         IimeCandidatesFn candidates, IimeModeFn mode, void* user)
+                                         IimeCandidatesFn candidates, void* user)
 {
     auto* shim = static_cast<ShimContext*>(handle);
     if (!shim) return;
     shim->preedit    = preedit;
     shim->commit     = commit;
     shim->candidates = candidates;
-    shim->mode       = mode;
     shim->user       = user;
 }
 
 // The context starts out attached to an empty document, so the IME composes
-// nothing until activation. Activation also reports the current mode.
+// nothing until activation. The plugin never asks for the input mode: what a key
+// does is the IME's answer, reported through the callbacks. See ADR 0026.
 IIME_API void __cdecl iime_set_activated(void* handle, int activated)
 {
     auto* shim = static_cast<ShimContext*>(handle);
     if (shim) shim->ctx->setActivated(activated != 0);
-}
-
-// AlphaNumeric is 0 and Native is 1. Which one composes is a property of the
-// IME, not of the enum name; the plugin maps it. See ADR 0025.
-IIME_API int __cdecl iime_get_mode(void* handle)
-{
-    auto* shim = static_cast<ShimContext*>(handle);
-    return shim ? static_cast<int>(shim->ctx->getInputMode()) : -1;
 }
 
 // Where the IME would place its own windows, in window coordinates. The host

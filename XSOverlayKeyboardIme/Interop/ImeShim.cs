@@ -23,8 +23,6 @@ namespace XSOverlayKeyboardIme.Interop
 
         internal delegate void CandidatesCallback(int state, int selection, IntPtr items, int count, IntPtr user);
 
-        internal delegate void ModeCallback(int mode, IntPtr user);
-
         [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
         internal static extern IntPtr iime_create(IntPtr window);
 
@@ -37,15 +35,11 @@ namespace XSOverlayKeyboardIme.Interop
             PreEditCallback preedit,
             CommitCallback commit,
             CandidatesCallback candidates,
-            ModeCallback mode,
             IntPtr user
         );
 
         [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
         internal static extern void iime_set_activated(IntPtr handle, int activated);
-
-        [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern int iime_get_mode(IntPtr handle);
 
         [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
         internal static extern void iime_set_preedit_rect(IntPtr handle, int x, int y, int width, int height);

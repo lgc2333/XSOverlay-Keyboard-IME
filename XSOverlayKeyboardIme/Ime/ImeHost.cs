@@ -27,7 +27,6 @@ namespace XSOverlayKeyboardIme.Ime
         private volatile CompositionSession _session;
         private ForegroundLease _lease;
         private ImeContext _ime;
-        private ImeCompartments _compartments;
         private bool _drainingStrokes;
         private int _finished;
 
@@ -65,10 +64,7 @@ namespace XSOverlayKeyboardIme.Ime
                 return false;
             }
 
-            TakeoverGate gate =
-                session.Composing ? TakeoverGate.Composing
-                : session.Open ? TakeoverGate.Session
-                : TakeoverGate.Idle;
+            TakeoverGate gate = session.Composing ? TakeoverGate.Composing : TakeoverGate.Idle;
 
             var strokes = new List<KeyStroke>(4);
             if (!KeyStrokeReader.TryRead(key, gate, strokes))
@@ -115,22 +111,11 @@ namespace XSOverlayKeyboardIme.Ime
                     return;
                 }
 
-                _compartments = ImeCompartments.Open();
-
                 string imeName = ImeName.Read();
                 HostLog.Info("ime name: " + (imeName.Length == 0 ? "unreadable" : imeName));
 
                 var feeder = new KeyFeeder(_window, _lease);
-                var session = new CompositionSession(
-                    _ime,
-                    _window,
-                    _lease,
-                    feeder,
-                    _compartments,
-                    imeName,
-                    _onCommitted,
-                    _onView
-                );
+                var session = new CompositionSession(_ime, _window, _lease, feeder, imeName, _onCommitted, _onView);
                 session.Start();
                 _session = session;
 
@@ -198,12 +183,6 @@ namespace XSOverlayKeyboardIme.Ime
             {
                 _ime.Dispose();
                 _ime = null;
-            }
-
-            if (_compartments != null)
-            {
-                _compartments.Dispose();
-                _compartments = null;
             }
 
             if (_lease != null)

@@ -12,6 +12,8 @@ namespace XSOverlayKeyboardIme.Tests
         private static readonly string[] UnknownName = { "F13" };
         private static readonly string[] ShiftedTab = { "LSHIFT", "TAB" };
         private static readonly string[] CharacterName = { "N" };
+        private static readonly string[] ControlName = { "LCTRL" };
+        private static readonly string[] ShiftName = { "LSHIFT" };
 
         private static bool Read(PageKey key, TakeoverGate gate, out List<KeyStroke> strokes)
         {
@@ -94,33 +96,38 @@ namespace XSOverlayKeyboardIme.Tests
         }
 
         [Fact]
-        public void Composing_refuses_an_unknown_named_key()
+        public void Composing_swallows_an_unknown_named_key()
         {
-            Assert.False(ReadNamed(UnknownName, TakeoverGate.Composing, out List<KeyStroke> strokes));
-
-            // Nothing half-read is handed on.
+            // The page must not edit the composer while a composition holds it. See ADR 0026.
+            Assert.True(ReadNamed(UnknownName, TakeoverGate.Composing, out List<KeyStroke> strokes));
             Assert.Empty(strokes);
         }
 
         [Fact]
-        public void A_passthrough_session_takes_only_the_submit_key()
+        public void Idle_leaves_an_unknown_named_key_with_the_page()
         {
-            // The page keeps the characters, so no key costs a foreground grab.
-            Assert.False(ReadText("n", TakeoverGate.Session, out List<KeyStroke> typed));
-            Assert.Empty(typed);
-            Assert.False(ReadNamed(BackName, TakeoverGate.Session, out List<KeyStroke> back));
-            Assert.Empty(back);
-
-            Assert.True(ReadText(" ", TakeoverGate.Session, out List<KeyStroke> space));
-            Assert.True(Assert.Single(space).EndsComposition);
-            Assert.Equal(VirtualKey.Space, space[0].Key);
+            Assert.False(ReadNamed(UnknownName, TakeoverGate.Idle, out List<KeyStroke> strokes));
+            Assert.Empty(strokes);
         }
 
         [Fact]
-        public void A_passthrough_session_ends_on_return_too()
+        public void A_foreign_modifier_stays_with_the_page()
         {
-            Assert.True(ReadNamed(ReturnName, TakeoverGate.Session, out List<KeyStroke> strokes));
-            Assert.Equal(VirtualKey.Return, Assert.Single(strokes).Key);
+            // Only Shift is read, because the page already folded it into the character.
+            // Every other combination belongs to the page. See ADR 0026.
+            var key = new PageKey(true, ControlName, "a");
+            var strokes = new List<KeyStroke>();
+
+            Assert.False(KeyStrokeReader.TryRead(key, TakeoverGate.Composing, strokes));
+            Assert.Empty(strokes);
+        }
+
+        [Fact]
+        public void A_shifted_character_still_starts_a_session()
+        {
+            var key = new PageKey(true, ShiftName, "N");
+
+            Assert.True(KeyStrokeReader.TryRead(key, TakeoverGate.Idle, new List<KeyStroke>()));
         }
 
         [Fact]

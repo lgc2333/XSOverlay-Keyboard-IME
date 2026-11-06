@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using System.Threading;
 using XSOverlayKeyboardIme.Diagnostics;
 using XSOverlayKeyboardIme.Input;
 using XSOverlayKeyboardIme.Interop;
@@ -14,7 +13,6 @@ namespace XSOverlayKeyboardIme.Ime
     /// </summary>
     internal sealed class KeyFeeder
     {
-        private const int StrokePauseMilliseconds = 120;
         private readonly HostWindow _window;
         private readonly ForegroundLease _lease;
 
@@ -82,8 +80,9 @@ namespace XSOverlayKeyboardIme.Ime
                 strokes.Add(KeyInput.Create(VirtualKey.Shift, Win32Native.KeyEventKeyUp));
             }
 
+            // No pause after the send. The caller drains this thread's key messages, and the
+            // IME answers on this thread while they are dispatched. See ADR 0026.
             uint sent = Win32Native.SendInput((uint)strokes.Count, strokes.ToArray(), Marshal.SizeOf<NativeInput>());
-            Thread.Sleep(StrokePauseMilliseconds);
 
             if (sent != strokes.Count)
             {

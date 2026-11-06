@@ -8,8 +8,8 @@ namespace XSOverlayKeyboardIme.Ime
 {
     /// <summary>
     /// One UI-less input context from IngameIME. It reports the composing string, the
-    /// candidates, the committed text and the input mode as callbacks, all on the thread
-    /// that created it. See ADR 0022 and ADR 0024.
+    /// candidates and the committed text as callbacks, all on the thread that created it.
+    /// See ADR 0022 and ADR 0024.
     /// </summary>
     internal sealed class ImeContext : IDisposable
     {
@@ -30,13 +30,11 @@ namespace XSOverlayKeyboardIme.Ime
         private static readonly ImeShim.PreEditCallback PreEditRef = OnPreEdit;
         private static readonly ImeShim.CommitCallback CommitRef = OnCommit;
         private static readonly ImeShim.CandidatesCallback CandidatesRef = OnCandidates;
-        private static readonly ImeShim.ModeCallback ModeRef = OnMode;
 
         /// <summary>The context the callbacks reach. Exactly one exists per process.</summary>
         private static ImeContext _current;
 
         private readonly IntPtr _handle;
-        private volatile ImeMode _mode;
         private volatile bool _composing;
         private bool _disposed;
 
@@ -48,13 +46,12 @@ namespace XSOverlayKeyboardIme.Ime
                 throw new InvalidOperationException("IngameIME refused to create an input context");
             }
 
-            // The callbacks come first: activation reports the mode through them.
+            // Register the callbacks before activation, so nothing is missed.
             _current = this;
             ImeShim.iime_set_preedit_rect(_handle, PreEditRectX, PreEditRectY, PreEditRectSize, PreEditRectSize);
-            ImeShim.iime_set_callbacks(_handle, PreEditRef, CommitRef, CandidatesRef, ModeRef, IntPtr.Zero);
-            _mode = ImeModeMap.FromShim(ImeShim.iime_get_mode(_handle));
+            ImeShim.iime_set_callbacks(_handle, PreEditRef, CommitRef, CandidatesRef, IntPtr.Zero);
             ImeShim.iime_set_activated(_handle, 1);
-            HostLog.Info("ime context ready, mode " + _mode);
+            HostLog.Info("ime context ready");
         }
 
         /// <summary>Raised with the composing string, empty when the IME holds none.</summary>
@@ -64,11 +61,6 @@ namespace XSOverlayKeyboardIme.Ime
         internal event Action<string[], int> CandidatesChanged;
 
         internal event Action<string> Committed;
-
-        internal ImeMode Mode
-        {
-            get { return _mode; }
-        }
 
         /// <summary>True between the composition starting and the text being committed.</summary>
         internal bool Composing
@@ -127,13 +119,6 @@ namespace XSOverlayKeyboardIme.Ime
             }
         }
 
-        private void HandleMode(int value)
-        {
-            ImeMode mode = ImeModeMap.FromShim(value);
-            _mode = mode;
-            HostLog.Info("ime mode " + mode);
-        }
-
         /// <summary>
         /// Runs a callback body. An exception must never cross the native boundary: it
         /// would end the process with STATUS_FATAL_USER_CALLBACK_EXCEPTION. See ADR 0024.
@@ -167,11 +152,6 @@ namespace XSOverlayKeyboardIme.Ime
         private static void OnCandidates(int state, int selection, IntPtr items, int count, IntPtr user)
         {
             Guard("candidate", context => context.HandleCandidates(state, selection, items, count));
-        }
-
-        private static void OnMode(int mode, IntPtr user)
-        {
-            Guard("mode", context => context.HandleMode(mode));
         }
 
         private static string[] ReadItems(IntPtr items, int count)

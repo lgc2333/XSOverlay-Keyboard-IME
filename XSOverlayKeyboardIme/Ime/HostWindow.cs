@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using XSOverlayKeyboardIme.Diagnostics;
@@ -63,38 +62,6 @@ namespace XSOverlayKeyboardIme.Ime
             }
 
             return result;
-        }
-
-        /// <summary>
-        /// Dispatches messages until the condition holds or the timeout expires. The IME
-        /// answers on this thread's queue, so waiting for it means pumping that queue,
-        /// and the wait sleeps until a message arrives rather than on a timer. See ADR 0005.
-        /// </summary>
-        internal bool PumpUntil(Func<bool> done, int timeoutMilliseconds)
-        {
-            var elapsed = Stopwatch.StartNew();
-            while (true)
-            {
-                DrainMessages(0, 0);
-                if (done())
-                {
-                    return true;
-                }
-
-                int remaining = timeoutMilliseconds - (int)elapsed.ElapsedMilliseconds;
-                if (remaining <= 0)
-                {
-                    return false;
-                }
-
-                Win32Native.MsgWaitForMultipleObjectsEx(
-                    0,
-                    IntPtr.Zero,
-                    (uint)remaining,
-                    Win32Native.QsAllInput,
-                    Win32Native.MwmoInputAvailable
-                );
-            }
         }
 
         /// <summary>
