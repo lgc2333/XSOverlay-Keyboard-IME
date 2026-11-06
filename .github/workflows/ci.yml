@@ -40,4 +40,45 @@ jobs:
           node-version: '24'
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
-      - run: pnpx prettier --check "**/*.{md,json,yaml,yml,toml}"
+      - run: pnpm --dir web install --frozen-lockfile
+      # Prettier is pinned in web/. The run starts at the repo root, so the root
+      # .prettierignore keeps the submodules and temp/ out of the check.
+      - run: node web/node_modules/prettier/bin/prettier.cjs --check "**/*.{md,json,yaml,yml,toml,css}"
+
+  analyze:
+    name: Static analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      # Analyzers only report on a project that compiles, and the plugin cannot
+      # compile without the game installed. The test project compiles the portable
+      # sources, so it carries the C# analysis here.
+      - run: dotnet format analyzers XSOverlayKeyboardIme.Tests/XSOverlayKeyboardIme.Tests.csproj --verify-no-changes --severity info
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: '11'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm --dir web install --frozen-lockfile
+      - run: pnpm --dir web typecheck
+      - run: pnpm --dir web lint
+      # The plugin embeds this bundle, so a broken build must fail here.
+      - run: pnpm --dir web build
+
+  native:
+    name: Native library
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Top-level submodules only: IngameIME_Win32 reaches its own copy of
+          # IngameIME-Common through an SSH URL, and the build uses the sibling.
+          submodules: true
+      - run: pwsh native/build.ps1 -Configuration Release

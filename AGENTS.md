@@ -69,6 +69,8 @@ pnpm --dir web build
 - CSharpier is a pinned local tool. Run `dotnet tool restore` once after cloning, and after any change to `.config/dotnet-tools.json`.
 - The game path defaults to `D:\SteamLibrary\steamapps\common\XSOverlay_Beta`. Override it with `-p:GameDir=<path>`.
 - Logs land in the game folder at `BepInEx\LogOutput.log`.
+- CI runs the unit tests, CSharpier, Prettier, the analyzers over the test project, the page script checks and the native build.
+  It never builds the plugin: that needs the game's Managed assemblies, which stay on this machine.
 
 ## Runtime constraints
 
