@@ -31,7 +31,7 @@
 - [0022](../adr/0022-ingameime-host.md)：组字宿主改用 IngameIME。组字串、候选、提交、模式全部走回调；不再实现任何 TSF 接口，也不再读 IMM。
 - [0023](../adr/0023-dynamic-link-shim.md)：上游仓库作子模块，构建动态库，再套一层自有的 C 薄壳。动态链接是 LGPL 2.1 的要求；薄壳隔离 C++ ABI。
 - [0024](../adr/0024-managed-delegate-callbacks.md)：原生回调改用托管委托函数指针。回调里抛异常会以 `STATUS_FATAL_USER_CALLBACK_EXCEPTION` 直接杀进程。
-- [0025](../adr/0025-mode-flip-on-demand.md)：组字前读模式，只在读到直通时翻转一次，写与当前值相反的值，结束不还原。
+- [0025](../adr/0025-respect-ime-mode.md)：组字前读模式，只在读到直通时翻转一次，写与当前值相反的值，结束不还原。
 
 ## 目录重组
 

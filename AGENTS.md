@@ -75,8 +75,8 @@ These come from probing the live game process. Breaking one costs a crash or a w
 - The game runs Unity 2022.3.62 on Mono x64. Keep `TargetFramework` at `netstandard2.1` or higher; Unity assemblies fail `CS1705` below it.
 - Reference the game's own `Managed/*.dll`. Stub packages from other Unity versions do not match the real API surface.
 - Do not edit the game's `StreamingAssets` without a backup and a documented restore path.
-- The IME reports its mode as `AlphaNumeric` (0) when keys compose and `Native` (1) when they pass through as plain text. The names run backwards; do not infer the mode from them. See ADR 0025.
-- The IME reports a mode change asynchronously, so a read right after a change still holds the old value. Wait for the callback before deciding.
+- The IME's Chinese/English state belongs to the user: never switch it from code, and never trust a reported mode. See ADR 0025 for the signal to read and the gate it drives.
+- XSOverlay runs elevated even though Steam does not, so a normal shell cannot stop it and deploying over a running game fails on the locked `IngameIME.dll`. Stop it from the Steam client's library page instead: the Steam Client Service runs as `LocalSystem` and terminates the game for Steam.
 - Restart the game through Steam: `steam.exe -applaunch 1173510`. After the processes die, Steam keeps reporting the app as running, and an early launch fails with "the game is already running". Wait until `HKCU\Software\Valve\Steam\Apps\1173510` reports `Running` as 0, then launch.
 
 ## Rules
@@ -92,6 +92,7 @@ The Rules section introduced some skills. If some skill is missing, please ask u
 - Weigh every decision for whether it deserves an ADR, and ask the user before taking it: state the choice, the alternatives, and your ADR verdict, then wait for the answer. Nothing gets decided silently.
 - Follow the `domain-modeling` skill for both.
 
+- `AGENTS.md` carries constraints and pointers only; reasoning an ADR already records stays in the ADR.
 - `docs/handoffs/` records what one session discussed at that time. It is archived history, not current truth: a handoff may be out of date, and a later ADR or a later document overrides it.
 
 - Do not modify old ADRs (excluding their front-matter) unless user explicitly asks.
