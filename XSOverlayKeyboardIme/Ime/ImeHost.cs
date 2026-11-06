@@ -17,23 +17,35 @@ namespace XSOverlayKeyboardIme.Ime
         /// <summary>XSOverlay finishes starting after the plugin, and steals the foreground while it does.</summary>
         private const int StartupSettleMilliseconds = 8000;
 
+        /// <summary>How often the language bar icon is read, so a change reaches the page.</summary>
+        private const uint SwitchIconPollMilliseconds = 400;
+
         private static ImeHost _current;
 
         private readonly ConcurrentQueue<KeyStroke> _strokes = new ConcurrentQueue<KeyStroke>();
         private readonly Action<string> _onCommitted;
         private readonly Action<CompositionView> _onView;
+        private readonly Action<LanguageBarIcon> _onLanguageBarIcon;
 
         private volatile HostWindow _window;
         private volatile CompositionSession _session;
+        private LanguageBarButton _languageBar;
         private ForegroundLease _lease;
         private ImeContext _ime;
+        private string _switchIconKey;
+        private bool _iconMissing;
         private volatile bool _drainingStrokes;
         private int _finished;
 
-        private ImeHost(Action<string> onCommitted, Action<CompositionView> onView)
+        private ImeHost(
+            Action<string> onCommitted,
+            Action<CompositionView> onView,
+            Action<LanguageBarIcon> onLanguageBarIcon
+        )
         {
             _onCommitted = onCommitted;
             _onView = onView;
+            _onLanguageBarIcon = onLanguageBarIcon;
         }
 
         internal static ImeHost Current
@@ -41,9 +53,13 @@ namespace XSOverlayKeyboardIme.Ime
             get { return _current; }
         }
 
-        internal static void Start(Action<string> onCommitted, Action<CompositionView> onView)
+        internal static void Start(
+            Action<string> onCommitted,
+            Action<CompositionView> onView,
+            Action<LanguageBarIcon> onLanguageBarIcon
+        )
         {
-            var host = new ImeHost(onCommitted, onView);
+            var host = new ImeHost(onCommitted, onView, onLanguageBarIcon);
             _current = host;
 
             var thread = new Thread(host.Run) { IsBackground = true, Name = "XSOverlayKeyboardIme" };
@@ -85,6 +101,19 @@ namespace XSOverlayKeyboardIme.Ime
             return true;
         }
 
+        /// <summary>
+        /// Asks the IME to switch through its own language bar button. Called on Unity's
+        /// main thread; the press itself happens on the host thread. See ADR 0028.
+        /// </summary>
+        internal void RequestSwitch()
+        {
+            HostWindow window = _window;
+            if (window != null)
+            {
+                window.Post(HostWindow.SwitchMessage);
+            }
+        }
+
         private void Run()
         {
             try
@@ -123,6 +152,12 @@ namespace XSOverlayKeyboardIme.Ime
                 session.Start();
                 _session = session;
 
+                // The IME adds its language bar item when it first activates, which happens
+                // after the host starts, so the button is looked up again on every poll.
+                _languageBar = LanguageBarButton.Open();
+                PublishSwitchIcon();
+                _window.StartTimer(SwitchIconPollMilliseconds);
+
                 HostLog.Info("take-over ready; keys are taken from the keyboard composer");
                 _window.PumpMessages();
             }
@@ -142,7 +177,57 @@ namespace XSOverlayKeyboardIme.Ime
             if (message == HostWindow.StrokeMessage)
             {
                 DrainStrokes();
+                return;
             }
+
+            if (message == HostWindow.PollMessage)
+            {
+                if (_languageBar == null)
+                {
+                    _languageBar = LanguageBarButton.Open();
+                }
+
+                PublishSwitchIcon();
+                return;
+            }
+
+            if (message == HostWindow.SwitchMessage)
+            {
+                if (_languageBar != null && _languageBar.Click())
+                {
+                    PublishSwitchIcon();
+                }
+            }
+        }
+
+        /// <summary>Shows the page the current icon, and only when the picture changed.</summary>
+        private void PublishSwitchIcon()
+        {
+            LanguageBarButton languageBar = _languageBar;
+            if (languageBar == null)
+            {
+                return;
+            }
+
+            LanguageBarIcon icon = languageBar.ReadIcon();
+            if (icon == null)
+            {
+                if (!_iconMissing)
+                {
+                    _iconMissing = true;
+                    HostLog.Info("the language bar item draws no icon; the switch shows its fallback");
+                }
+
+                return;
+            }
+
+            if (icon.Key == _switchIconKey)
+            {
+                return;
+            }
+
+            _switchIconKey = icon.Key;
+            _onLanguageBarIcon(icon);
         }
 
         /// <summary>
@@ -181,6 +266,12 @@ namespace XSOverlayKeyboardIme.Ime
             if (Interlocked.Exchange(ref _finished, 1) != 0)
             {
                 return;
+            }
+
+            if (_languageBar != null)
+            {
+                _languageBar.Dispose();
+                _languageBar = null;
             }
 
             if (_ime != null)

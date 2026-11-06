@@ -1,7 +1,7 @@
 ---
-status: proposed
+status: superseded
 supersedes: []
-superseded_by: []
+superseded_by: ['0028']
 amends: []
 amended_by: []
 ---

@@ -8,6 +8,9 @@ await build({
   bundle: true,
   format: 'esm',
   target: 'chrome120',
+  // The bar keeps its rules in a stylesheet, and the injected page has no asset host,
+  // so the stylesheet travels as text inside the bundle. See ADR 0028.
+  loader: { '.css': 'text' },
   legalComments: 'none',
   outfile,
 })

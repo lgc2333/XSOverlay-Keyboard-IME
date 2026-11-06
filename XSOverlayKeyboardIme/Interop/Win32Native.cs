@@ -11,6 +11,7 @@ namespace XSOverlayKeyboardIme.Interop
         internal const uint WmClose = 0x0010;
         internal const uint WmChar = 0x0102;
         internal const uint WmApp = 0x8000;
+        internal const uint WmTimer = 0x0113;
         internal const uint WmKeyFirst = 0x0100;
         internal const uint WmKeyLast = 0x0109;
 
@@ -91,6 +92,12 @@ namespace XSOverlayKeyboardIme.Interop
         internal static extern bool PostMessageW(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
 
         [DllImport("user32.dll")]
+        internal static extern IntPtr SetTimer(IntPtr hwnd, IntPtr id, uint interval, IntPtr procedure);
+
+        [DllImport("user32.dll")]
+        internal static extern bool KillTimer(IntPtr hwnd, IntPtr id);
+
+        [DllImport("user32.dll")]
         internal static extern void PostQuitMessage(int code);
 
         [DllImport("user32.dll")]
@@ -131,6 +138,13 @@ namespace XSOverlayKeyboardIme.Interop
 
         [DllImport("ole32.dll")]
         internal static extern void CoUninitialize();
+
+        /// <summary>
+        /// The TSF thread manager for the calling thread, created on first use. The plugin
+        /// only reads the language bar out of it. See ADR 0028.
+        /// </summary>
+        [DllImport("msctf.dll")]
+        internal static extern int TF_GetThreadMgr(out IntPtr threadManager);
 
         [DllImport("ole32.dll")]
         internal static extern int CoCreateInstance(

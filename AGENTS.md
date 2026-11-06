@@ -8,21 +8,23 @@ XSOverlayKeyboardIme/              BepInEx 5 plugin
   MainThreadDispatcher.cs          any thread to Unity's main thread
   Game/                            everything that touches the game; Patches/ holds the four Harmony patches
   Takeover/                        decides which page keys the plugin owns; pure data, no game types
-  Ime/                             composition host: STA thread, hidden window, IME context, feeding
-  Page/                            injects the page script, writes committed text back, shows the composition
+  Ime/                             composition host: STA thread, hidden window, IME context, feeding, the IME's language bar button
+  Page/                            injects the page script, writes committed text back, shows the composition and the switch icon
   Input/                           virtual-key codes
-  Interop/                         raw declarations: Win32, the IME name's TSF interface, the shim's P/Invoke
+  Interop/                         raw declarations: Win32, GDI, the TSF interfaces (IME name, language bar), the shim's P/Invoke
   Diagnostics/                     logging
 XSOverlayKeyboardIme.Tests/        unit tests; compile the dependency-free sources directly
 native/                            CMake build for IngameIME.dll
   IngameIME_Win32/                 submodule; the upstream TSF implementation
   IngameIME-Common/                submodule; the upstream public header
   shim/shim.cpp                    the C ABI the plugin calls; LGPL, built into that library
-web/                               keyboard page script; TypeScript, bundled for injection
+web/                               keyboard page script; TypeScript and one stylesheet, bundled for injection
 Directory.Build.props              shared compile settings
 Directory.Build.targets            optional deploy target
-docs/adr/                          one file per decision, numbered
-docs/handoffs/                     dated session handoffs, one file per session
+docs/                              folder for public docs
+  adr/                             one file per decision, numbered
+  handoffs/                        archived dated session handoffs, one file per session
+  ROADMAP.md                       temp roadmap note, will delete when v1 complete
 CONTEXT.md                         domain glossary
 temp/                              local scratch and probe projects; git-ignored
 ```
@@ -50,7 +52,7 @@ dotnet csharpier format .
 dotnet csharpier check .
 
 # verify markdown and structured data formatting without writing
-node web/node_modules/prettier/bin/prettier.cjs --check "**/*.{md,json,yaml,yml,toml}"
+node web/node_modules/prettier/bin/prettier.cjs --check "**/*.{md,json,yaml,yml,toml,css}"
 
 # run the C# analyzers over the solution without writing
 dotnet format analyzers --verify-no-changes --severity info
@@ -101,12 +103,16 @@ The Rules section introduced some skills. If some skill is missing, please ask u
 
 ### Code Flavor Rules
 
-- One formatter per file type. `CSharpier` formats C# and msbuild XML (`*.cs`, `*.csproj`, `*.props`, `*.targets`, `*.slnx`); `prettier` formats markdown and structured data (`*.{md,json,yaml,toml}`).
+- One formatter per file type. `CSharpier` formats C# and msbuild XML (`*.cs`, `*.csproj`, `*.props`, `*.targets`, `*.slnx`); `prettier` formats markdown, structured data and the page stylesheet (`*.{md,json,yaml,toml,css}`).
 - Never run `dotnet format` barely, it would revert CSharpier's change. Its only role here is `dotnet format analyzers`.
 - If Prettier conflicts with an ESLint rule, turn off that rule, keep Prettier's change.
 
 - Docstrings stay short: the key point, nothing else. What an ADR already reasons through is not repeated in code — link the ADR instead.
 - Keep `Takeover/` free of game types: the test project compiles it directly, so one XSOverlay or Unity type breaks the whole test build.
+
+### Function Design Rules
+
+- The plugin aims to work with any IME through public APIs (e.g. TSF) only, and does not add per-IME special cases for now. Do not over-engineer, and do not focus excessively on adapting to specific IMEs.
 
 ## Commit
 

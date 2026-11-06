@@ -3,7 +3,7 @@ status: accepted
 supersedes: []
 superseded_by: []
 amends: ['0010']
-amended_by: []
+amended_by: ['0028']
 ---
 
 # 候选栏只显示，点选与翻页交给键盘按键

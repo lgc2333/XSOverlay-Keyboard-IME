@@ -19,8 +19,21 @@ namespace XSOverlayKeyboardIme.Page
         private static bool _confirmed;
         private static bool _missingLogged;
 
+        /// <summary>Raised when the page's switch button is pressed. Set by the root.</summary>
+        internal static Action SwitchRequested;
+
         /// <summary>What the bar shows right now, replayed onto a page that appears later.</summary>
         private static CompositionView _view = CompositionView.Idle(string.Empty);
+
+        /// <summary>The IME's input-mode icon, replayed onto a page that appears later.</summary>
+        private static LanguageBarIcon _switchIcon;
+
+        /// <summary>Shows the IME's input-mode icon, the one the page's switch button draws.</summary>
+        internal static void ShowSwitchIcon(LanguageBarIcon icon)
+        {
+            _switchIcon = icon;
+            Attach();
+        }
 
         /// <summary>Shows a composition or the idle bar, and remembers it for a later page.</summary>
         internal static void Show(CompositionView view)
@@ -42,6 +55,7 @@ namespace XSOverlayKeyboardIme.Page
             }
 
             ShowBar(page, _view);
+            PushSwitchIcon(page);
         }
 
         /// <summary>Writes committed text into the composer. See ADR 0008.</summary>
@@ -146,6 +160,28 @@ namespace XSOverlayKeyboardIme.Page
             );
         }
 
+        private static void PushSwitchIcon(IWebView page)
+        {
+            LanguageBarIcon icon = _switchIcon;
+            if (icon == null)
+            {
+                return;
+            }
+
+            Call(
+                page,
+                "input mode",
+                CallVoid("showSwitchIcon", SwitchIconPayload.Build(icon)),
+                outcome =>
+                {
+                    if (outcome != "ok")
+                    {
+                        HostLog.Warn("the input-mode icon did not reach the page: " + outcome);
+                    }
+                }
+            );
+        }
+
         private static void ShowBar(IWebView page, CompositionView view)
         {
             Call(
@@ -218,11 +254,27 @@ namespace XSOverlayKeyboardIme.Page
             page.MessageEmitted += _messageHandler;
         }
 
-        /// <summary>The page reports that the bundle runs; nothing else travels this way.</summary>
         private static void OnMessage(object sender, EventArgs<string> args)
         {
+            string message = args.Value;
+            if (message == PageScript.SwitchMessage)
+            {
+                OnSwitchRequested();
+                return;
+            }
+
             _confirmed = true;
-            HostLog.Info("page message: " + args.Value);
+            HostLog.Info("page message: " + message);
+        }
+
+        /// <summary>The page's switch was pressed; the root presses the IME's button.</summary>
+        private static void OnSwitchRequested()
+        {
+            Action switchRequested = SwitchRequested;
+            if (switchRequested != null)
+            {
+                switchRequested();
+            }
         }
     }
 }

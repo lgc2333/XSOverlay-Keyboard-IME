@@ -1,5 +1,5 @@
 import type { insertText } from './composer'
-import type { CompositionView } from './ime-view'
+import type { CompositionView, SwitchIconView } from './ime-view'
 
 declare global {
   interface Window {
@@ -17,6 +17,7 @@ interface VuplexHost {
 interface KeyboardPageApi {
   insertText: typeof insertText
   showComposition: (view: CompositionView) => void
+  showSwitchIcon: (view: SwitchIconView | null) => void
 }
 
 export {}

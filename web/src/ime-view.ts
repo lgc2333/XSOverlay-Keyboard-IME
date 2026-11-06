@@ -8,3 +8,13 @@ export interface CompositionView {
   selected: number
   ime: string
 }
+
+/**
+ * The IME's input-mode icon as the plugin read it: straight RGBA, base64 encoded, at
+ * the size the language bar draws it. The switch button scales it up itself.
+ */
+export interface SwitchIconView {
+  width: number
+  height: number
+  rgba: string
+}

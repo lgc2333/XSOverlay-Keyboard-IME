@@ -91,9 +91,19 @@ namespace XSOverlayKeyboardIme
             HostLog.Info("patched " + typeof(XSOverlay.InputManager).FullName + "; keys and frame pump are ours");
 
             // The root wires the host to the page, so neither layer knows the other.
+            KeyboardPage.SwitchRequested = () =>
+            {
+                ImeHost host = ImeHost.Current;
+                if (host != null)
+                {
+                    host.RequestSwitch();
+                }
+            };
+
             ImeHost.Start(
                 text => MainThreadDispatcher.Post(() => KeyboardPage.WriteBack(text)),
-                view => MainThreadDispatcher.Post(() => KeyboardPage.Show(view))
+                view => MainThreadDispatcher.Post(() => KeyboardPage.Show(view)),
+                icon => MainThreadDispatcher.Post(() => KeyboardPage.ShowSwitchIcon(icon))
             );
             MainThreadDispatcher.Post(KeyboardPage.Attach);
         }

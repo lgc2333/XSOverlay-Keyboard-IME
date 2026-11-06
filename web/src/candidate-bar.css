@@ -1,0 +1,108 @@
+#bar-id {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  align-self: stretch;
+  height: 64px;
+  padding: var(--keyboard-toolbar-inset);
+  box-sizing: border-box;
+  border-radius: var(--keyboard-panel-radius);
+  background: var(--theme-dark);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+  font:
+    20px 'Roboto Flex',
+    'Noto Sans',
+    sans-serif;
+  color: var(--theme-contrasting);
+  z-index: 120;
+}
+
+#bar-id .ime-candidates {
+  display: flex;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+#bar-id .ime-candidate {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  height: var(--keyboard-control-size);
+  padding: 0 12px;
+  border-radius: var(--keyboard-control-radius);
+  background: var(--theme-mid);
+  white-space: nowrap;
+  box-shadow: inset 0 0 0 0 var(--theme-accent);
+  transition:
+    background var(--keyboard-animation-time),
+    box-shadow var(--keyboard-animation-time);
+}
+
+#bar-id .ime-candidate .ime-number {
+  font-weight: 700;
+  line-height: 1;
+  color: #8b98a3;
+}
+
+#bar-id .ime-candidate .ime-text {
+  line-height: 1;
+}
+
+#bar-id .ime-candidate.ime-selected {
+  background: var(--theme-hi);
+  box-shadow: inset 0 0 0 2px var(--theme-accent);
+}
+
+#bar-id .ime-candidate.ime-selected .ime-number {
+  color: #d8e6ea;
+}
+
+#bar-id .ime-candidate.ime-selected .ime-text {
+  font-weight: 600;
+}
+
+#bar-id .ime-chip {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  height: var(--keyboard-control-size);
+  padding: 0 12px;
+  border-radius: var(--keyboard-control-radius);
+  background: var(--theme-mid);
+  white-space: nowrap;
+}
+
+#bar-id .ime-switch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: var(--keyboard-control-size);
+  height: var(--keyboard-control-size);
+  border-radius: var(--keyboard-control-radius);
+  background: var(--theme-mid);
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: background var(--keyboard-animation-time);
+}
+
+#bar-id .ime-switch:active {
+  background: var(--theme-hi);
+}
+
+/* One display size, so a smaller source icon is scaled nearest neighbour. */
+#bar-id .ime-switch canvas {
+  width: 32px;
+  height: 32px;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+#bar-id .ime-switch .ime-switch-fallback {
+  font-size: 16px;
+  line-height: 1;
+}
