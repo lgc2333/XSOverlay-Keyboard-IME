@@ -7,6 +7,7 @@ namespace XSOverlayKeyboardIme.Input
         Tab = 0x09,
         Return = 0x0D,
         Shift = 0x10,
+        Alt = 0x12,
         Escape = 0x1B,
         Space = 0x20,
         PageUp = 0x21,

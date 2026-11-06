@@ -5,16 +5,29 @@ using XSOverlay.WebApp;
 namespace XSOverlayKeyboardIme.Game
 {
     /// <summary>
-    /// Decides whether the keyboard overlay's own composer owns the keyboard focus.
-    /// Nothing else is taken over. See ADR 0007.
+    /// Reads the game's keyboard overlay: whether its composer owns the focus, and which
+    /// web view carries its page. Nothing else is taken over. See ADR 0007.
     /// </summary>
     internal static class KeyboardOverlayScope
     {
-        /// <summary>The game's overlay registry, or null before the keyboard overlay exists.</summary>
-        internal static Overlay_Manager KeyboardOverlays()
+        /// <summary>True only while the keyboard overlay's own composer holds the focus.</summary>
+        internal static bool HasKeyboardFocus()
         {
-            Overlay_Manager overlays = Overlay_Manager.Instance;
-            return overlays == null || overlays.Keyboard_Overlay == null ? null : overlays;
+            InputManager input = InputManager.Instance;
+            Overlay_Manager overlays = KeyboardOverlays();
+            if (input == null || overlays == null)
+            {
+                return false;
+            }
+
+            KeyboardInputFocusManager focus = input.KeyboardFocus;
+            if (focus == null || !focus.HasFocus)
+            {
+                return false;
+            }
+
+            ulong owner = focus.OwnerHandle;
+            return owner != 0 && owner == overlays.Keyboard_Overlay.handle;
         }
 
         /// <summary>Reports every input of the decision, so a refusal can be explained.</summary>
@@ -56,31 +69,11 @@ namespace XSOverlayKeyboardIme.Game
             return page.CurrentWebView;
         }
 
-        internal static bool TryGetFocusedOverlay(out KeyboardInputFocusManager focus)
+        /// <summary>The game's overlay registry, or null before the keyboard overlay exists.</summary>
+        private static Overlay_Manager KeyboardOverlays()
         {
-            focus = null;
-
-            InputManager input = InputManager.Instance;
-            Overlay_Manager overlays = KeyboardOverlays();
-            if (input == null || overlays == null)
-            {
-                return false;
-            }
-
-            KeyboardInputFocusManager candidate = input.KeyboardFocus;
-            if (candidate == null || !candidate.HasFocus)
-            {
-                return false;
-            }
-
-            ulong owner = candidate.OwnerHandle;
-            if (owner == 0 || owner != overlays.Keyboard_Overlay.handle)
-            {
-                return false;
-            }
-
-            focus = candidate;
-            return true;
+            Overlay_Manager overlays = Overlay_Manager.Instance;
+            return overlays == null || overlays.Keyboard_Overlay == null ? null : overlays;
         }
     }
 }

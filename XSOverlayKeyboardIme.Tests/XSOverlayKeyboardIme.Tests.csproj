@@ -15,9 +15,13 @@
   </ItemGroup>
 
   <!-- Compile the dependency-free sources under test instead of referencing the
-       plugin assembly, which needs UnityEngine when it loads. -->
+       plugin assembly, which needs UnityEngine when it loads. Everything under
+       Takeover must stay free of game types for this to keep working. -->
   <ItemGroup>
-    <Compile Include="..\XSOverlayKeyboardIme\Composition\**\*.cs" LinkBase="Linked\Composition" />
+    <Compile Include="..\XSOverlayKeyboardIme\Ime\CompositionView.cs" LinkBase="Linked\Ime" />
+    <Compile Include="..\XSOverlayKeyboardIme\Ime\ImeMode.cs" LinkBase="Linked\Ime" />
+    <Compile Include="..\XSOverlayKeyboardIme\Ime\InlinePreeditWatch.cs" LinkBase="Linked\Ime" />
+    <Compile Include="..\XSOverlayKeyboardIme\Takeover\**\*.cs" LinkBase="Linked\Takeover" />
     <Compile Include="..\XSOverlayKeyboardIme\Input\**\*.cs" LinkBase="Linked\Input" />
     <Compile Include="..\XSOverlayKeyboardIme\Page\CompositionPayload.cs" LinkBase="Linked\Page" />
     <Compile Include="..\XSOverlayKeyboardIme\Page\JavaScriptString.cs" LinkBase="Linked\Page" />

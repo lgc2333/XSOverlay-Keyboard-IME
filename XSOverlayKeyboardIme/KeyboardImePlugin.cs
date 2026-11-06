@@ -1,13 +1,14 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
 using HarmonyLib;
 using XSOverlayKeyboardIme.Diagnostics;
-using XSOverlayKeyboardIme.Host;
-#if IME_SELF_CHECK
-using XSOverlayKeyboardIme.SelfCheck;
-#endif
+using XSOverlayKeyboardIme.Ime;
+using XSOverlayKeyboardIme.Interop;
+using XSOverlayKeyboardIme.Page;
 
 namespace XSOverlayKeyboardIme
 {
@@ -30,18 +31,22 @@ namespace XSOverlayKeyboardIme
 
             HostLog.Info(MyPluginInfo.PLUGIN_NAME + " " + MyPluginInfo.PLUGIN_VERSION + " loaded");
 
-#if IME_SELF_CHECK
-            if (SelfCheckMode.StartIfEnabled(Config))
-            {
-                return;
-            }
-#endif
-
             if (!_takeoverEnabled.Value)
             {
                 HostLog.Info("take-over is off; the plugin will do nothing");
                 return;
             }
+
+            // A missing native library is a distribution error, so it stops here: patching
+            // without a working IME context would only swallow the keys.
+            string pluginDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? string.Empty;
+            if (!ImeLibraries.TryLoad(pluginDirectory, out string error))
+            {
+                HostLog.Error("the native IME library did not load, so nothing was patched: " + error);
+                return;
+            }
+
+            HostLog.Info("native IME library ready: " + ImeLibraries.Describe());
 
             _harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
             _harmony.PatchAll(Assembly.GetExecutingAssembly());
@@ -84,7 +89,13 @@ namespace XSOverlayKeyboardIme
             }
 
             HostLog.Info("patched " + typeof(XSOverlay.InputManager).FullName + "; keys and frame pump are ours");
-            CompositionHost.Start();
+
+            // The root wires the host to the page, so neither layer knows the other.
+            ImeHost.Start(
+                text => MainThreadDispatcher.Post(() => KeyboardPage.WriteBack(text)),
+                view => MainThreadDispatcher.Post(() => KeyboardPage.Show(view))
+            );
+            MainThreadDispatcher.Post(KeyboardPage.Attach);
         }
 
         /// <summary>The game may carry other patchers, so the check asks for our own owner.</summary>

@@ -1,0 +1,6 @@
+[submodule "native/IngameIME_Win32"]
+	path = native/IngameIME_Win32
+	url = https://github.com/Windmill-City/IngameIME_Win32.git
+[submodule "native/IngameIME-Common"]
+	path = native/IngameIME-Common
+	url = https://github.com/Windmill-City/IngameIME-Common.git

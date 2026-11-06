@@ -1,12 +1,26 @@
 <Project>
+  <PropertyGroup>
+    <NativeOutputDir>$(MSBuildThisFileDirectory)native\build\$(Configuration)</NativeOutputDir>
+  </PropertyGroup>
+
   <!-- Optional deploy step: dotnet build -p:DeployToGame=true -->
   <Target
     Name="DeployPlugin"
     AfterTargets="Build"
     Condition="'$(DeployToGame)' == 'true' and '$(IsTestProject)' != 'true' and '$(IsProbe)' != 'true'"
   >
+    <!-- The plugin loads the IME libraries from its own directory, so they travel with it. -->
+    <ItemGroup>
+      <NativeLibrary Include="$(NativeOutputDir)\*.dll" />
+    </ItemGroup>
+    <Error
+      Condition="'@(NativeLibrary)' == ''"
+      Text="The native IME library is missing. Run native/build.ps1 -Configuration $(Configuration) first."
+    />
+
     <Message Importance="high" Text="Deploying $(TargetFileName) to $(PluginsDir)" />
     <MakeDir Directories="$(PluginsDir)" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(PluginsDir)" />
+    <Copy SourceFiles="@(NativeLibrary)" DestinationFolder="$(PluginsDir)" />
   </Target>
 </Project>

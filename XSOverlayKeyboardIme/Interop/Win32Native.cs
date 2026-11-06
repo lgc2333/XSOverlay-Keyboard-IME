@@ -9,6 +9,7 @@ namespace XSOverlayKeyboardIme.Interop
     {
         internal const uint WmDestroy = 0x0002;
         internal const uint WmClose = 0x0010;
+        internal const uint WmChar = 0x0102;
         internal const uint WmApp = 0x8000;
         internal const uint WmKeyFirst = 0x0100;
         internal const uint WmKeyLast = 0x0109;
@@ -17,9 +18,6 @@ namespace XSOverlayKeyboardIme.Interop
         internal const uint WsVisible = 0x10000000;
         internal const uint WsExTopmost = 0x00000008;
         internal const uint WsExToolWindow = 0x00000080;
-        internal const uint WsChild = 0x40000000;
-        internal const uint WsVScroll = 0x200000;
-        internal const uint EsMultiline = 0x0004;
         internal const int SwShow = 5;
 
         internal const uint InputKeyboard = 1;
@@ -32,16 +30,13 @@ namespace XSOverlayKeyboardIme.Interop
         internal const uint SemFailCriticalErrors = 0x0001;
         internal const uint SemNoOpenFileErrorBox = 0x8000;
 
-        internal const int GcsCompStr = 0x0008;
-        internal const int GcsResultStr = 0x0800;
+        internal const uint QsAllInput = 0x04FF;
+        internal const uint MwmoInputAvailable = 0x00000004;
 
         internal delegate IntPtr WndProcDelegate(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
         internal static extern IntPtr GetModuleHandleW(string name);
-
-        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        internal static extern IntPtr LoadLibraryW(string name);
 
         [DllImport("kernel32.dll")]
         internal static extern uint GetCurrentThreadId();
@@ -90,6 +85,15 @@ namespace XSOverlayKeyboardIme.Interop
         internal static extern bool PeekMessageW(out Msg message, IntPtr hwnd, uint min, uint max, uint remove);
 
         [DllImport("user32.dll")]
+        internal static extern uint MsgWaitForMultipleObjectsEx(
+            uint count,
+            IntPtr handles,
+            uint milliseconds,
+            uint wakeMask,
+            uint flags
+        );
+
+        [DllImport("user32.dll")]
         internal static extern bool TranslateMessage(ref Msg message);
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
@@ -134,12 +138,6 @@ namespace XSOverlayKeyboardIme.Interop
         [DllImport("user32.dll")]
         internal static extern uint MapVirtualKeyW(uint code, uint mapType);
 
-        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-        internal static extern int GetWindowTextW(IntPtr hwnd, StringBuilder text, int maxCount);
-
-        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-        internal static extern bool SetWindowTextW(IntPtr hwnd, string text);
-
         [DllImport("ole32.dll")]
         internal static extern int CoInitializeEx(IntPtr reserved, uint coInit);
 
@@ -154,16 +152,6 @@ namespace XSOverlayKeyboardIme.Interop
             ref Guid iid,
             out IntPtr instance
         );
-
-        [DllImport("imm32.dll")]
-        internal static extern IntPtr ImmGetContext(IntPtr hwnd);
-
-        [DllImport("imm32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool ImmReleaseContext(IntPtr hwnd, IntPtr imc);
-
-        [DllImport("imm32.dll", CharSet = CharSet.Unicode)]
-        internal static extern int ImmGetCompositionStringW(IntPtr imc, int index, IntPtr buffer, int length);
 
         [DllImport("msctf.dll")]
         internal static extern int TF_GetThreadMgr(out IntPtr threadMgr);

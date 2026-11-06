@@ -1,4 +1,4 @@
-using XSOverlayKeyboardIme.Composition;
+using XSOverlayKeyboardIme.Ime;
 using XSOverlayKeyboardIme.Page;
 using Xunit;
 

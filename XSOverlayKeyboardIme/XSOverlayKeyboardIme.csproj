@@ -18,15 +18,6 @@
     <PageBundle>$(MSBuildThisFileDirectory)..\web\dist\keyboard-ime.js</PageBundle>
   </PropertyGroup>
 
-  <!-- The self-check is a diagnostic build, never shipped: dotnet build -p:SelfCheck=true -->
-  <PropertyGroup Condition="'$(SelfCheck)' == 'true'">
-    <DefineConstants>$(DefineConstants);IME_SELF_CHECK</DefineConstants>
-  </PropertyGroup>
-
-  <ItemGroup Condition="'$(SelfCheck)' != 'true'">
-    <Compile Remove="SelfCheck\**\*.cs" />
-  </ItemGroup>
-
   <ItemGroup>
     <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
     <PackageReference Include="BepInEx.Core" Version="5.*" />

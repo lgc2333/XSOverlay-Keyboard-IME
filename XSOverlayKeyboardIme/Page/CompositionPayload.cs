@@ -1,6 +1,6 @@
 using System.Globalization;
 using System.Text;
-using XSOverlayKeyboardIme.Composition;
+using XSOverlayKeyboardIme.Ime;
 
 namespace XSOverlayKeyboardIme.Page
 {

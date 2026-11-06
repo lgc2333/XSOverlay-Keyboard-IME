@@ -5,33 +5,65 @@
 
 给 XSOverlay 的 VR 键盘加上系统输入法：在键盘页的输入框里组字，组字串与候选显示在键盘上，用键盘上的按键选候选，提交后写回输入框。
 
+## 为什么做这个 Mod
+
+VRChat 里的中文输入，试过的两个方案都不够用。
+
+- [OVR Input Method Bridge](https://store.steampowered.com/app/3448100/OVR_Input_Method_Bridge/) 支持的输入法种类少，界面也不顺手，只算勉强可用。
+- [Tapi](https://booth.pm/zh-cn/items/7047187) 自带一套基于 Rime 的输入方案，不和系统输入法打通，按习惯养出来的词库带不过去。
+
+另有 [OVR Toolkit](https://store.steampowered.com/app/1068820/OVR_Toolkit/)，自带虚拟键盘，但已知有性能问题，因此未纳入考虑；它能否输入中文、社区有无现成方案，我同样未实测。
+
+正巧我发现 XSOverlay 的键盘近期官方支持了 VRC ChatBox 功能。所以我有了这个想法：把它接上系统输入法，养好的词库就能直接用。这个 Mod 由此开始。
+
 ## 运行要求
 
 - Windows 10 或更高版本，64 位。
 - XSOverlay Beta 695，其他版本未经验证。
 - BepInEx 5.4.23.6，x64 版本，其他版本未经验证。
-- 仅支持支持 TSF 的输入法。本仓库使用小狼毫（Rime Windows 版）验证。
+- 仅支持实现了 TSF 的输入法。本仓库使用小狼毫（Rime Windows 版）验证。
 - 输入法需要开启行内预编辑，否则只能看到候选，看不到正在输入的编码。小狼毫在 `weasel.custom.yaml` 中设置 `style/inline_preedit: true`。
+- 插件由两个文件组成，必须放在同一目录：`XSOverlayKeyboardIme.dll` 与 `IngameIME.dll`。把发行包里的文件复制进 `BepInEx/plugins` 即可。
 
 ## 构建
 
-仓库配置的游戏位置为 `D:\SteamLibrary\steamapps\common\XSOverlay_Beta`。
+需要 .NET SDK 10 或更高版本、CMake，以及 Visual Studio 的 C++ 生成工具。
 
-安装 .NET SDK 10 或更高版本，然后在本仓库根目录执行：
+先取上游源码，再编译原生库：
+
+```powershell
+git submodule update --init
+pwsh native/build.ps1
+```
+
+然后编译插件：
 
 ```powershell
 dotnet build -c Release
 ```
 
-如果游戏不在仓库配置的位置，用 `GameDir` 属性指定路径：
+把插件与原生库一起装进游戏：
 
 ```powershell
-dotnet build -c Release -p:GameDir="D:\Steam\steamapps\common\XSOverlay_Beta"
+dotnet build -c Release -p:DeployToGame=true
 ```
+
+仓库配置的游戏位置为 `D:\SteamLibrary\steamapps\common\XSOverlay_Beta`。游戏不在该位置时，用 `GameDir` 属性指定路径：
+
+```powershell
+dotnet build -c Release -p:DeployToGame=true -p:GameDir="D:\Steam\steamapps\common\XSOverlay_Beta"
+```
+
+## 路线图
+
+下一步优化 VRC ChatBox 体验。当前版本只在键盘页上显示候选栏。
+
+- ChatBox 按钮打开后，组字串与候选实时送进 ChatBox，输入过程中同步显示。
+- 输入框获得焦点时向 VRChat 上报正在输入，失焦时取消。
 
 ## 鸣谢
 
-- [Windmill-City/IngameIME_Win32](https://github.com/Windmill-City/IngameIME_Win32)：输入相关组件实现。
+- [Windmill-City/IngameIME-Common](https://github.com/Windmill-City/IngameIME-Common), [Windmill-City/IngameIME_Win32](https://github.com/Windmill-City/IngameIME_Win32)：TSF 输入上下文与组字回调。此依赖与本仓库的 C 薄壳一起编进 `IngameIME.dll`，整份按 LGPL 2.1 分发，见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
 - DeepSeek V4.1 Flash & DeepSeek Harness：本项目全程由大肥鱼妈妈构建。
 
 ## 赞助

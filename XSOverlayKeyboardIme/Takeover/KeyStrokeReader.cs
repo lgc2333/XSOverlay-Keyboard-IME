@@ -5,64 +5,57 @@ using XSOverlayKeyboardIme.Input;
 namespace XSOverlayKeyboardIme.Takeover
 {
     /// <summary>
-    /// Turns a keyboard page event into strokes for the composition host. Named keys
-    /// beyond text only matter while composing, so the caller decides whether they
-    /// are taken. See ADR 0007.
+    /// Turns one page key into strokes for the composition host, as far as the current
+    /// gate allows. See ADR 0007.
     /// </summary>
     internal static class KeyStrokeReader
     {
         private static readonly string[] ModifierNames = { "LSHIFT", "RSHIFT" };
 
-        internal static bool TryRead(
-            XSOverlay.Websockets.API.Objects.KeyboardEvent keyEvent,
-            bool includeNamedKeys,
-            List<KeyStroke> strokes
-        )
+        internal static bool TryRead(PageKey key, TakeoverGate gate, List<KeyStroke> strokes)
         {
             strokes.Clear();
-            if (keyEvent == null || keyEvent.keyPressStyle != XSOverlay.Websockets.API.Enums.KeyPressStyle.Standard)
+            if (!key.IsSinglePress)
             {
                 return false;
             }
 
+            // The IME is passing keys through, so the page keeps every key but the one
+            // that ends the session. See ADR 0025.
+            if (gate == TakeoverGate.Session)
+            {
+                return TryReadSubmitKey(key, strokes);
+            }
+
             // The page already resolved the character, including the shift state. A space
             // never starts a composition, so while idle it stays with the page.
-            string text = keyEvent.webValue;
-            if (text != null && text.Length == 1 && text[0] != ' ')
+            string text = key.Text;
+            if (text.Length == 1 && text[0] != ' ')
             {
                 strokes.Add(KeyStroke.FromText(text[0]));
                 return true;
             }
 
-            if (!includeNamedKeys)
+            if (gate == TakeoverGate.Idle)
             {
                 return false;
             }
 
-            bool shift = false;
-            string[] values = keyEvent.value ?? Array.Empty<string>();
-            foreach (string name in values)
-            {
-                if (IsModifier(name))
-                {
-                    shift = true;
-                }
-            }
-
-            foreach (string name in values)
+            bool shift = HasShift(key.Names);
+            foreach (string name in key.Names)
             {
                 if (IsModifier(name))
                 {
                     continue;
                 }
 
-                if (!TryMapNamedKey(name, out VirtualKey key))
+                if (!TryMapNamedKey(name, out VirtualKey mapped))
                 {
                     strokes.Clear();
                     return false;
                 }
 
-                strokes.Add(KeyStroke.FromKey(key, shift));
+                strokes.Add(KeyStroke.FromKey(mapped, shift));
             }
 
             // A page that reports no key name for the space still commits with it.
@@ -72,6 +65,40 @@ namespace XSOverlayKeyboardIme.Takeover
             }
 
             return strokes.Count > 0;
+        }
+
+        /// <summary>Space and Enter end a session even when the IME composes nothing.</summary>
+        private static bool TryReadSubmitKey(PageKey key, List<KeyStroke> strokes)
+        {
+            if (key.Text == " ")
+            {
+                strokes.Add(KeyStroke.FromKey(VirtualKey.Space, false));
+                return true;
+            }
+
+            foreach (string name in key.Names)
+            {
+                if (string.Equals(name, "RETURN", StringComparison.OrdinalIgnoreCase))
+                {
+                    strokes.Add(KeyStroke.FromKey(VirtualKey.Return, false));
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool HasShift(string[] names)
+        {
+            foreach (string name in names)
+            {
+                if (IsModifier(name))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static bool IsModifier(string name)
