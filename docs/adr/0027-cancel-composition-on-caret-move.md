@@ -1,9 +1,7 @@
 ---
-status: proposed
-supersedes: []
-superseded_by: []
+status: accepted
 amends: ['0019']
-amended_by: []
+amended_by: ['0034']
 ---
 
 # 组字期间 composer 输入框的光标一动就取消组字
@@ -26,5 +24,4 @@ amended_by: []
 
 - 键盘页要观察 composer 输入框的选区与点击；插件收到信号后，在组字宿主的线程上把 Escape 交给输入法，会话随即结束。
 - 这条与失焦、关闭键盘页时的取消计划合并成同一条取消路径，都走 Escape。
-- 页面侧的上报与插件侧的取消都还没实现，因此本条是 `proposed`。
 - [0019](./0019-inline-preedit-in-composer.md) 的拼接与还原逻辑不变，只是还原的触发多了一个来源。

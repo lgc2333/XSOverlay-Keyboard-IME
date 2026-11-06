@@ -22,6 +22,9 @@ namespace XSOverlayKeyboardIme.Page
         /// <summary>Raised when the page's switch button is pressed. Set by the root.</summary>
         internal static Action SwitchRequested;
 
+        /// <summary>Raised when the page reports that the composition no longer fits. Set by the root.</summary>
+        internal static Action CancelRequested;
+
         /// <summary>What the bar shows right now, replayed onto a page that appears later.</summary>
         private static CompositionView _view = CompositionView.Idle(string.Empty);
 
@@ -263,6 +266,12 @@ namespace XSOverlayKeyboardIme.Page
                 return;
             }
 
+            if (message == PageScript.CancelMessage)
+            {
+                OnCancelRequested();
+                return;
+            }
+
             _confirmed = true;
             HostLog.Info("page message: " + message);
         }
@@ -274,6 +283,16 @@ namespace XSOverlayKeyboardIme.Page
             if (switchRequested != null)
             {
                 switchRequested();
+            }
+        }
+
+        /// <summary>The page reports that the composition no longer fits; the root cancels it.</summary>
+        private static void OnCancelRequested()
+        {
+            Action cancelRequested = CancelRequested;
+            if (cancelRequested != null)
+            {
+                cancelRequested();
             }
         }
     }

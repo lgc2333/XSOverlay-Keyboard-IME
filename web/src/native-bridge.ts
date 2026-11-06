@@ -1,5 +1,6 @@
 const Ready = 'xso-keyboard-ime ready'
 const Switch = 'xso-keyboard-ime switch'
+const Cancel = 'xso-keyboard-ime cancel'
 
 /**
  * Tells the plugin that the page runs the injected script. Vuplex hands the message to
@@ -15,6 +16,14 @@ export function announceReady(): boolean {
  */
 export function requestSwitch(): boolean {
   return post(Switch)
+}
+
+/**
+ * Asks the plugin to cancel the composition the IME holds, because the composer no
+ * longer holds the text it was composing into. See ADR 0027.
+ */
+export function requestCancel(): boolean {
+  return post(Cancel)
 }
 
 function post(message: string): boolean {

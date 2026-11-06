@@ -100,6 +100,8 @@ namespace XSOverlayKeyboardIme
                 }
             };
 
+            KeyboardPage.CancelRequested = ImeHost.CancelCurrent;
+
             ImeHost.Start(
                 text => MainThreadDispatcher.Post(() => KeyboardPage.WriteBack(text)),
                 view => MainThreadDispatcher.Post(() => KeyboardPage.Show(view)),

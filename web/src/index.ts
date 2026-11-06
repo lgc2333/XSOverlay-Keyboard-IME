@@ -1,7 +1,14 @@
 import { createCandidateBar } from './candidate-bar'
-import { clearPreedit, insertText, keepComposerFocus, showPreedit } from './composer'
+import {
+  clearPreedit,
+  insertText,
+  keepComposerFocus,
+  onCompositionCancel,
+  setImeComposing,
+  showPreedit,
+} from './composer'
 import type { CompositionView, SwitchIconView } from './ime-view'
-import { announceReady } from './native-bridge'
+import { announceReady, requestCancel } from './native-bridge'
 import { createSwitchKey } from './switch-key'
 
 /**
@@ -13,12 +20,14 @@ function install(): void {
   const bar = createCandidateBar()
   const switchKey = createSwitchKey()
   keepComposerFocus()
+  onCompositionCancel(requestCancel)
 
   window.__xsoKeyboardIme = {
     insertText,
     showComposition: (view: CompositionView) => {
+      setImeComposing(view.composing)
       if (view.preedit.length > 0) {
-        showPreedit(view.preedit)
+        showPreedit(view.preedit, view.selectionStart, view.selectionEnd)
       } else {
         clearPreedit()
       }

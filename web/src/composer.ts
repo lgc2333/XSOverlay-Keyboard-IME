@@ -26,6 +26,16 @@ let underline: HTMLDivElement | null = null
 /** The composer the user last put the caret into. */
 let focused: HTMLInputElement | null = null
 
+/** True while the plugin reports a composition, which needs no visible codes. */
+let imeComposing = false
+
+/** The selection the page put into the composer, so a move by anyone else is noticed. */
+let expectedSelectionStart = 0
+let expectedSelectionEnd = 0
+
+/** Told when the composition no longer fits the composer. */
+let cancelComposition: (() => void) | null = null
+
 /**
  * The page rebuilds its toolbar on layout and state updates, which replaces the input
  * and takes the focus with it. Put the focus back only when the old input was removed;
@@ -60,6 +70,34 @@ export function keepComposerFocus(): void {
   observer.observe(document.documentElement, { childList: true, subtree: true })
 }
 
+/** Arms the composition watch while the plugin reports a composition. See ADR 0027. */
+export function setImeComposing(value: boolean): void {
+  if (value === imeComposing) {
+    return
+  }
+
+  imeComposing = value
+  if (imeComposing) {
+    const composer = findComposer()
+    if (composer != null) {
+      expectedSelectionStart = composer.selectionStart ?? 0
+      expectedSelectionEnd = composer.selectionEnd ?? expectedSelectionStart
+    }
+
+    watchCaret()
+  } else {
+    unwatchCaret()
+  }
+}
+
+/**
+ * Reports a composition that no longer fits the composer: the user moved the caret,
+ * clicked elsewhere, or the composer went away. See ADR 0027.
+ */
+export function onCompositionCancel(callback: () => void): void {
+  cancelComposition = callback
+}
+
 export function findComposer(): HTMLInputElement | null {
   const element = document.getElementById(ComposerId)
   return element instanceof HTMLInputElement ? element : null
@@ -87,7 +125,7 @@ export function insertText(text: string): WritebackOutcome {
  * the way a native IME does. The value and caret are put back once the IME commits.
  * See ADR 0019.
  */
-export function showPreedit(text: string): void {
+export function showPreedit(text: string, selectionStart: number, selectionEnd: number): void {
   const composer = findComposer()
   if (composer == null) {
     return
@@ -104,7 +142,13 @@ export function showPreedit(text: string): void {
   const before = baseValue.slice(0, baseStart)
   const after = baseValue.slice(baseEnd)
   composer.value = before + text + after
-  composer.setSelectionRange(baseStart + text.length, baseStart + text.length)
+
+  // The IME owns the caret inside its codes; draw it where the IME says it is.
+  const start = Math.max(0, Math.min(text.length, selectionStart))
+  const end = Math.max(start, Math.min(text.length, selectionEnd))
+  expectedSelectionStart = baseStart + start
+  expectedSelectionEnd = baseStart + end
+  composer.setSelectionRange(expectedSelectionStart, expectedSelectionEnd)
   holdSendButton()
   drawUnderline(composer, before, text)
 }
@@ -116,6 +160,9 @@ export function clearPreedit(): void {
   }
 
   composing = false
+  hideUnderline()
+  observer?.disconnect()
+  observer = null
   const composer = findComposer()
   if (composer == null) {
     return
@@ -124,9 +171,6 @@ export function clearPreedit(): void {
   composer.value = baseValue
   composer.setSelectionRange(baseStart, baseEnd)
   releaseSendButton(composer)
-  hideUnderline()
-  observer?.disconnect()
-  observer = null
 }
 
 /** The page enables send on any non-empty value, so keep it off while composing. */
@@ -149,6 +193,81 @@ function reassert(): void {
   }
 
   holdSendButton()
+}
+
+/**
+ * Watches for a caret the page did not put there. The composer reports its own
+ * selection changes, and a ray click moves the caret without a key.
+ */
+function watchCaret(): void {
+  document.addEventListener('selectionchange', checkCaret, true)
+  document.addEventListener('pointerup', checkCaretLater, true)
+  document.addEventListener('focusout', checkFocus, true)
+}
+
+function unwatchCaret(): void {
+  document.removeEventListener('selectionchange', checkCaret, true)
+  document.removeEventListener('pointerup', checkCaretLater, true)
+  document.removeEventListener('focusout', checkFocus, true)
+}
+
+/** A click settles the caret after the event, so the check waits for the next task. */
+function checkCaretLater(): void {
+  setTimeout(checkCaret, 0)
+}
+
+function checkFocus(event: FocusEvent): void {
+  if (!imeComposing) {
+    return
+  }
+
+  const composer = findComposer()
+  if (composer == null) {
+    cancel()
+    return
+  }
+
+  // A rebuilt toolbar replaces the input, and keepComposerFocus refocuses the new one,
+  // so a blur from an element that is no longer the composer is page mechanics.
+  const lost = event.target
+  if (lost instanceof Node && lost !== composer) {
+    return
+  }
+
+  if (document.activeElement !== composer) {
+    cancel()
+  }
+}
+
+function checkCaret(): void {
+  if (!imeComposing) {
+    return
+  }
+
+  const composer = findComposer()
+  if (composer == null) {
+    cancel()
+    return
+  }
+
+  if (
+    composer.selectionStart !== expectedSelectionStart ||
+    composer.selectionEnd !== expectedSelectionEnd
+  ) {
+    cancel()
+  }
+}
+
+/** Gives the composer back to the page and asks the plugin to cancel the IME's work. */
+function cancel(): void {
+  if (!imeComposing) {
+    return
+  }
+
+  imeComposing = false
+  unwatchCaret()
+  clearPreedit()
+  cancelComposition?.()
 }
 
 function drawUnderline(

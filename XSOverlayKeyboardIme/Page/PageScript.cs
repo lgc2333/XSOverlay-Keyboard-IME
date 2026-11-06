@@ -14,6 +14,8 @@ namespace XSOverlayKeyboardIme.Page
         /// <summary>The page asks the plugin to press the IME's language bar button.</summary>
         internal const string SwitchMessage = "xso-keyboard-ime switch";
 
+        /// <summary>The page asks the plugin to cancel the composition the IME holds.</summary>
+        internal const string CancelMessage = "xso-keyboard-ime cancel";
 
         private const string ResourceName = "keyboard-ime.js";
 

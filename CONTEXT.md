@@ -68,6 +68,10 @@ _Avoid_: 输入会话、composition session
 组字会话里结束组字并把文本写回 composer 输入框的按键：空格与回车。
 _Avoid_: 确认键、上屏键
 
+**取消组字**：
+组字期间 composer 输入框不再适合承载组字串时，插件让输入法结束组字。
+_Avoid_: 中断组字、撤销组字
+
 **帧泵**：
 每帧把主线程队列排空的那次回调，由挂在游戏 `InputManager.Update` 上的补丁触发。
 _Avoid_: 心跳、tick
