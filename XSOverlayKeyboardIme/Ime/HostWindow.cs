@@ -15,6 +15,7 @@ namespace XSOverlayKeyboardIme.Ime
         internal const uint StrokeMessage = Win32Native.WmApp + 1;
         internal const uint SwitchMessage = Win32Native.WmApp + 2;
         internal const uint PollMessage = Win32Native.WmApp + 3;
+        internal const uint LanguageMessage = Win32Native.WmApp + 4;
 
         private static readonly IntPtr TimerId = (IntPtr)1;
 
@@ -208,6 +209,12 @@ namespace XSOverlayKeyboardIme.Ime
                     {
                         window.Collect(wParam);
                         return IntPtr.Zero;
+                    }
+
+                    if (message == Win32Native.WmInputLangChange)
+                    {
+                        window._onHostMessage(LanguageMessage);
+                        return (IntPtr)1;
                     }
                 }
 

@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using XSOverlayKeyboardIme.Diagnostics;
+using XSOverlayKeyboardIme.Input;
 using XSOverlayKeyboardIme.Interop;
 using XSOverlayKeyboardIme.Takeover;
 
@@ -32,6 +33,8 @@ namespace XSOverlayKeyboardIme.Ime
         private LanguageBarButton _languageBar;
         private ForegroundLease _lease;
         private ImeContext _ime;
+        private ImeProfiles _profiles;
+        private string _imeName;
         private string _switchIconKey;
         private bool _iconMissing;
         private volatile bool _drainingStrokes;
@@ -114,6 +117,33 @@ namespace XSOverlayKeyboardIme.Ime
             }
         }
 
+        /// <summary>Cancels the composition the current host holds, if there is one. See ADR 0027.</summary>
+        internal static void CancelCurrent()
+        {
+            ImeHost host = _current;
+            if (host != null)
+            {
+                host.RequestCancel();
+            }
+        }
+
+        /// <summary>
+        /// Asks the IME to cancel the composition, the way Escape does. Called on Unity's
+        /// main thread; the key is fed on the host thread. See ADR 0027.
+        /// </summary>
+        internal void RequestCancel()
+        {
+            CompositionSession session = _session;
+            HostWindow window = _window;
+            if (session == null || window == null || !session.Composing)
+            {
+                return;
+            }
+
+            _strokes.Enqueue(KeyStroke.FromKey(VirtualKey.Escape, false));
+            window.Post(HostWindow.StrokeMessage);
+        }
+
         private void Run()
         {
             try
@@ -144,11 +174,17 @@ namespace XSOverlayKeyboardIme.Ime
                     return;
                 }
 
-                string imeName = ImeName.Read();
-                HostLog.Info("ime name: " + (imeName.Length == 0 ? "unreadable" : imeName));
+                _profiles = ImeProfiles.Open();
+                _imeName = ReadImeName();
+                HostLog.Info(
+                    "ime name: "
+                        + (_imeName.Length == 0 ? "unreadable" : _imeName)
+                        + ", language 0x"
+                        + ImeLanguage.Language(ImeLanguage.CurrentLayout()).ToString("x4")
+                );
 
                 var feeder = new KeyFeeder(_window, _lease);
-                var session = new CompositionSession(_ime, _window, _lease, feeder, imeName, _onCommitted, _onView);
+                var session = new CompositionSession(_ime, _window, _lease, feeder, _imeName, _onCommitted, _onView);
                 session.Start();
                 _session = session;
 
@@ -188,6 +224,13 @@ namespace XSOverlayKeyboardIme.Ime
                 }
 
                 PublishSwitchIcon();
+                RefreshIme();
+                return;
+            }
+
+            if (message == HostWindow.LanguageMessage)
+            {
+                RefreshIme();
                 return;
             }
 
@@ -198,6 +241,74 @@ namespace XSOverlayKeyboardIme.Ime
                     PublishSwitchIcon();
                 }
             }
+        }
+
+        /// <summary>
+        /// Keeps this thread on the IME the user picked, whichever window they picked it in,
+        /// and shows the page that IME. The language comes from the foreground window's
+        /// layout, and the profile name catches a switch between two IMEs of one language,
+        /// which a layout cannot tell apart. See ADR 0030.
+        /// </summary>
+        private void RefreshIme()
+        {
+            CompositionSession session = _session;
+            if (session != null && session.Composing)
+            {
+                // Moving the profile would lose the composition the IME holds.
+                return;
+            }
+
+            IntPtr layout = ImeLanguage.ForegroundLayout();
+            if (
+                layout != IntPtr.Zero
+                && ImeLanguage.Language(layout) != ImeLanguage.Language(ImeLanguage.CurrentLayout())
+            )
+            {
+                ImeLanguage.ActivateLayout(layout);
+            }
+
+            string name = ReadImeName();
+            if (name.Length == 0 || name == _imeName)
+            {
+                return;
+            }
+
+            _imeName = name;
+            HostLog.Info("the IME is now '" + name + "'");
+
+            // A switch between two IMEs of one language leaves the layout alone, so this
+            // thread has to be moved onto the profile the name describes.
+            if (_profiles != null)
+            {
+                _profiles.Activate(ImeLanguage.Language(ImeLanguage.CurrentLayout()));
+            }
+
+            ReopenLanguageBar();
+            if (session != null)
+            {
+                session.RenameIme(name);
+            }
+        }
+
+        /// <summary>Looks the language bar item up again after a profile switch. See ADR 0028 and ADR 0030.</summary>
+        private void ReopenLanguageBar()
+        {
+            if (_languageBar != null)
+            {
+                _languageBar.Dispose();
+                _languageBar = null;
+            }
+
+            _languageBar = LanguageBarButton.Open();
+            _switchIconKey = null;
+            _iconMissing = false;
+        }
+
+        /// <summary>The IME name this thread would report, or empty when unreadable.</summary>
+        private string ReadImeName()
+        {
+            ImeProfiles profiles = _profiles;
+            return profiles == null ? string.Empty : profiles.ReadName();
         }
 
         /// <summary>Shows the page the current icon, and only when the picture changed.</summary>
@@ -272,6 +383,12 @@ namespace XSOverlayKeyboardIme.Ime
             {
                 _languageBar.Dispose();
                 _languageBar = null;
+            }
+
+            if (_profiles != null)
+            {
+                _profiles.Dispose();
+                _profiles = null;
             }
 
             if (_ime != null)

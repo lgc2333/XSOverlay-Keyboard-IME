@@ -1,9 +1,6 @@
 ---
 status: accepted
-supersedes: []
-superseded_by: []
-amends: []
-amended_by: []
+amended_by: ['0030']
 ---
 
 # 输入法的枚举与切换只作用于插件自己的线程
