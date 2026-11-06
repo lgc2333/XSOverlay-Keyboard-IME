@@ -1,5 +1,7 @@
 # XSOverlay Keyboard IME
 
+**简体中文** | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [English](README.en.md)
+
 > [!WARNING]
 > 仓库当前仍处于开发阶段，暂无可用产物，且实现方案仍在变动。请耐心等待。
 
@@ -16,14 +18,28 @@ VRChat 里的中文输入，试过的两个方案都不够用。
 
 正巧我发现 XSOverlay 的键盘近期官方支持了 VRC ChatBox 功能。所以我有了这个想法：把它接上系统输入法，养好的词库就能直接用。这个 Mod 由此开始。
 
+## Showcase
+
+TBD
+
 ## 运行要求
 
 - Windows 10 或更高版本，64 位。
 - XSOverlay Beta 695，其他版本未经验证。
 - BepInEx 5.4.23.6，x64 版本，其他版本未经验证。
 - 仅支持实现了 TSF 的输入法。本仓库使用小狼毫（Rime Windows 版）验证。
-- 输入法需要开启行内预编辑，否则只能看到候选，看不到正在输入的编码。小狼毫在 `weasel.custom.yaml` 中设置 `style/inline_preedit: true`。
-- 插件由两个文件组成，必须放在同一目录：`XSOverlayKeyboardIme.dll` 与 `IngameIME.dll`。把发行包里的文件复制进 `BepInEx/plugins` 即可。
+- 输入法可能需要开启行内预编辑，否则只能看到候选，看不到正在输入的编码。实测小狼毫必需，其应在 `weasel.custom.yaml` 中设置 `style/inline_preedit: true`。
+
+## 安装
+
+TBD
+
+## 路线图
+
+下一步优化 VRC ChatBox 体验。当前版本只在键盘页上显示候选栏。
+
+- ChatBox 按钮打开后，组字串与候选实时送进 ChatBox，输入过程中同步显示。
+- 输入框获得焦点时向 VRChat 上报正在输入，失焦时取消。
 
 ## 构建
 
@@ -53,13 +69,6 @@ dotnet build -c Release -p:DeployToGame=true
 ```powershell
 dotnet build -c Release -p:DeployToGame=true -p:GameDir="D:\Steam\steamapps\common\XSOverlay_Beta"
 ```
-
-## 路线图
-
-下一步优化 VRC ChatBox 体验。当前版本只在键盘页上显示候选栏。
-
-- ChatBox 按钮打开后，组字串与候选实时送进 ChatBox，输入过程中同步显示。
-- 输入框获得焦点时向 VRChat 上报正在输入，失焦时取消。
 
 ## 鸣谢
 
