@@ -1,7 +1,7 @@
 ---
-status: accepted
+status: superseded
 supersedes: []
-superseded_by: []
+superseded_by: ['0025']
 amends: ['0006']
 amended_by: []
 ---
