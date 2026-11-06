@@ -12,7 +12,10 @@ namespace XSOverlayKeyboardIme.Page
             var payload = new StringBuilder();
             payload.Append("{\"preedit\":").Append(JavaScriptString.Literal(view.Preedit));
             payload.Append(",\"selected\":").Append(view.Selected.ToString(CultureInfo.InvariantCulture));
+            payload.Append(",\"selectionStart\":").Append(view.Selection.Start.ToString(CultureInfo.InvariantCulture));
+            payload.Append(",\"selectionEnd\":").Append(view.Selection.End.ToString(CultureInfo.InvariantCulture));
             payload.Append(",\"ime\":").Append(JavaScriptString.Literal(view.Ime));
+            payload.Append(",\"composing\":").Append(view.Composing ? "true" : "false");
             payload.Append(",\"candidates\":[");
             for (int index = 0; index < view.Candidates.Length; index++)
             {

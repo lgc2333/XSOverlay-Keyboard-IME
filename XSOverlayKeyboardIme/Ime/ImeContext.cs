@@ -54,8 +54,9 @@ namespace XSOverlayKeyboardIme.Ime
             HostLog.Info("ime context ready");
         }
 
-        /// <summary>Raised with the composing string, empty when the IME holds none.</summary>
-        internal event Action<string> PreEditChanged;
+        /// <summary>Raised with the composing string, empty when the IME holds none, and
+        /// the range the IME highlights inside it.</summary>
+        internal event Action<string, int, int> PreEditChanged;
 
         /// <summary>Raised with the candidates and the index the IME highlights.</summary>
         internal event Action<string[], int> CandidatesChanged;
@@ -83,15 +84,17 @@ namespace XSOverlayKeyboardIme.Ime
             ImeShim.iime_destroy(_handle);
         }
 
-        private void HandlePreEdit(int state, IntPtr content)
+        private void HandlePreEdit(int state, int selectionStart, int selectionEnd, IntPtr content)
         {
             _composing = state != CompositionEnd;
             string text = state == CompositionEnd ? string.Empty : Decode(content);
+            int start = state == CompositionEnd ? 0 : Math.Max(0, selectionStart);
+            int end = state == CompositionEnd ? 0 : Math.Max(start, selectionEnd);
 
-            Action<string> handler = PreEditChanged;
+            Action<string, int, int> handler = PreEditChanged;
             if (handler != null)
             {
-                handler(text);
+                handler(text, start, end);
             }
         }
 
@@ -141,7 +144,7 @@ namespace XSOverlayKeyboardIme.Ime
 
         private static void OnPreEdit(int state, int selectionStart, int selectionEnd, IntPtr content, IntPtr user)
         {
-            Guard("pre-edit", context => context.HandlePreEdit(state, content));
+            Guard("pre-edit", context => context.HandlePreEdit(state, selectionStart, selectionEnd, content));
         }
 
         private static void OnCommit(IntPtr text, IntPtr user)

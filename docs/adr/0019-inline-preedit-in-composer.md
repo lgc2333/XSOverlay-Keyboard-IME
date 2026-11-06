@@ -1,9 +1,6 @@
 ---
 status: accepted
-supersedes: []
-superseded_by: []
-amends: []
-amended_by: ['0027']
+amended_by: ['0027', '0031']
 ---
 
 # 组字串临时拼进 composer 输入框，提交后还原

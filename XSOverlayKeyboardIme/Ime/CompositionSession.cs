@@ -75,9 +75,10 @@ namespace XSOverlayKeyboardIme.Ime
             }
 
             // A session covers exactly one composition, so it ends as soon as the IME holds
-            // none: the characters went back to the page, the key ended it, or it did
-            // nothing at all, as a cancel does. See ADR 0026.
-            if (WriteThroughTyped() || stroke.EndsComposition || !_ime.Composing)
+            // none: the text was committed, the characters went back to the page, or the
+            // IME cancelled. A space can convert one segment and keep composing, so the key
+            // itself never ends the session. See ADR 0026 and ADR 0033.
+            if (WriteThroughTyped() || !_ime.Composing)
             {
                 End();
             }
@@ -112,6 +113,13 @@ namespace XSOverlayKeyboardIme.Ime
             return true;
         }
 
+        /// <summary>Keeps the bar's chip on the IME the host now uses. See ADR 0030.</summary>
+        internal void RenameIme(string name)
+        {
+            _view = _view.WithIme(name);
+            Publish();
+        }
+
         /// <summary>Ends the session and hands the foreground back.</summary>
         private void End()
         {
@@ -126,9 +134,9 @@ namespace XSOverlayKeyboardIme.Ime
             Publish();
         }
 
-        private void HandlePreEdit(string text)
+        private void HandlePreEdit(string text, int selectionStart, int selectionEnd)
         {
-            _view = new CompositionView(text, _view.Candidates, _view.Selected, _view.Ime);
+            _view = _view.WithPreedit(text, new CompositionSelection(selectionStart, selectionEnd));
             if (_ime.Composing && _preeditWatch.Observe(text.Length > 0))
             {
                 HostLog.Warn("the IME reported no composing string; enable inline preedit to see the typed codes");
@@ -139,19 +147,13 @@ namespace XSOverlayKeyboardIme.Ime
 
         private void HandleCandidates(string[] candidates, int selected)
         {
-            _view = new CompositionView(_view.Preedit, candidates, selected, _view.Ime);
+            _view = _view.WithCandidates(candidates, selected);
             Publish();
         }
 
-        /// <summary>The IME finished a composition; this is the text the page receives.</summary>
+        /// <summary>The IME finished a composition; this is the text the page receives. See ADR 0032.</summary>
         private void HandleCommit(string text)
         {
-            if (!_open)
-            {
-                HostLog.Info("the IME committed '" + text + "' outside a session");
-                return;
-            }
-
             HostLog.Info("committed '" + text + "'");
             End();
             if (text.Length > 0)

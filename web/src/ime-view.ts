@@ -7,6 +7,11 @@ export interface CompositionView {
   candidates: string[]
   selected: number
   ime: string
+  /** True while the IME holds a composition, even when it reports no codes. */
+  composing: boolean
+  /** The caret the IME holds inside the codes, in characters from their start. */
+  selectionStart: number
+  selectionEnd: number
 }
 
 /**

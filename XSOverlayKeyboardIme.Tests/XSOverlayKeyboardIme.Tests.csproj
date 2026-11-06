@@ -18,6 +18,7 @@
        plugin assembly, which needs UnityEngine when it loads. Everything under
        Takeover must stay free of game types for this to keep working. -->
   <ItemGroup>
+    <Compile Include="..\XSOverlayKeyboardIme\Ime\CompositionSelection.cs" LinkBase="Linked\Ime" />
     <Compile Include="..\XSOverlayKeyboardIme\Ime\CompositionView.cs" LinkBase="Linked\Ime" />
     <Compile Include="..\XSOverlayKeyboardIme\Ime\InlinePreeditWatch.cs" LinkBase="Linked\Ime" />
     <Compile Include="..\XSOverlayKeyboardIme\Takeover\**\*.cs" LinkBase="Linked\Takeover" />
