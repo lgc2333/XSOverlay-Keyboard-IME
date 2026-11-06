@@ -29,7 +29,8 @@
 - `Ime/LanguageBarIcon.cs`：BGRA 转 RGBA，算指纹用于比对。
 - `Ime/ImeHost.cs` 与 `HostWindow`：400 毫秒轮询比对指纹后推送；按下走窗口消息回到宿主线程。
 - `Page/`：`SwitchIconPayload` 把像素 Base64 化，`KeyboardPage` 缓存并重放，页面消息 `xso-keyboard-ime switch` 触发按下。
-- `web/`：候选栏右侧加按钮，canvas 按原始像素画、样式表用 `image-rendering: pixelated` 最近邻放大到固定 32px；没有图标时退化为「中/英」字样。样式表是 `candidate-bar.css`，由 build.mjs 的 `loader: { '.css': 'text' }` 作为文本内联进 bundle（注入的页面没有资源服务）。
+- `web/src/switch-key.ts`：在键盘布局里插一个 `.key`，位置在空格左侧，键宽取空格的高度（即 1U），并从空格扣掉等宽；页面每次重建后由 MutationObserver 补回。图标按原始像素画、固定显示 32px、`image-rendering: pixelated` 最近邻放大；没有图标时退化为「中/英」字样。键必须带 `key` 类，否则射线点不到。
+- `web/src/candidate-bar.css`：候选栏样式表，由 build.mjs 的 `loader: { '.css': 'text' }` 作为文本内联进 bundle（注入的页面没有资源服务）。候选栏恢复为只显示。
 
 ## 代码审查
 
@@ -38,6 +39,17 @@
 - 标准轴：页面文件被改坏（`BarStyle` 成了占位字符串、`index.ts` 丢了 `showSwitchIcon` 导出，图标永远到不了页面）；命名与词表撞车（`InputMode*` 指语言栏项，页面用 `showInputMode` 指切换按钮）；`GdiNative` 有死声明；`SwitchIconPayload` 手拼 JSON 且没走 InvariantCulture；重试分支是死代码（`Open()` 失败时定时器根本没启动）；`TimerMessage` 从不 `Post` 却与真消息并列；0028 是 `proposed` 却已把 0012 置为 `superseded`。
 - 规格轴：图标尺寸只取 `GetIcon` 给的那一张（TSF 没有"再要一帧更大的"入口，取注册表路径就是按输入法适配），已写进 0028 的 Considered Options；CSS 抽取不是本轮要求，但既然做了就必须接上 esbuild。
 - 修法：C# 改名 `LanguageBarButton` / `LanguageBarIcon` / `SwitchIconPayload`，页面改名 `showSwitchIcon` 与 `requestSwitch`，消息改为 `xso-keyboard-ime switch`；宿主无论有没有找到按钮都启动 400 毫秒轮询；`PublishSwitchIcon` 的日志只在第一次缺图时打。
+
+## 验证（无头浏览器）
+
+键盘页的插键与扣宽用一个复刻的页面在无头 Chrome 里跑过（CDP 求值，不是 `--dump-dom`）：
+
+| 检查     | 结果                                                                                    |
+| -------- | --------------------------------------------------------------------------------------- |
+| 插入位置 | `["key-LSHIFT@54px","button2 key ime-switch-key@54px","key-SPACE@216px"]`，键在空格左侧 |
+| 扣宽     | 空格 270px → 216px，正好让出 1U                                                         |
+| 图标     | `showSwitchIcon` 后 canvas 2×2、可见，兜底字样隐藏                                      |
+| 重建     | 清空行后重插，键回到空格左侧、空格再次扣到 216px                                        |
 
 ## 验证（控制台探针）
 

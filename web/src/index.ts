@@ -2,6 +2,7 @@ import { createCandidateBar } from './candidate-bar'
 import { clearPreedit, insertText, keepComposerFocus, showPreedit } from './composer'
 import type { CompositionView, SwitchIconView } from './ime-view'
 import { announceReady } from './native-bridge'
+import { createSwitchKey } from './switch-key'
 
 /**
  * Entry point of the injected script. The keyboard page imports it for its side
@@ -10,6 +11,7 @@ import { announceReady } from './native-bridge'
  */
 function install(): void {
   const bar = createCandidateBar()
+  const switchKey = createSwitchKey()
   keepComposerFocus()
 
   window.__xsoKeyboardIme = {
@@ -24,7 +26,7 @@ function install(): void {
       bar.render(view)
     },
     showSwitchIcon: (view: SwitchIconView | null) => {
-      bar.showSwitchIcon(view)
+      switchKey.show(view)
     },
   }
 
