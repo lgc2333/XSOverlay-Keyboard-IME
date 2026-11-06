@@ -78,6 +78,10 @@ Composing means taking the foreground and pressing keys for you. Widen the scope
 
 The composing string sits in the input box for a moment. The keyboard page enables send whenever the box is not empty, so the pinyin can go out without warning. The plugin therefore keeps send disabled while composing. It returns to normal once the text is committed or cancelled.
 
+### Why composing briefly takes the foreground
+
+Composing has to reach the IME. The only way is to inject global key input, and injected keys only reach the foreground window. So a composition starts by bringing the plugin's hidden window to the foreground. It hands the foreground back to your window when the keys are in. If another window takes it in the meantime, the plugin takes it again. You see the game lose focus for a moment, and the desktop focus jump away and back. There is no other way to reach the IME. Either implement a whole text store, or the keys never arrive.
+
 ## Build
 
 You need .NET SDK 10 or later, CMake, and the C++ build tools of Visual Studio.
