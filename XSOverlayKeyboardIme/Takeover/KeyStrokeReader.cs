@@ -10,17 +10,36 @@ namespace XSOverlayKeyboardIme.Takeover
     /// </summary>
     internal static class KeyStrokeReader
     {
-        // The page names keys the way LSHIFT and RSHIFT are named, and its exact spelling is
-        // undocumented, so the families are matched by token. Only Shift is read, because the
-        // page already folded it into the character; a key carrying any other modifier is a
-        // combination the page interprets. See ADR 0026.
+        // The page names keys the way LSHIFT and RSHIFT are named, and its exact spelling
+        // is undocumented, so the families are matched by token. See ADR 0029.
         private static readonly string[] ShiftMarkers = { "SHIFT" };
-        private static readonly string[] CombinationMarkers = { "CTRL", "CONTROL", "ALT", "WIN", "META" };
+        private static readonly string[] CombinationMarkers = { "CTRL", "CONTROL", "ALT" };
+        private static readonly string[] MetaMarkers = { "WIN", "META" };
 
         internal static bool TryRead(PageKey key, TakeoverGate gate, List<KeyStroke> strokes)
         {
             strokes.Clear();
-            if (!key.IsSinglePress || HasAnyMarker(key.Names, CombinationMarkers))
+            if (!key.IsSinglePress)
+            {
+                return false;
+            }
+
+            // A press that carries only a modifier belongs to the page: the game has to
+            // record the key before a combination with it can be recognized. See ADR 0029.
+            if (IsModifierOnly(key))
+            {
+                return false;
+            }
+
+            // Windows owns every Win combination, so the page must not type its character.
+            // Taking the key with nothing to feed is what keeps it off the page. See ADR 0029.
+            if (HoldsMeta(key))
+            {
+                return true;
+            }
+
+            // Every other modifier means the page interprets the key. See ADR 0029.
+            if (HoldsCombination(key))
             {
                 return false;
             }
@@ -39,7 +58,7 @@ namespace XSOverlayKeyboardIme.Takeover
                 return false;
             }
 
-            bool shift = HasAnyMarker(key.Names, ShiftMarkers);
+            bool shift = HasAnyMarker(key.Names, ShiftMarkers) || (key.Modifiers & PageModifiers.Shift) != 0;
             foreach (string name in key.Names)
             {
                 if (HasMarker(name, ShiftMarkers))
@@ -65,6 +84,39 @@ namespace XSOverlayKeyboardIme.Takeover
             }
 
             return strokes.Count > 0;
+        }
+
+        private static bool IsModifierOnly(PageKey key)
+        {
+            if (key.Text.Length > 0 || key.Names.Length == 0)
+            {
+                return false;
+            }
+
+            foreach (string name in key.Names)
+            {
+                if (
+                    !HasMarker(name, ShiftMarkers)
+                    && !HasMarker(name, CombinationMarkers)
+                    && !HasMarker(name, MetaMarkers)
+                )
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool HoldsMeta(PageKey key)
+        {
+            return (key.Modifiers & PageModifiers.Meta) != 0 || HasAnyMarker(key.Names, MetaMarkers);
+        }
+
+        private static bool HoldsCombination(PageKey key)
+        {
+            return (key.Modifiers & (PageModifiers.Control | PageModifiers.Alt)) != 0
+                || HasAnyMarker(key.Names, CombinationMarkers);
         }
 
         private static bool HasAnyMarker(string[] names, string[] markers)

@@ -10,11 +10,12 @@ namespace XSOverlayKeyboardIme.Takeover
     {
         private static readonly string[] NoNames = Array.Empty<string>();
 
-        internal PageKey(bool isSinglePress, string[] names, string text)
+        internal PageKey(bool isSinglePress, string[] names, string text, PageModifiers modifiers)
         {
             IsSinglePress = isSinglePress;
             Names = names ?? NoNames;
             Text = text ?? string.Empty;
+            Modifiers = modifiers;
         }
 
         /// <summary>True for one complete press, not a repeat or a release.</summary>
@@ -25,5 +26,8 @@ namespace XSOverlayKeyboardIme.Takeover
 
         /// <summary>The single character the page resolved, including any shift.</summary>
         internal string Text { get; }
+
+        /// <summary>The modifiers held when the press happened.</summary>
+        internal PageModifiers Modifiers { get; }
     }
 }

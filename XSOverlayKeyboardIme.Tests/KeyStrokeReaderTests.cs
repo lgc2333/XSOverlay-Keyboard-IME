@@ -14,6 +14,8 @@ namespace XSOverlayKeyboardIme.Tests
         private static readonly string[] CharacterName = { "N" };
         private static readonly string[] ControlName = { "LCTRL" };
         private static readonly string[] ShiftName = { "LSHIFT" };
+        private static readonly string[] WinSpace = { "LWIN", "SPACE" };
+        private static readonly string[] WinName = { "LWIN" };
 
         private static bool Read(PageKey key, TakeoverGate gate, out List<KeyStroke> strokes)
         {
@@ -23,12 +25,22 @@ namespace XSOverlayKeyboardIme.Tests
 
         private static bool ReadText(string text, TakeoverGate gate, out List<KeyStroke> strokes)
         {
-            return Read(new PageKey(true, null, text), gate, out strokes);
+            return Read(new PageKey(true, null, text, PageModifiers.None), gate, out strokes);
         }
 
         private static bool ReadNamed(string[] names, TakeoverGate gate, out List<KeyStroke> strokes)
         {
-            return Read(new PageKey(true, names, null), gate, out strokes);
+            return Read(new PageKey(true, names, null, PageModifiers.None), gate, out strokes);
+        }
+
+        private static bool ReadHeld(
+            string text,
+            PageModifiers modifiers,
+            TakeoverGate gate,
+            out List<KeyStroke> strokes
+        )
+        {
+            return Read(new PageKey(true, null, text, modifiers), gate, out strokes);
         }
 
         [Fact]
@@ -39,7 +51,6 @@ namespace XSOverlayKeyboardIme.Tests
             KeyStroke stroke = Assert.Single(strokes);
             Assert.True(stroke.IsText);
             Assert.Equal('n', stroke.Text);
-            Assert.False(stroke.EndsComposition);
         }
 
         [Fact]
@@ -58,24 +69,20 @@ namespace XSOverlayKeyboardIme.Tests
         }
 
         [Fact]
-        public void Composing_takes_a_space_and_ends_the_session()
+        public void Composing_takes_a_space()
         {
             Assert.True(ReadText(" ", TakeoverGate.Composing, out List<KeyStroke> strokes));
 
             KeyStroke stroke = Assert.Single(strokes);
             Assert.False(stroke.IsText);
             Assert.Equal(VirtualKey.Space, stroke.Key);
-            Assert.True(stroke.EndsComposition);
         }
 
         [Fact]
-        public void Composing_takes_return_and_ends_the_session()
+        public void Composing_takes_return()
         {
             Assert.True(ReadNamed(ReturnName, TakeoverGate.Composing, out List<KeyStroke> strokes));
-
-            KeyStroke stroke = Assert.Single(strokes);
-            Assert.Equal(VirtualKey.Return, stroke.Key);
-            Assert.True(stroke.EndsComposition);
+            Assert.Equal(VirtualKey.Return, Assert.Single(strokes).Key);
         }
 
         [Fact]
@@ -115,7 +122,7 @@ namespace XSOverlayKeyboardIme.Tests
         {
             // Only Shift is read, because the page already folded it into the character.
             // Every other combination belongs to the page. See ADR 0026.
-            var key = new PageKey(true, ControlName, "a");
+            var key = new PageKey(true, ControlName, "a", PageModifiers.None);
             var strokes = new List<KeyStroke>();
 
             Assert.False(KeyStrokeReader.TryRead(key, TakeoverGate.Composing, strokes));
@@ -125,7 +132,7 @@ namespace XSOverlayKeyboardIme.Tests
         [Fact]
         public void A_shifted_character_still_starts_a_session()
         {
-            var key = new PageKey(true, ShiftName, "N");
+            var key = new PageKey(true, ShiftName, "N", PageModifiers.None);
 
             Assert.True(KeyStrokeReader.TryRead(key, TakeoverGate.Idle, new List<KeyStroke>()));
         }
@@ -133,7 +140,7 @@ namespace XSOverlayKeyboardIme.Tests
         [Fact]
         public void A_press_that_is_not_single_is_refused()
         {
-            var key = new PageKey(false, null, "n");
+            var key = new PageKey(false, null, "n", PageModifiers.None);
 
             Assert.False(KeyStrokeReader.TryRead(key, TakeoverGate.Composing, new List<KeyStroke>()));
         }
@@ -150,10 +157,63 @@ namespace XSOverlayKeyboardIme.Tests
         public void A_character_wins_over_a_named_key()
         {
             // The page resolved the character, so the name is not needed.
-            var key = new PageKey(true, CharacterName, "n");
+            var key = new PageKey(true, CharacterName, "n", PageModifiers.None);
             var strokes = new List<KeyStroke>();
 
             Assert.True(KeyStrokeReader.TryRead(key, TakeoverGate.Composing, strokes));
+            Assert.True(Assert.Single(strokes).IsText);
+        }
+
+        [Fact]
+        public void A_held_control_stays_with_the_page()
+        {
+            // A combination belongs to the page. See ADR 0029.
+            Assert.False(ReadHeld("a", PageModifiers.Control, TakeoverGate.Composing, out List<KeyStroke> strokes));
+            Assert.Empty(strokes);
+        }
+
+        [Fact]
+        public void A_held_alt_stays_with_the_page()
+        {
+            Assert.False(ReadHeld("a", PageModifiers.Alt, TakeoverGate.Composing, out List<KeyStroke> strokes));
+            Assert.Empty(strokes);
+        }
+
+        [Fact]
+        public void A_held_win_is_taken_and_fed_nothing()
+        {
+            // Windows answers Win combinations itself, so the character must not reach
+            // the page. See ADR 0029.
+            Assert.True(ReadHeld(" ", PageModifiers.Meta, TakeoverGate.Idle, out List<KeyStroke> strokes));
+            Assert.Empty(strokes);
+        }
+
+        [Fact]
+        public void A_win_named_only_by_the_page_is_taken_and_fed_nothing()
+        {
+            var key = new PageKey(true, WinSpace, " ", PageModifiers.None);
+            var strokes = new List<KeyStroke>();
+
+            Assert.True(KeyStrokeReader.TryRead(key, TakeoverGate.Idle, strokes));
+            Assert.Empty(strokes);
+        }
+
+        [Fact]
+        public void A_press_that_carries_only_a_modifier_stays_with_the_page()
+        {
+            // The game records the modifier there, so the combination that follows is
+            // recognized. See ADR 0029.
+            var key = new PageKey(true, WinName, string.Empty, PageModifiers.Meta);
+            var strokes = new List<KeyStroke>();
+
+            Assert.False(KeyStrokeReader.TryRead(key, TakeoverGate.Composing, strokes));
+            Assert.Empty(strokes);
+        }
+
+        [Fact]
+        public void A_held_shift_still_starts_a_session()
+        {
+            Assert.True(ReadHeld("N", PageModifiers.Shift, TakeoverGate.Idle, out List<KeyStroke> strokes));
             Assert.True(Assert.Single(strokes).IsText);
         }
     }

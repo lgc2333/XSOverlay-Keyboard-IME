@@ -17,7 +17,10 @@ namespace XSOverlayKeyboardIme.Game.Patches
         private static long _lastRefusalTicks;
 
         [HarmonyPrefix]
-        private static bool Prefix(XSOverlay.Websockets.API.Objects.KeyboardEvent __0)
+        private static bool Prefix(
+            XSOverlay.Websockets.API.Objects.KeyboardEvent __0,
+            XSOverlay.InputManager __instance
+        )
         {
             try
             {
@@ -33,15 +36,17 @@ namespace XSOverlayKeyboardIme.Game.Patches
                     return true;
                 }
 
+                PageModifiers modifiers = KeyboardModifiers.Read(__instance);
                 var key = new PageKey(
                     __0 != null && __0.keyPressStyle == XSOverlay.Websockets.API.Enums.KeyPressStyle.Standard,
                     __0?.value,
-                    __0?.webValue
+                    __0?.webValue,
+                    modifiers
                 );
 
                 if (!host.TryAcceptKey(key))
                 {
-                    Refuse("the key was not taken: " + DescribeKey(__0));
+                    Refuse("the key was not taken: " + DescribeKey(__0, modifiers));
                     return true;
                 }
 
@@ -67,7 +72,10 @@ namespace XSOverlayKeyboardIme.Game.Patches
             HostLog.Info("key refused: " + reason);
         }
 
-        private static string DescribeKey(XSOverlay.Websockets.API.Objects.KeyboardEvent keyEvent)
+        private static string DescribeKey(
+            XSOverlay.Websockets.API.Objects.KeyboardEvent keyEvent,
+            PageModifiers modifiers
+        )
         {
             if (keyEvent == null)
             {
@@ -80,7 +88,9 @@ namespace XSOverlayKeyboardIme.Game.Patches
                 + " values=["
                 + values
                 + "] web="
-                + (keyEvent.webValue ?? "(null)");
+                + (keyEvent.webValue ?? "(null)")
+                + " modifiers="
+                + modifiers;
         }
     }
 }
