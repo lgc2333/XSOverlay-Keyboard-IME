@@ -27,7 +27,7 @@ namespace XSOverlayKeyboardIme.Ime
         private volatile CompositionSession _session;
         private ForegroundLease _lease;
         private ImeContext _ime;
-        private bool _drainingStrokes;
+        private volatile bool _drainingStrokes;
         private int _finished;
 
         private ImeHost(Action<string> onCommitted, Action<CompositionView> onView)
@@ -64,7 +64,11 @@ namespace XSOverlayKeyboardIme.Ime
                 return false;
             }
 
-            TakeoverGate gate = session.Composing ? TakeoverGate.Composing : TakeoverGate.Idle;
+            // The gate reads a state the host thread owns, so a key that arrives before the
+            // queue drains would see a stale answer: a space would go to the page instead of
+            // committing. Every key still in flight therefore counts as composing. See ADR 0026.
+            bool inFlight = _drainingStrokes || !_strokes.IsEmpty;
+            TakeoverGate gate = session.Composing || inFlight ? TakeoverGate.Composing : TakeoverGate.Idle;
 
             var strokes = new List<KeyStroke>(4);
             if (!KeyStrokeReader.TryRead(key, gate, strokes))
