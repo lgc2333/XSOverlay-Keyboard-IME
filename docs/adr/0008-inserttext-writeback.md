@@ -1,9 +1,5 @@
 ---
 status: accepted
-supersedes: []
-superseded_by: []
-amends: []
-amended_by: []
 ---
 
 # 提交文本用 execCommand('insertText') 写回输入框

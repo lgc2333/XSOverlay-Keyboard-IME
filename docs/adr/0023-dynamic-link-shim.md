@@ -1,9 +1,5 @@
 ---
 status: accepted
-supersedes: []
-superseded_by: []
-amends: []
-amended_by: []
 ---
 
 # IngameIME 以动态库加自有 C 薄壳接入

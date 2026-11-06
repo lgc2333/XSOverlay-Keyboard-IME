@@ -1,9 +1,6 @@
 ---
 status: accepted
 supersedes: ['0003']
-superseded_by: []
-amends: []
-amended_by: []
 ---
 
 # 原生回调改用托管委托

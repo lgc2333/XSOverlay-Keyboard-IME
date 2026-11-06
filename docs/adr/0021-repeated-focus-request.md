@@ -1,9 +1,5 @@
 ---
 status: accepted
-supersedes: []
-superseded_by: []
-amends: []
-amended_by: []
 ---
 
 # 同一 overlay 的重复键盘焦点请求直接放行

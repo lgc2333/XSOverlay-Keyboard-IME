@@ -1,9 +1,5 @@
 ---
 status: accepted
-supersedes: []
-superseded_by: []
-amends: []
-amended_by: []
 ---
 
 # v1 只把文本写进输入框，不自动发送

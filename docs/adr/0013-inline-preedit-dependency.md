@@ -1,9 +1,5 @@
 ---
 status: accepted
-supersedes: []
-superseded_by: []
-amends: []
-amended_by: []
 ---
 
 # 组字串依赖输入法的行内预编辑设置

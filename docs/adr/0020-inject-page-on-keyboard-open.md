@@ -1,9 +1,6 @@
 ---
 status: accepted
-supersedes: []
-superseded_by: []
 amends: ['0004']
-amended_by: []
 ---
 
 # 键盘页在键盘打开时注入，不等第一次击键

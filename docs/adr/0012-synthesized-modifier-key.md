@@ -1,9 +1,6 @@
 ---
 status: superseded
-supersedes: []
 superseded_by: ['0028']
-amends: []
-amended_by: []
 ---
 
 # 中英切换键在运行时合成进布局数据，不修改布局文件

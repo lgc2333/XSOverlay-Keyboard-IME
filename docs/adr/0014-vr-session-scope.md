@@ -1,9 +1,6 @@
 ---
 status: accepted
-supersedes: []
-superseded_by: []
 amends: ['0006']
-amended_by: []
 ---
 
 # 只在经 Steam 启动的 VR 会话里验证并支持

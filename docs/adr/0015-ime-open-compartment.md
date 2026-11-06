@@ -1,9 +1,7 @@
 ---
 status: superseded
-supersedes: []
 superseded_by: ['0025']
 amends: ['0006']
-amended_by: []
 ---
 
 # 用 TSF 隔间强制打开输入法并在结束时还原

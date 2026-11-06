@@ -1,9 +1,6 @@
 ---
 status: superseded
-supersedes: []
 superseded_by: ['0024']
-amends: []
-amended_by: []
 ---
 
 # Mono 上使用经典 CCW，不使用 ComWrappers

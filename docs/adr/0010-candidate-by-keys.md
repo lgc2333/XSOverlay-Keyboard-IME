@@ -1,8 +1,5 @@
 ---
 status: accepted
-supersedes: []
-superseded_by: []
-amends: []
 amended_by: ['0018']
 ---
 

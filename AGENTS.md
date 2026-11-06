@@ -100,7 +100,7 @@ The Rules section introduced some skills. If some skill is missing, please ask u
 - `docs/handoffs/` records what one session discussed at that time. It is archived history, not current truth: a handoff may be out of date, and a later ADR or a later document overrides it.
 
 - Do not modify old ADRs (excluding their front-matter) unless user explicitly asks.
-- Every ADR opens with YAML front-matter at the very top, above the title: `status` (e.g. `accepted` | `proposed` | `deprecated` | `superseded`), then the relation keys `supersedes` / `superseded_by` and `amends` / `amended_by`, each holding quoted ids (`['0001']`, never a bare `0001`, which YAML reads as octal).
+- Every ADR opens with YAML front-matter at the very top, above the title: `status` (e.g. `accepted` | `proposed` | `deprecated` | `superseded`), then the optional relation keys `supersedes` / `superseded_by` and `amends` / `amended_by`, each holding quoted ids (`['0001']`, never a bare `0001`, which YAML reads as octal).
 - Relations are bidirectional: a relation is a mirrored pair of keys. A plain mention of another ADR earns no key, and an ADR records a relation only when its own file is the one making it.
 
 ### Code Flavor Rules

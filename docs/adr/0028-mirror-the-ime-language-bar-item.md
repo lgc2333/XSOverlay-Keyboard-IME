@@ -1,9 +1,7 @@
 ---
 status: accepted
 supersedes: ['0012']
-superseded_by: []
 amends: ['0018']
-amended_by: []
 ---
 
 # 中英切换按钮镜像输入法的语言栏项，按下即按它

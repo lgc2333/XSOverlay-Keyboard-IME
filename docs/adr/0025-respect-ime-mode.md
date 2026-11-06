@@ -2,8 +2,6 @@
 status: superseded
 supersedes: ['0015']
 superseded_by: ['0026']
-amends: []
-amended_by: []
 ---
 
 # 尊重输入法自己的中英状态，不自动切换
