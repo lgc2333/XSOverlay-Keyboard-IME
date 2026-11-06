@@ -8,9 +8,9 @@
 > [!WARNING]
 > This repository is still under development. There is no usable build yet, and the implementation is still changing. Please wait.
 
-This mod adds a system IME to the VR keyboard of XSOverlay. Compose text in the input box on the keyboard page. The composing string and the candidates show on the keyboard. Pick a candidate with the keyboard keys. The committed text goes back into the input box.
+This plugin adds a system IME to the VR keyboard of XSOverlay. Compose text in the input box on the keyboard page. The composing string and the candidates show on the keyboard. Pick a candidate with the keyboard keys. The committed text goes back into the input box.
 
-## Why this Mod
+## Why this plugin
 
 For Chinese input in VRChat, the two solutions I tried did not fit.
 
@@ -19,7 +19,7 @@ For Chinese input in VRChat, the two solutions I tried did not fit.
 
 [OVR Toolkit](https://store.steampowered.com/app/1068820/OVR_Toolkit/) also bundles a virtual keyboard, but it is known to have performance problems, so I did not consider it. I have not tested whether it supports Chinese input, or whether the community has a working setup for it.
 
-Then I found that the XSOverlay keyboard recently added official VRC ChatBox support. So I had an idea: connect it to the system IME, and the dictionary you have built up is ready to use. This mod started there.
+Then I found that the XSOverlay keyboard recently added official VRC ChatBox support. So I had an idea: connect it to the system IME, and the dictionary you have built up is ready to use. This plugin started there.
 
 ## Showcase
 
