@@ -5,13 +5,27 @@ import { ensurePageStyle } from './page-style'
 const SwitchStyleId = 'keyboard-ime-switch-style'
 const SwitchClass = 'ime-switch-key'
 const SpaceId = 'key-SPACE'
+/** The key whose look the switch copies, because both are modifier-like keys. */
+const ModelKeyId = 'key-LALT'
 const ContainerId = 'keyboard-container'
+
+/** The page takes its key animation length from this property; the fallback matches. */
+const AnimationProperty = '--animation-time'
+const AnimationFallbackMilliseconds = 150
+
+/** The settings file the page loads beside each sound; it carries volume and pitch. */
+const SoundEntryPattern =
+  /\/keyboard-sounds\/[^/]+\/(?:soundpackSettings\.json|[a-z]+\.ogg)$/
+const soundPacks = new Map<string, SoundPack>()
+const buffers = new Map<string, AudioBuffer>()
+let audioContext: AudioContext | null = null
 
 const SwitchStyle = `
 #${ContainerId} .${SwitchClass} {
   display: flex; align-items: center; justify-content: center;
   padding: 0; box-sizing: border-box;
   cursor: pointer; -webkit-user-select: none; user-select: none;
+  outline: none; -webkit-tap-highlight-color: transparent;
 }
 #${ContainerId} .${SwitchClass} canvas {
   width: 32px; height: 32px; image-rendering: pixelated; pointer-events: none;
@@ -77,16 +91,27 @@ export function createSwitchKey(): SwitchKey {
   }
 }
 
-/** Takes the look of the key beside it: same size, margins and colours. */
+/**
+ * Takes the look of the key beside it: same size, margins, and the classes that decide
+ * the colours, so a theme change reaches this key too.
+ */
 function createKey(space: HTMLElement, unit: number): HTMLElement {
-  const key = document.createElement('button')
-  key.className = `button2 key ${SwitchClass}`
-  key.type = 'button'
+  // A div rather than a button: the page's focus and active styles would flash a colour.
+  const key = document.createElement('div')
+  const model = document.getElementById(ModelKeyId) ?? space
+  for (const name of model.classList) {
+    if (name !== 'active') {
+      key.classList.add(name)
+    }
+  }
+
+  key.classList.add(SwitchClass)
   Object.assign(key.style, {
     width: `${unit}px`,
     height: space.style.height,
     margin: space.style.margin,
     marginTop: space.style.marginTop,
+    backgroundColor: model.style.backgroundColor,
     position: 'relative',
     pointerEvents: 'auto',
   })
@@ -100,10 +125,182 @@ function createKey(space: HTMLElement, unit: number): HTMLElement {
 
   key.addEventListener('pointerdown', (event) => {
     event.preventDefault()
+    animate(key)
+    playTap()
     requestSwitch()
   })
 
   return key
+}
+
+/**
+ * Repeats the press animation the page plays on its own keys, so this key moves alike.
+ */
+function animate(key: HTMLElement): void {
+  if (typeof key.animate !== 'function') {
+    return
+  }
+
+  key.animate([{ scale: '1.05' }, { scale: '0.95' }, { scale: '1.05' }], {
+    duration: animationDuration(),
+    easing: 'linear',
+    fill: 'none',
+  })
+}
+
+/** Reads the same property the page's own keys read, so the length cannot drift. */
+function animationDuration(): number {
+  const value = getComputedStyle(document.documentElement)
+    .getPropertyValue(AnimationProperty)
+    .trim()
+  const match = /^([\d.]+)\s*(ms|s)?$/i.exec(value)
+  const number = match == null ? Number.NaN : Number(match[1])
+  if (!Number.isFinite(number)) {
+    return AnimationFallbackMilliseconds
+  }
+
+  return match?.[2]?.toLowerCase() === 's' ? number * 1000 : number
+}
+
+interface SoundPack {
+  /** Base URL of the pack, ending with a slash. */
+  base: string
+  volume: number
+  minimumPitch: number
+  maximumPitch: number
+}
+
+/**
+ * Plays the tap sound through WebAudio, the way the page does: the same decoded buffer,
+ * the same gain and the same pitch range. A media element sounds different in this
+ * webview, so the pipeline has to match rather than just the number.
+ */
+function playTap(): void {
+  void playTapFromPack()
+}
+
+async function playTapFromPack(): Promise<void> {
+  const base = findSoundPackBase()
+  if (base == null) {
+    return
+  }
+
+  const pack = (await loadSoundPack(base)) ?? {
+    base,
+    volume: 1,
+    minimumPitch: 1,
+    maximumPitch: 1,
+  }
+  const context = getAudioContext()
+  if (context == null) {
+    return
+  }
+
+  if (context.state === 'suspended') {
+    void context.resume().catch(() => {})
+  }
+
+  const buffer = await loadBuffer(context, `${pack.base}tap.ogg`)
+  if (buffer == null) {
+    return
+  }
+
+  const source = context.createBufferSource()
+  const gain = context.createGain()
+  source.buffer = buffer
+  source.playbackRate.value =
+    pack.minimumPitch +
+    Math.random() * Math.max(0, pack.maximumPitch - pack.minimumPitch)
+  gain.gain.value = clampUnit(pack.volume)
+  source.connect(gain)
+  gain.connect(context.destination)
+  source.start()
+}
+
+function getAudioContext(): AudioContext | null {
+  if (audioContext != null) {
+    return audioContext
+  }
+
+  try {
+    audioContext = new AudioContext()
+  } catch {
+    audioContext = null
+  }
+
+  return audioContext
+}
+
+/** Decodes each file once, the way the page caches its pack. */
+async function loadBuffer(
+  context: AudioContext,
+  url: string,
+): Promise<AudioBuffer | null> {
+  const cached = buffers.get(url)
+  if (cached != null) {
+    return cached
+  }
+
+  try {
+    const response = await fetch(url)
+    if (!response.ok) {
+      return null
+    }
+
+    const buffer = await context.decodeAudioData(await response.arrayBuffer())
+    buffers.set(url, buffer)
+    return buffer
+  } catch {
+    return null
+  }
+}
+
+/** The pack is named only in the requests the page made, so the base comes from there. */
+function findSoundPackBase(): string | null {
+  for (const entry of performance.getEntriesByType('resource')) {
+    if (SoundEntryPattern.test(entry.name)) {
+      return entry.name.replace(/[^/]+$/, '')
+    }
+  }
+
+  return null
+}
+
+/** Reads the settings file the page also reads, so volume and pitch match it. */
+async function loadSoundPack(base: string): Promise<SoundPack | null> {
+  const cached = soundPacks.get(base)
+  if (cached != null) {
+    return cached
+  }
+
+  try {
+    const response = await fetch(`${base}soundpackSettings.json`)
+    if (!response.ok) {
+      return null
+    }
+
+    const settings = (await response.json()) as Record<string, unknown>
+    const minimumPitch = numberOr(settings.minimumPitchRange, 1)
+    const pack: SoundPack = {
+      base,
+      volume: numberOr(settings.volume, 1),
+      minimumPitch,
+      maximumPitch: numberOr(settings.maximumPitchRange, minimumPitch),
+    }
+    soundPacks.set(base, pack)
+    return pack
+  } catch {
+    return null
+  }
+}
+
+function numberOr(value: unknown, fallback: number): number {
+  const number = Number(value)
+  return Number.isFinite(number) ? number : fallback
+}
+
+function clampUnit(value: number): number {
+  return Math.max(0, Math.min(1, value))
 }
 
 function draw(key: HTMLElement, view: SwitchIconView | null): void {
