@@ -59,7 +59,6 @@ namespace XSOverlayKeyboardIme.Ime
         {
             None,
             Language,
-            Press,
             Profile,
         }
 
@@ -274,7 +273,7 @@ namespace XSOverlayKeyboardIme.Ime
                     LanguageChanged();
                     break;
                 case HostWindow.SwitchMessage:
-                    RequestPress();
+                    PressSwitch();
                     break;
                 case HostWindow.SwitchSettledMessage:
                     OnSwitchSettled();
@@ -447,15 +446,7 @@ namespace XSOverlayKeyboardIme.Ime
             }
 
             _switchDue = false;
-            if (action == SwitchAction.Press)
-            {
-                PressSwitch();
-            }
-            else
-            {
-                SwitchProfile(_profileIndex);
-            }
-
+            SwitchProfile(_profileIndex);
             ScheduleSwitchSettled();
         }
 
@@ -511,24 +502,6 @@ namespace XSOverlayKeyboardIme.Ime
             // drawing codes the IME no longer holds. Re-read it here. See ADR 0038.
             _session?.RefreshAfterSwitch();
             ReplayStrokesDuringSwitch();
-        }
-
-        /// <summary>A request to press the IME's own switch, committed first. See ADR 0038.</summary>
-        private void RequestPress()
-        {
-            CompositionSession session = _session;
-            if (session == null)
-            {
-                return;
-            }
-
-            if (!session.Composing)
-            {
-                PressSwitch();
-                return;
-            }
-
-            DeferSwitch(SwitchAction.Press);
         }
 
         /// <summary>A request for another IME, committed first. See ADR 0039.</summary>
