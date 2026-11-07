@@ -291,48 +291,26 @@ namespace XSOverlayKeyboardIme.Ime
             if (_composerActive)
             {
                 PublishSwitchIcon();
-                IReadOnlyList<ImeChoice> profiles;
-                int activeProfile;
-                ReadProfiles(out profiles, out activeProfile);
-                _onComposerState(new ComposerState(true, name, profiles, activeProfile));
+
+                // The reader's list is refilled by its next read, so the page gets a copy.
+                IReadOnlyList<ImeChoice> listed =
+                    _profiles == null ? Array.Empty<ImeChoice>() : _profiles.ListChoices();
+                var choices = new ImeChoice[listed.Count];
+                int activeProfile = -1;
+                for (int index = 0; index < listed.Count; index++)
+                {
+                    choices[index] = listed[index];
+                    if (activeProfile < 0 && listed[index].Profile.Active)
+                    {
+                        activeProfile = index;
+                    }
+                }
+
+                _onComposerState(new ComposerState(true, name, choices, activeProfile));
                 return;
             }
 
             _onComposerState(ComposerState.Hidden);
-        }
-
-        /// <summary>
-        /// Every IME this machine offers and the active one's position, from one read of the
-        /// list. See ADR 0039.
-        /// </summary>
-        private void ReadProfiles(out IReadOnlyList<ImeChoice> choices, out int activeProfile)
-        {
-            choices = Array.Empty<ImeChoice>();
-            activeProfile = -1;
-            ImeProfiles source = _profiles;
-            if (source == null)
-            {
-                return;
-            }
-
-            IReadOnlyList<ImeChoice> listed = source.ListChoices();
-            for (int index = 0; index < listed.Count; index++)
-            {
-                if (listed[index].Profile.Active)
-                {
-                    activeProfile = index;
-                    break;
-                }
-            }
-
-            // Copied: the list belongs to the profile reader and is refilled by its next read.
-            var copy = new ImeChoice[listed.Count];
-            for (int index = 0; index < listed.Count; index++)
-            {
-                copy[index] = listed[index];
-            }
-
-            choices = copy;
         }
 
         /// <summary>Switches this thread's IME. Called on the host thread. See ADR 0039.</summary>

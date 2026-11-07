@@ -11,8 +11,8 @@ amends: ['0035']
 
 - 列表：`ITfInputProcessorProfiles::GetLanguageList` 取本机全部语言，逐语言 `EnumLanguageProfiles`，名字用 `GetLanguageProfileDescription` 读。没有描述的档案不列，所以索引是**过滤后**的顺序；当前语言排最前，其余按 TSF 列出的顺序。只有 composer 有焦点时才列、才发给页面。
 - 语言名随条目一起显示，只在列表里出现多种语言时才画：不同语言下可能重名，靠它区分。
-- 切换：`ActivateLanguageProfile(clsid, langid, guid)` 在本线程激活该档案；线程的输入语言随之变成该档案的语言，随后重读名字、语言栏按钮与图标。这条要实测。
-- 组字中选中另一条：先把编码上屏（[0038](./0038-latched-modifiers-stay-with-the-page.md) 的第 4 条），再激活。
+- 切换：`ActivateLanguageProfile(clsid, langid, guid)` 在本线程激活该档案。跨语言要先换线程语言：实测宿主的线程语言还是 zh-CN 时，对 ja-JP 的档案调用它返回 `0x80070057`，先 `ChangeCurrentLanguage(ja-JP)` 再激活就返回 0，`GetCurrentLanguage` 也跟着变成 ja-JP。随后重读名字、语言栏按钮与图标。
+- 组字中选中另一条：直接激活。旧组字怎么收尾是输入法自己的事，插件不替它上屏（[0038](./0038-latched-modifiers-follow-the-host.md) 的第 4 条）。
 - 不做：不轮询、不读别的窗口、不改系统默认输入法。
 
 ## Considered Options
@@ -24,7 +24,7 @@ amends: ['0035']
 ## Consequences
 
 - 列表会长：装了几种语言就有十几条，菜单要能滚。
-- 跨语言激活改的是宿主线程的输入语言，不是系统默认输入法；桌面上的输入法不变，待实测。
+- 跨语言激活改的是宿主线程的输入语言（实测线程语言随之变化），不是系统默认输入法；桌面侧没测。
 - 同名条目靠语言名区分；只有一种语言时界面不画语言名。
 - 档案可能在两次枚举之间变化（装卸输入法），索引只在最近一次列表内有效；页面每次拿到的都是新列表。
 - 激活到纯键盘布局时只有字母，插件不替用户挑输入法。

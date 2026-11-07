@@ -13,7 +13,7 @@
 - [x] 分段组字：空格只转换光标前那一段，会话随组字结束而不是随空格结束。见 [0033](./adr/0033-end-the-session-with-the-composition.md)。
 - [x] 提交晚于组字结束时照样送达页面，不再被当成「会话外提交」丢弃。见 [0032](./adr/0032-deliver-a-late-commit.md)。
 - [x] 组字期间用射线点了输入框、输入框失焦、键盘页关闭时取消组字；页面重建输入框不算失焦。见 [0027](./adr/0027-cancel-composition-on-caret-move.md)、[0034](./adr/0034-a-rebuilt-composer-is-not-a-blur.md)。
-- [x] 按键归属只有一张表：页面、输入法、系统、吞掉。Sticky 的 Shift 与 Toggle 的 Caps 留在页面，页面据此决定字母的大小写；其他 Win 组合吞掉，Win+空格 交给系统。见 [0036](./adr/0036-one-table-for-key-ownership.md)、[0038](./adr/0038-latched-modifiers-stay-with-the-page.md)。
+- [x] 按键归属只有一张表：页面、输入法、系统、吞掉。Sticky 的 Shift／Ctrl／Win 由插件在宿主窗口真的按下并保持，失焦时全部抬起；Toggle 的 Caps 留在页面与系统；其他 Win 组合吞掉，Win+空格 交给系统。见 [0036](./adr/0036-one-table-for-key-ownership.md)、[0038](./adr/0038-latched-modifiers-follow-the-host.md)。
 - [x] Win+空格 交给系统，按下即切系统输入法；名字与图标随后刷新，新输入法没有语言栏项时退回页面自带字形。代价是它切的是整个桌面的语言，VR 里看不见任务栏。见 [0036](./adr/0036-one-table-for-key-ownership.md)。
 
 ## 待真机验证
@@ -25,6 +25,7 @@
 - [ ] 组字中点清空：打 `nihc`，点清空 → 输入框清空，组字结束，旧文字不回填。
 - [ ] 组字中打大写：打 `nihc`，按 Shift 再打字母，再按一次 Shift；按 Caps 打字母，再按 Caps 打字母 → Shift 真的按住宿主、一个字母一个字母地大写，再按一次松开；Caps 锁上再解开。
 - [ ] 修饰键失焦复位：按一下 Shift 让它粘住，点别处或关掉键盘 → 回来打字母还是小写，没有残留的 Shift。Caps 不受影响。
+- [ ] 粘住的 Win：按一下 Win 让它粘住，再按字母 → 字母不进输入框、也不弹系统组合；再按一次 Win 松开，之后打字正常。
 - [ ] 组字中按中英切换键：打 `nihc` 不选词，按空格左侧的切换键 → 组字按输入法自己的规矩收掉，之后打的字母是英文。插件不替输入法上屏；Rime 有时不收组字，那是它自己的毛病。
 - [ ] 组字中 Win+空格：打 `nihc`，按 Win+空格；再快速连按两次 → 组字收掉，输入法名字与图标跟着换。
 - [ ] 候选栏滚动：打一个候选很多的词，PageUp/PageDown 翻到最后 → 活跃候选始终完整可见，不被渐隐挡住。
@@ -32,7 +33,7 @@
 - [ ] 提交晚于组字结束：连续快打、回车提交、取消后立刻重打 → 不丢字。
 - [ ] ChatBox 发送：打开 VRC 目标按钮，打一句中文发送 → 文本进 VRChat 的 ChatBox，插件不自动发送。
 
-下一轮 VR 的顺序：点输入框 → 按空格左侧切换键切到中文 → 逐条走上面这十一条 → 顺手看候选栏下拉框与 ChatBox 发送按钮。对应的日志行：`feed Escape`（取消）、`feed Win+Space` 与 `the IME is now`（切换）、`key refused … style=Sticky/Toggle`（粘滞键是否被正确放行）、`the page switched to profile`（下拉框切换）。
+下一轮 VR 的顺序：点输入框 → 按空格左侧切换键切到中文 → 逐条走上面这十一条 → 顺手看候选栏下拉框与 ChatBox 发送按钮。对应的日志行：`feed Escape`（取消）、`feed Win+Space` 与 `the IME is now`（切换）、`latch … down` 与 `latch … up`（粘滞键是否在宿主真的按住又松开）、`the page switched to profile`（下拉框切换）。
 
 ## 待实现
 

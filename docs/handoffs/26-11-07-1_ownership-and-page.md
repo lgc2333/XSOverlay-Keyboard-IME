@@ -10,7 +10,7 @@
 
 - [0036](../adr/0036-one-table-for-key-ownership.md)：归属只有四个结论（页面／吞掉／输入法／系统），按下形态建模成 Standard/Sticky/Toggle。
 - [0037](../adr/0037-the-page-owns-the-composer-state.md)：几何与可见性归页面；组字期间的值与光标归输入法；取消只有一条路径且没有静默出口。
-- [0038](../adr/0038-latched-modifiers-stay-with-the-page.md)：Sticky/Toggle 一律留在页面（这样组字中也能打大写）；切输入法前单独送一次 Enter，隔 60 毫秒再切，期间不还前台。
+- [0038](../adr/0038-latched-modifiers-follow-the-host.md)：Sticky/Toggle 一律留在页面（这样组字中也能打大写）；切输入法前单独送一次 Enter，隔 60 毫秒再切，期间不还前台。
 - [0039](../adr/0039-switch-imes-from-the-bar.md)：下拉框列当前语言的 TSF 档案，用户选中即在本线程激活。
 
 ## 本轮实现
