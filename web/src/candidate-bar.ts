@@ -38,7 +38,7 @@ export interface CandidateBar {
  * The name opens the language's profiles and picking one asks the plugin to activate it.
  * See ADR 0039.
  * The active candidate is scrolled just far enough into view, never centred, and only
- * a side that still hides candidates fades. See ADR 0018.
+ * a side that still hides candidates fades.
  * The page rebuilds the whole keyboard tree on every layout update, so the bar is put
  * back whenever it is not a child of the current container. See ADR 0004.
  */

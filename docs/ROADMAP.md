@@ -31,14 +31,17 @@
 - [ ] 提交晚于组字结束：连续快打、回车提交、取消后立刻重打 → 不丢字。
 - [ ] ChatBox 发送：打开 VRC 目标按钮，打一句中文发送 → 文本进 VRChat 的 ChatBox，插件不自动发送。
 
-- [x] 当前活跃候选始终在候选栏可见范围内：按最短距离滚动，不居中；两侧溢出用渐隐提示，已经到底的一侧不再提示。候选栏用 `contain: inline-size` 挡住长候选反向撑开键盘容器。待真机确认手感。
-- [x] 候选栏右侧的输入法下拉框：名字旁的下拉框列出当前语言的输入法，点一条即切；当前项带勾与描边，点外面收起。插件侧列档案、按索引激活、组字中先上屏。见 [0039](./adr/0039-switch-imes-from-the-bar.md)。界面定稿见 [26-11-05-1](./handoffs/26-11-05-1_keyboard-ime.md)。待真机确认射线手感。
+下一轮 VR 的顺序：点输入框 → 按空格左侧切换键切到中文 → 逐条走上面这十条 → 顺手看候选栏下拉框与 ChatBox 发送按钮。对应的日志行：`feed Escape`（取消）、`feed Win+Space` 与 `the IME is now`（切换）、`feed Return`（切换前上屏）、`key refused … style=Sticky/Toggle`（粘滞键是否被正确放行）、`the page switched to profile`（下拉框切换）。
+
+## 待实现
+
+- [ ] 当输入法没有语言栏图标时（如英文键盘），隐藏中英切换键。现在这种情况下切换键退回页面自带的字形，仍然可点，但没有对应项时它按下去什么也不做。
 
 ## 下一步
 
 - [ ] 优化 VRC ChatBox 体验
-  - [ ] ChatBox 目标按钮打开后，组字串实时送进 ChatBox。**实现过、验证过、已撤回**：页面侧先按 800ms 节流发过 `{"text":"nihc"}`，但它与 [0011](./adr/0011-input-only-no-autosend.md)「插件不复制发送职责」冲突；更硬的阻碍是**清空不了**——游戏的 OSC 服务对空白文本直接拒绝，组字结束后半成品会留在 ChatBox 里。建议 v1 不做，见 [0040](./adr/0040-preview-in-the-chatbox.md)（proposed）。
-  - 输入框获得焦点时向 VRChat 上报正在输入，失焦时取消。路线：游戏的 API 没暴露 OSC typing，但插件可以在 C# 侧直接向 VRChat 的 OSC 输入端口发 `/chatbox/typing` 的 UDP 包；前提是用户开了 VRChat 的 OSC。同样要先想清楚它算不算「第二份发送职责」（见 [0040](./adr/0040-preview-in-the-chatbox.md)）。
+  - [ ] ChatBox 目标按钮打开后，组字串实时送进 ChatBox。**实现过、验证过、已撤回**：页面侧先按 800ms 节流发过 `{"text":"nihc"}`，但它与 [0011](./adr/0011-input-only-no-autosend.md)「插件不复制发送职责」冲突；更硬的阻碍是**清空不了**——游戏的 OSC 服务对空白文本直接拒绝，组字结束后半成品会留在 ChatBox 里。建议 v1 不做。
+  - 输入框获得焦点时向 VRChat 上报正在输入，失焦时取消。路线：游戏的 API 没暴露 OSC typing，但插件可以在 C# 侧直接向 VRChat 的 OSC 输入端口发 `/chatbox/typing` 的 UDP 包；前提是用户开了 VRChat 的 OSC。同样要先想清楚它算不算「第二份发送职责」。
   - 已知接口：页面发 `SendVRChatChatboxText`，载荷 `{"text": "..."}`，上限 144 字符；要求 VRChat 在线且 OSC 可用（`vrChatActive` / `vrChatOscAvailable`）。「正在输入」对应 VRChat 的 OSC typing 参数，游戏的 API 目前没有暴露，需要另找入口或放弃。
   - 实现路线（已实测）：注入脚本 `import('/Shared/js/api.js')` 能拿到 `Send` 与 `Commands.SendVRChatChatboxText`，页面自己的 `keyboard.js` 用的是同一个 URL，模块按 URL 缓存，所以是同一份实例、同一条连接、同一个 overlay 身份；手动 `Send` 已经能从页面的 mock 服务器收到。
   - 目标开关：状态在 `.keyboard-vrc-toggle` 的 `aria-pressed` 上，但页面会按自己的会话状态重写这个属性，所以只能在发的那一刻同步读，不能缓存。

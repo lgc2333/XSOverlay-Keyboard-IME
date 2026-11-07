@@ -1,5 +1,6 @@
 ---
 status: accepted
+amended_by: ['0040']
 ---
 
 # v1 只把文本写进输入框，不自动发送
