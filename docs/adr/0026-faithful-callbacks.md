@@ -1,7 +1,7 @@
 ---
 status: accepted
 supersedes: ['0025']
-amended_by: ['0029', '0032']
+amended_by: ['0029', '0032', '0036']
 ---
 
 # 忠实汇报输入法的回调，按键按组字状态路由

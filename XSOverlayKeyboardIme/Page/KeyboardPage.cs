@@ -184,11 +184,8 @@ namespace XSOverlayKeyboardIme.Page
         private static void PushSwitchIcon(IWebView page)
         {
             LanguageBarIcon icon = _switchIcon;
-            if (icon == null)
-            {
-                return;
-            }
 
+            // A null icon is news too: the page falls back to its own glyph. See ADR 0036.
             Call(
                 page,
                 "input mode",

@@ -18,6 +18,9 @@ namespace XSOverlayKeyboardIme.Ime
         /// <summary>XSOverlay finishes starting after the plugin, and steals the foreground while it does.</summary>
         private const int StartupSettleMilliseconds = 8000;
 
+        /// <summary>How long a language switch needs before the new IME can be read.</summary>
+        private const uint SwitchSettleMilliseconds = 400;
+
         private static ImeHost _current;
 
         private readonly ConcurrentQueue<KeyStroke> _strokes = new ConcurrentQueue<KeyStroke>();
@@ -92,7 +95,7 @@ namespace XSOverlayKeyboardIme.Ime
             TakeoverGate gate = session.Composing || inFlight ? TakeoverGate.Composing : TakeoverGate.Idle;
 
             var strokes = new List<KeyStroke>(4);
-            if (!KeyStrokeReader.TryRead(key, gate, strokes))
+            if (KeyStrokeReader.Read(key, gate, strokes) == KeyOwnership.Page)
             {
                 return false;
             }
@@ -158,7 +161,7 @@ namespace XSOverlayKeyboardIme.Ime
         {
             CompositionSession session = _session;
             HostWindow window = _window;
-            if (session == null || window == null || !session.Composing)
+            if (session == null || window == null)
             {
                 return;
             }
@@ -247,6 +250,11 @@ namespace XSOverlayKeyboardIme.Ime
             {
                 PressSwitch();
             }
+
+            if (message == HostWindow.SwitchSettledMessage)
+            {
+                OnSwitchSettled();
+            }
         }
 
         /// <summary>Reads the IME name again while the composer holds the focus. See ADR 0035.</summary>
@@ -282,6 +290,30 @@ namespace XSOverlayKeyboardIme.Ime
 
             ReopenLanguageBar();
             RefreshComposer();
+        }
+
+        /// <summary>Reads the new IME once the switch we asked for has settled. See ADR 0036.</summary>
+        private void ScheduleSwitchSettled()
+        {
+            HostWindow window = _window;
+            if (window == null)
+            {
+                return;
+            }
+
+            Win32Native.SetTimer(window.Handle, HostWindow.SwitchSettleTimerId, SwitchSettleMilliseconds, IntPtr.Zero);
+        }
+
+        private void OnSwitchSettled()
+        {
+            HostWindow window = _window;
+            if (window == null)
+            {
+                return;
+            }
+
+            Win32Native.KillTimer(window.Handle, HostWindow.SwitchSettleTimerId);
+            LanguageChanged();
         }
 
         private void PressSwitch()
@@ -338,15 +370,19 @@ namespace XSOverlayKeyboardIme.Ime
             LanguageBarIcon icon = _languageBar.ReadIcon();
             if (icon == null)
             {
+                // The new IME has no bar item, so the page must stop drawing the old one.
                 if (!_iconMissing)
                 {
                     _iconMissing = true;
+                    _switchIconKey = null;
                     HostLog.Info("the language bar item draws no icon; the switch shows its fallback");
+                    _onLanguageBarIcon(null);
                 }
 
                 return;
             }
 
+            _iconMissing = false;
             if (icon.Key == _switchIconKey)
             {
                 return;
@@ -379,6 +415,13 @@ namespace XSOverlayKeyboardIme.Ime
                 while (_strokes.TryDequeue(out KeyStroke stroke))
                 {
                     session.Send(stroke);
+
+                    // We asked the system to switch, so nothing else will tell this host.
+                    // The new IME is only readable once the switch settles. See ADR 0036.
+                    if (stroke.Kind == KeyStrokeKind.System)
+                    {
+                        ScheduleSwitchSettled();
+                    }
                 }
 
                 // A fed Shift is the IME's own switch key, so the icon is read again here.

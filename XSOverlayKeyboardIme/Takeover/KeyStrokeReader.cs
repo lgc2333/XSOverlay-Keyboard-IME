@@ -5,57 +5,94 @@ using XSOverlayKeyboardIme.Input;
 namespace XSOverlayKeyboardIme.Takeover
 {
     /// <summary>
-    /// Turns one page key into strokes for the composition host, as far as the current
-    /// gate allows. See ADR 0007 and ADR 0026.
+    /// Decides who answers one press of a page key, and what the IME receives when it does.
+    /// See ADR 0026, ADR 0029 and ADR 0036.
     /// </summary>
     internal static class KeyStrokeReader
     {
         // The page names keys the way LSHIFT and RSHIFT are named, and its exact spelling
         // is undocumented, so the families are matched by token. See ADR 0029.
         private static readonly string[] ShiftMarkers = { "SHIFT" };
-        private static readonly string[] CombinationMarkers = { "CTRL", "CONTROL", "ALT" };
+        private static readonly string[] ControlMarkers = { "CTRL", "CONTROL" };
+        private static readonly string[] AltMarkers = { "ALT" };
         private static readonly string[] MetaMarkers = { "WIN", "META" };
+        private static readonly string[] CapsMarkers = { "CAPITAL", "CAPSLOCK" };
+        private static readonly string[] SpaceMarkers = { "SPACE" };
 
-        internal static bool TryRead(PageKey key, TakeoverGate gate, List<KeyStroke> strokes)
+        /// <summary>
+        /// Reads one press. The strokes list holds what the IME receives; a decision that
+        /// leaves the list empty still means the plugin keeps the key when it says so.
+        /// </summary>
+        internal static KeyOwnership Read(PageKey key, TakeoverGate gate, List<KeyStroke> strokes)
         {
             strokes.Clear();
-            if (!key.IsSinglePress)
+
+            // The page latches modifiers and lock keys instead of typing them. See ADR 0036.
+            if (key.Style != PageKeyStyle.Standard)
             {
-                return false;
+                return ReadLatched(key, gate, strokes);
             }
 
-            // A press that carries only a modifier belongs to the page: the game has to
-            // record the key before a combination with it can be recognized. See ADR 0029.
-            if (IsModifierOnly(key))
+            // The language switch reaches our own IME, so Windows must get it. See ADR 0036.
+            if (IsSystemSwitch(key))
             {
-                return false;
+                strokes.Add(KeyStroke.FromSystem());
+                return KeyOwnership.System;
             }
 
-            // Windows owns every Win combination, so the page must not type its character.
-            // Taking the key with nothing to feed is what keeps it off the page. See ADR 0029.
+            // Every other Win combination stays off the page without feeding anything.
             if (HoldsMeta(key))
             {
-                return true;
+                return KeyOwnership.Swallow;
             }
 
+            if (gate == TakeoverGate.Composing)
+            {
+                return ReadComposing(key, strokes);
+            }
+
+            return ReadIdle(key, strokes);
+        }
+
+        /// <summary>
+        /// A latched Shift or Caps belongs to the IME only while it composes; otherwise the
+        /// game records the latch, so the combination that follows still works. See ADR 0029.
+        /// </summary>
+        private static KeyOwnership ReadLatched(PageKey key, TakeoverGate gate, List<KeyStroke> strokes)
+        {
+            if (gate != TakeoverGate.Composing || !TryReadLoneModifier(key, out VirtualKey modifier))
+            {
+                return KeyOwnership.Page;
+            }
+
+            strokes.Add(KeyStroke.FromKey(modifier, false));
+            return KeyOwnership.Ime;
+        }
+
+        /// <summary>
+        /// While the IME composes it owns the keyboard: a lone modifier is a key it uses,
+        /// and a name it cannot use is dropped rather than handed back to the page.
+        /// </summary>
+        private static KeyOwnership ReadComposing(PageKey key, List<KeyStroke> strokes)
+        {
             // Every other modifier means the page interprets the key. See ADR 0029.
             if (HoldsCombination(key))
             {
-                return false;
+                return KeyOwnership.Page;
             }
 
-            // The page already resolved the character, including the shift state. A space
-            // never starts a composition, so while idle it stays with the page.
+            // Shift and Caps are how the IME commits the codes and changes its own state.
+            if (TryReadLoneModifier(key, out VirtualKey modifier))
+            {
+                strokes.Add(KeyStroke.FromKey(modifier, false));
+                return KeyOwnership.Ime;
+            }
+
             string text = key.Text;
             if (text.Length == 1 && text[0] != ' ')
             {
                 strokes.Add(KeyStroke.FromText(text[0]));
-                return true;
-            }
-
-            if (gate == TakeoverGate.Idle)
-            {
-                return false;
+                return KeyOwnership.Ime;
             }
 
             bool shift = HasAnyMarker(key.Names, ShiftMarkers) || (key.Modifiers & PageModifiers.Shift) != 0;
@@ -68,10 +105,8 @@ namespace XSOverlayKeyboardIme.Takeover
 
                 if (!TryMapNamedKey(name, out VirtualKey mapped))
                 {
-                    // The IME composes, so the page must not edit the composer under it. A
-                    // name that cannot be translated is dropped instead of handed on.
                     strokes.Clear();
-                    return true;
+                    return KeyOwnership.Swallow;
                 }
 
                 strokes.Add(KeyStroke.FromKey(mapped, shift));
@@ -83,29 +118,88 @@ namespace XSOverlayKeyboardIme.Takeover
                 strokes.Add(KeyStroke.FromKey(VirtualKey.Space, false));
             }
 
-            return strokes.Count > 0;
+            return strokes.Count > 0 ? KeyOwnership.Ime : KeyOwnership.Swallow;
         }
 
-        private static bool IsModifierOnly(PageKey key)
+        /// <summary>While the IME composes nothing, only a key that can start it is taken.</summary>
+        private static KeyOwnership ReadIdle(PageKey key, List<KeyStroke> strokes)
         {
-            if (key.Text.Length > 0 || key.Names.Length == 0)
+            // Every other modifier means the page interprets the key. See ADR 0029.
+            if (HoldsCombination(key))
+            {
+                return KeyOwnership.Page;
+            }
+
+            // The game records the modifier, so the combination with it is recognized.
+            if (TryReadLoneModifier(key, out _))
+            {
+                return KeyOwnership.Page;
+            }
+
+            // The page already resolved the character, including the shift state. A space
+            // never starts a composition, so it stays with the page.
+            string text = key.Text;
+            if (text.Length == 1 && text[0] != ' ')
+            {
+                strokes.Add(KeyStroke.FromText(text[0]));
+                return KeyOwnership.Ime;
+            }
+
+            return KeyOwnership.Page;
+        }
+
+        /// <summary>Win+Space is the one combination that belongs to the system. See ADR 0036.</summary>
+        private static bool IsSystemSwitch(PageKey key)
+        {
+            if (!HoldsMeta(key))
             {
                 return false;
             }
 
+            return key.Text == " " || HasAnyMarker(key.Names, SpaceMarkers);
+        }
+
+        /// <summary>A press of nothing but modifiers: the text is no character the page resolved.</summary>
+        private static bool TryReadLoneModifier(PageKey key, out VirtualKey modifier)
+        {
+            modifier = default;
+            if (key.Names.Length == 0 || key.Text.Length == 1)
+            {
+                return false;
+            }
+
+            VirtualKey found = default;
             foreach (string name in key.Names)
             {
-                if (
-                    !HasMarker(name, ShiftMarkers)
-                    && !HasMarker(name, CombinationMarkers)
-                    && !HasMarker(name, MetaMarkers)
-                )
+                if (!TryMapModifier(name, out VirtualKey mapped) || (found != default && found != mapped))
                 {
                     return false;
                 }
+
+                found = mapped;
             }
 
+            modifier = found;
             return true;
+        }
+
+        /// <summary>Only Shift and Caps go into the IME; Ctrl, Alt and Win stay with the page.</summary>
+        private static bool TryMapModifier(string name, out VirtualKey modifier)
+        {
+            if (HasMarker(name, ShiftMarkers))
+            {
+                modifier = VirtualKey.Shift;
+                return true;
+            }
+
+            if (HasMarker(name, CapsMarkers))
+            {
+                modifier = VirtualKey.Capital;
+                return true;
+            }
+
+            modifier = default;
+            return false;
         }
 
         private static bool HoldsMeta(PageKey key)
@@ -116,7 +210,8 @@ namespace XSOverlayKeyboardIme.Takeover
         private static bool HoldsCombination(PageKey key)
         {
             return (key.Modifiers & (PageModifiers.Control | PageModifiers.Alt)) != 0
-                || HasAnyMarker(key.Names, CombinationMarkers);
+                || HasAnyMarker(key.Names, ControlMarkers)
+                || HasAnyMarker(key.Names, AltMarkers);
         }
 
         private static bool HasAnyMarker(string[] names, string[] markers)

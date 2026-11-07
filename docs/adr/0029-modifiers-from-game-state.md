@@ -1,6 +1,7 @@
 ---
 status: accepted
 amends: ['0026']
+amended_by: ['0036']
 ---
 
 # 修饰键读游戏自己的键盘状态，Win 组合键吞掉

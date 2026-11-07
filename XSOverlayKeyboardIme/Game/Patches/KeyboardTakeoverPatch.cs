@@ -37,12 +37,7 @@ namespace XSOverlayKeyboardIme.Game.Patches
                 }
 
                 PageModifiers modifiers = KeyboardModifiers.Read(__instance);
-                var key = new PageKey(
-                    __0 != null && __0.keyPressStyle == XSOverlay.Websockets.API.Enums.KeyPressStyle.Standard,
-                    __0?.value,
-                    __0?.webValue,
-                    modifiers
-                );
+                var key = new PageKey(ReadStyle(__0), __0?.value, __0?.webValue, modifiers);
 
                 if (!host.TryAcceptKey(key))
                 {
@@ -56,6 +51,27 @@ namespace XSOverlayKeyboardIme.Game.Patches
             {
                 HostLog.Error("take-over failed " + ex.GetType().Name + ": " + ex.Message);
                 return true;
+            }
+        }
+
+        /// <summary>The page's press style, as far as the take-over cares. See ADR 0036.</summary>
+        private static PageKeyStyle ReadStyle(XSOverlay.Websockets.API.Objects.KeyboardEvent keyEvent)
+        {
+            if (keyEvent == null)
+            {
+                return PageKeyStyle.Other;
+            }
+
+            switch (keyEvent.keyPressStyle)
+            {
+                case XSOverlay.Websockets.API.Enums.KeyPressStyle.Standard:
+                    return PageKeyStyle.Standard;
+                case XSOverlay.Websockets.API.Enums.KeyPressStyle.Sticky:
+                    return PageKeyStyle.Sticky;
+                case XSOverlay.Websockets.API.Enums.KeyPressStyle.Toggle:
+                    return PageKeyStyle.Toggle;
+                default:
+                    return PageKeyStyle.Other;
             }
         }
 

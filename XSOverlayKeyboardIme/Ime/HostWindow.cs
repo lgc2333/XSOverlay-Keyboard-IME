@@ -16,6 +16,10 @@ namespace XSOverlayKeyboardIme.Ime
         internal const uint SwitchMessage = Win32Native.WmApp + 2;
         internal const uint LanguageMessage = Win32Native.WmApp + 3;
         internal const uint ComposerMessage = Win32Native.WmApp + 4;
+        internal const uint SwitchSettledMessage = Win32Native.WmApp + 5;
+
+        /// <summary>The one timer this window owns; a message for another id is not ours.</summary>
+        internal static readonly IntPtr SwitchSettleTimerId = (IntPtr)1;
 
         private const string WindowClassName = "XSOverlayKeyboardImeHost";
         private const string WindowTitle = "XSOverlay Keyboard IME host";
@@ -200,6 +204,12 @@ namespace XSOverlayKeyboardIme.Ime
                     {
                         window._onHostMessage(LanguageMessage);
                         return (IntPtr)1;
+                    }
+
+                    if (message == Win32Native.WmTimer && wParam == SwitchSettleTimerId)
+                    {
+                        window._onHostMessage(SwitchSettledMessage);
+                        return IntPtr.Zero;
                     }
                 }
 

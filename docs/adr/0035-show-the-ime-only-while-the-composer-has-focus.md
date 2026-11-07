@@ -2,6 +2,7 @@
 status: accepted
 supersedes: ['0030']
 amends: ['0018', '0028']
+amended_by: ['0036']
 ---
 
 # 输入法名字与中英切换只在 composer 输入框有焦点时出现

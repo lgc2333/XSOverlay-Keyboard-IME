@@ -24,10 +24,55 @@ namespace XSOverlayKeyboardIme.Ime
 
         internal bool Send(KeyStroke stroke)
         {
-            return stroke.IsText ? SendText(stroke.Text) : Send(stroke.Key, stroke.Shift);
+            switch (stroke.Kind)
+            {
+                case KeyStrokeKind.Text:
+                    return SendText(stroke.Text);
+                case KeyStrokeKind.System:
+                    return SendSystemSwitch();
+                default:
+                    return Send(stroke.Key, stroke.Shift);
+            }
+        }
+
+        /// <summary>Sends the system's language switch. See ADR 0036.</summary>
+        private bool SendSystemSwitch()
+        {
+            return SendBatch(
+                new List<NativeInput>(4)
+                {
+                    KeyInput.Create(VirtualKey.LeftWin, 0),
+                    KeyInput.Create(VirtualKey.Space, 0),
+                    KeyInput.Create(VirtualKey.Space, Win32Native.KeyEventKeyUp),
+                    KeyInput.Create(VirtualKey.LeftWin, Win32Native.KeyEventKeyUp),
+                }
+            );
         }
 
         private bool Send(VirtualKey key, bool shift)
+        {
+            return SendBatch(BuildStroke(key, shift));
+        }
+
+        /// <summary>Types one character through the layout, for the keys the page resolved.</summary>
+        private bool SendText(char character)
+        {
+            short scan = Win32Native.VkKeyScanW(character);
+            if (scan == -1)
+            {
+                HostLog.Warn("the layout cannot type '" + character + "'");
+                return false;
+            }
+
+            return Send((VirtualKey)(scan & 0xFF), (scan & 0x100) != 0);
+        }
+
+        /// <summary>
+        /// Sends a batch while the lease holds the foreground. No pause follows: the caller
+        /// drains this thread's key messages, and the IME answers on this thread while they
+        /// are dispatched. See ADR 0026.
+        /// </summary>
+        private bool SendBatch(List<NativeInput> strokes)
         {
             _lease.Ensure();
             _lease.BeginAttach();
@@ -35,7 +80,7 @@ namespace XSOverlayKeyboardIme.Ime
             bool sent;
             try
             {
-                sent = SendAttached(key, shift);
+                sent = SendInputBatch(strokes);
             }
             finally
             {
@@ -52,20 +97,20 @@ namespace XSOverlayKeyboardIme.Ime
             return sent;
         }
 
-        /// <summary>Types one character through the layout, for the keys the page resolved.</summary>
-        private bool SendText(char character)
+        private static bool SendInputBatch(List<NativeInput> strokes)
         {
-            short scan = Win32Native.VkKeyScanW(character);
-            if (scan == -1)
+            uint sent = Win32Native.SendInput((uint)strokes.Count, strokes.ToArray(), Marshal.SizeOf<NativeInput>());
+
+            if (sent != strokes.Count)
             {
-                HostLog.Warn("the layout cannot type '" + character + "'");
+                HostLog.Warn("SendInput sent " + sent + " of " + strokes.Count + " strokes");
                 return false;
             }
 
-            return Send((VirtualKey)(scan & 0xFF), (scan & 0x100) != 0);
+            return true;
         }
 
-        private bool SendAttached(VirtualKey key, bool shift)
+        private static List<NativeInput> BuildStroke(VirtualKey key, bool shift)
         {
             var strokes = new List<NativeInput>(4);
             if (shift)
@@ -80,17 +125,7 @@ namespace XSOverlayKeyboardIme.Ime
                 strokes.Add(KeyInput.Create(VirtualKey.Shift, Win32Native.KeyEventKeyUp));
             }
 
-            // No pause after the send. The caller drains this thread's key messages, and the
-            // IME answers on this thread while they are dispatched. See ADR 0026.
-            uint sent = Win32Native.SendInput((uint)strokes.Count, strokes.ToArray(), Marshal.SizeOf<NativeInput>());
-
-            if (sent != strokes.Count)
-            {
-                HostLog.Warn("SendInput sent " + sent + " of " + strokes.Count + " strokes");
-                return false;
-            }
-
-            return true;
+            return strokes;
         }
     }
 }
