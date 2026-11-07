@@ -31,7 +31,7 @@
 - [ ] 提交晚于组字结束：连续快打、回车提交、取消后立刻重打 → 不丢字。
 - [ ] ChatBox 发送：打开 VRC 目标按钮，打一句中文发送 → 文本进 VRChat 的 ChatBox，插件不自动发送。
 
-下一轮 VR 的顺序：点输入框 → 按空格左侧切换键切到中文 → 逐条走上面这十条 → 顺手看候选栏下拉框与 ChatBox 发送按钮。对应的日志行：`feed Escape`（取消）、`feed Win+Space` 与 `the IME is now`（切换）、`feed Return`（Win+空格 或下拉框切换前上屏）、`key refused … style=Sticky/Toggle`（粘滞键是否被正确放行）、`the page switched to profile`（下拉框切换）。
+下一轮 VR 的顺序：点输入框 → 按空格左侧切换键切到中文 → 逐条走上面这十条 → 顺手看候选栏下拉框与 ChatBox 发送按钮。对应的日志行：`feed Escape`（取消）、`feed Win+Space` 与 `the IME is now`（切换）、`key refused … style=Sticky/Toggle`（粘滞键是否被正确放行）、`the page switched to profile`（下拉框切换）。
 
 ## 待实现
 

@@ -16,7 +16,6 @@ namespace XSOverlayKeyboardIme.Ime
         private readonly IntPtr _hostWindow;
         private IntPtr _previous;
         private uint _attachedThread;
-        private bool _held;
 
         internal ForegroundLease(IntPtr hostWindow)
         {
@@ -25,8 +24,8 @@ namespace XSOverlayKeyboardIme.Ime
 
         internal void Acquire()
         {
-            // A held lease keeps the window it took the foreground from: overwriting it
-            // here would "restore" the foreground to this host instead. See ADR 0038.
+            // The first take remembers where the foreground came from; a later one must
+            // not overwrite it with this host.
             if (_previous == IntPtr.Zero)
             {
                 _previous = Win32Native.GetForegroundWindow();
@@ -91,35 +90,9 @@ namespace XSOverlayKeyboardIme.Ime
             _attachedThread = 0;
         }
 
-        /// <summary>Keeps the foreground across a sequence, so it is not handed back halfway.</summary>
-        internal void Hold()
-        {
-            _held = true;
-        }
-
-        internal void Unhold()
-        {
-            if (!_held)
-            {
-                return;
-            }
-
-            _held = false;
-            Restore();
-        }
-
-        /// <summary>
-        /// Ends a hold without handing the foreground back: a composition that started while
-        /// the hold was on owns it now, and its own end restores. See ADR 0038.
-        /// </summary>
-        internal void ReleaseHold()
-        {
-            _held = false;
-        }
-
         internal void Restore()
         {
-            if (_held || _previous == IntPtr.Zero)
+            if (_previous == IntPtr.Zero)
             {
                 return;
             }
