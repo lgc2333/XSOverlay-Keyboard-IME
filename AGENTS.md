@@ -120,7 +120,7 @@ pnpm --dir web test
 
 ### 放行规则
 
-输入法说了算。键盘做它没有插件时也会做的事：键进去，输入法拿它怎么处理，就是用户看到的答案。只用公开 API（例如 TSF），不做按输入法的特例。
+输入法说了算。键盘做它没有插件时也会做的事：键进去，输入法拿它怎么处理，就是用户看到的答案。只用公共 API（例如 TSF，IME），不做按输入法的特例。
 
 公开语言栏模式项缺失时，允许 [0042](docs/adr/0042-hide-the-switch-without-an-icon.md) 的 InputSwitch 例外。修改 Shell ABI 或生命周期前读[适配约束](docs/input-mode-shell.md)。
 
