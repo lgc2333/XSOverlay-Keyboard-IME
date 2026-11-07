@@ -44,14 +44,22 @@ namespace XSOverlayKeyboardIme.Page
         internal static void ShowSwitchIcon(LanguageBarIcon icon)
         {
             _switchIcon = icon;
-            Attach();
+            IWebView page = EnsureInjected();
+            if (page != null)
+            {
+                PushSwitchIcon(page);
+            }
         }
 
         /// <summary>Shows a composition or the idle bar, and remembers it for a later page.</summary>
         internal static void Show(CompositionView view)
         {
             _view = view;
-            Attach();
+            IWebView page = EnsureInjected();
+            if (page != null)
+            {
+                ShowBar(page, view);
+            }
         }
 
         /// <summary>
@@ -61,13 +69,15 @@ namespace XSOverlayKeyboardIme.Page
         internal static void ShowComposerState(ComposerState state)
         {
             _composerState = state;
-            Attach();
+            IWebView page = EnsureInjected();
+            if (page != null)
+            {
+                PushComposerState(page);
+            }
         }
 
         /// <summary>
-        /// Puts the bundle and everything the page shows on it: the composition, the
-        /// switch icon and the composer's state. Replays after every change and onto a
-        /// page that appears later.
+        /// Replays the current state when the keyboard opens or a page first becomes ready.
         /// </summary>
         internal static void Attach()
         {
@@ -153,8 +163,8 @@ namespace XSOverlayKeyboardIme.Page
             }
 
             _missingLogged = false;
-            Inject(page);
             Listen(page);
+            Inject(page);
             return page;
         }
 
@@ -293,6 +303,8 @@ namespace XSOverlayKeyboardIme.Page
 
         private static void OnMessage(object sender, EventArgs<string> args)
         {
+            if (!ReferenceEquals(sender, _listening))
+                return;
             string message = args.Value;
             if (message == PageScript.SwitchMessage)
             {
@@ -325,8 +337,12 @@ namespace XSOverlayKeyboardIme.Page
                 return;
             }
 
-            _confirmed = true;
-            HostLog.Info("page message: " + message);
+            if (message == PageScript.ReadyMessage)
+            {
+                _confirmed = true;
+                HostLog.Info("page message: " + message);
+                Attach();
+            }
         }
 
         /// <summary>The page's switch was pressed; the root presses the IME's button.</summary>

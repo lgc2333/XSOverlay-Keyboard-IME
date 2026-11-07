@@ -1,10 +1,9 @@
-import { reportComposerActive } from './native-bridge'
+import { findComposer, hasComposerFocus, observeComposerFocus } from './composer-focus'
 
 /**
  * The keyboard toolbar's text composer, which is the only writeback target and the
  * only input the composition takes over. See ADR 0007, ADR 0008 and ADR 0019.
  */
-const ComposerId = 'keyboard-voice-input'
 const SendButtonId = 'keyboard-voice-send'
 const UnderlineId = 'keyboard-ime-preedit-underline'
 const UnderlineColor = '#5cfbe9'
@@ -28,21 +27,6 @@ let measure: CanvasRenderingContext2D | null = null
  */
 let underline: HTMLDivElement | null = null
 
-/** The composer the user last put the caret into; a rebuild replaces it. */
-let focused: HTMLInputElement | null = null
-
-/** Whether the plugin was last told the composer holds the focus. See ADR 0035. */
-let reportedActive = false
-
-/** What the page last told its own layout about the focus. See ADR 0037. */
-let localActive = false
-
-/** Whether the page itself is the active view, which a focusout alone does not tell. */
-let viewActive = !document.hidden
-
-/** Told as soon as the composer gains or loses the focus, before the plugin answers. */
-let onFocusChange: ((active: boolean) => void) | null = null
-
 /** The value the IME owns while it composes, so anyone else's edit is noticed. See ADR 0037. */
 let expectedValue = ''
 
@@ -65,73 +49,14 @@ let expectedSelectionEnd = 0
 /** Told when the composition no longer fits the composer. */
 let cancelComposition: (() => void) | null = null
 
-/**
- * The page rebuilds its toolbar on layout and state updates, which replaces the input
- * and takes the focus with it. Put the focus back only when the old input was removed;
- * a click on another control leaves the old input in place, so the user wins.
- */
+/** Tracks real focus and preserves a focused composer across layout rebuilds. */
 export function keepComposerFocus(onActiveChange: (active: boolean) => void): void {
-  onFocusChange = onActiveChange
-  const composer = findComposer()
-  focused = document.activeElement === composer ? composer : null
-
-  document.addEventListener(
-    'focusin',
-    (event) => {
-      const composer = findComposer()
-      if (composer != null && event.target === composer) {
-        focused = composer
-
-        // The layout follows the focus at once, not the plugin's answer. See ADR 0037.
-        if (viewActive) {
-          applyActive(true)
-        }
-      }
-
-      reportActiveLater()
-    },
-    true,
-  )
-
-  document.addEventListener('focusout', reportActiveLater, true)
-
-  // Losing the whole page counts as losing the composer, even with no focusout. See ADR 0037.
-  window.addEventListener('blur', () => setViewActive(false))
-  window.addEventListener('focus', () => setViewActive(true))
-  document.addEventListener('visibilitychange', () => setViewActive(!document.hidden))
-
-  // A rebuild removes the input the focus sat on, and the focus stays on that removed
-  // node, so the new input never gets it. Whatever was lost, the composer takes it back.
-  const observer = new MutationObserver(reclaimFocus)
-  observer.observe(document.documentElement, { childList: true, subtree: true })
-  reclaimFocus()
-  reportActive()
-}
-
-/**
- * Puts the focus back on the composer when the page replaced it under the user. A blur
- * the user chose leaves the composer connected, so it is not reclaimed.
- */
-function reclaimFocus(): void {
-  const active = document.activeElement
-  const replaced =
-    (focused != null && !focused.isConnected) ||
-    (composingComposer != null && !composingComposer.isConnected)
-  if (!replaced && active != null) {
-    return
-  }
-
-  const composer = findComposer()
-  if (composer == null || composer === active) {
-    return
-  }
-
-  focused = composer
-  composer.focus()
-
-  // The page replaced the input the codes were in. A rebuilt composer is not a blur:
-  // the codes move across, or the new input already carries them. See ADR 0034.
-  adoptRebuiltComposer(composer)
+  observeComposerFocus((active) => {
+    onActiveChange(active)
+    if (!active) {
+      checkFocusLater()
+    }
+  }, adoptRebuiltComposer)
 }
 
 /**
@@ -166,41 +91,6 @@ function adoptRebuiltComposer(composer: HTMLInputElement): void {
   cancel()
 }
 
-/**
- * Tells the plugin whether the composer holds the focus, once per change. A focus move
- * settles after the event, and a rebuild refocuses the new input, so the check waits for
- * the next task instead of trusting the event. See ADR 0035.
- */
-function reportActiveLater(): void {
-  setTimeout(reportActive, 0)
-}
-
-function setViewActive(value: boolean): void {
-  viewActive = value
-  reportActiveLater()
-}
-
-function reportActive(): void {
-  const active = viewActive && document.activeElement === findComposer()
-  applyActive(active)
-  if (active === reportedActive) {
-    return
-  }
-
-  reportedActive = active
-  reportComposerActive(active)
-}
-
-/** Tells the page what the focus did, once per change, as soon as the change is known. */
-function applyActive(active: boolean): void {
-  if (active === localActive) {
-    return
-  }
-
-  localActive = active
-  onFocusChange?.(active)
-}
-
 /** Arms the composition watch while the plugin reports a composition. See ADR 0027. */
 export function setImeComposing(value: boolean): void {
   if (value === imeComposing) {
@@ -231,10 +121,7 @@ export function onCompositionCancel(callback: () => void): void {
   cancelComposition = callback
 }
 
-export function findComposer(): HTMLInputElement | null {
-  const element = document.getElementById(ComposerId)
-  return element instanceof HTMLInputElement ? element : null
-}
+export { findComposer } from './composer-focus'
 
 /**
  * Writes committed text with execCommand so Chromium keeps its undo stack, caret and
@@ -246,7 +133,7 @@ export function insertText(text: string): WritebackOutcome {
   }
 
   const composer = findComposer()
-  if (composer == null || document.activeElement !== composer) {
+  if (composer == null || !hasComposerFocus()) {
     return 'focus-lost'
   }
 
@@ -279,8 +166,16 @@ export function insertText(text: string): WritebackOutcome {
  */
 export function showPreedit(text: string, selectionStart: number, selectionEnd: number): void {
   const composer = findComposer()
-  if (composer == null) {
+  if (composer == null || !hasComposerFocus()) {
     return
+  }
+
+  // A real IME update must not erase an external clear before pointerup notices it.
+  if (composing && composer === composingComposer) {
+    checkCaret()
+    if (!imeComposing) {
+      return
+    }
   }
 
   if (!composing) {
@@ -306,7 +201,7 @@ export function showPreedit(text: string, selectionStart: number, selectionEnd: 
   expectedSelectionStart = baseStart + start
   expectedSelectionEnd = baseStart + end
   composer.setSelectionRange(expectedSelectionStart, expectedSelectionEnd)
-  holdSendButton()
+  syncToolbar(composer)
   drawUnderline(composer, before, text)
 }
 
@@ -316,13 +211,19 @@ export function clearPreedit(): void {
     return
   }
 
+  const composer = findComposer()
+  // The idle callback may arrive before the clear button's pointerup check.
+  if (composer?.value !== expectedValue) {
+    forgetPreedit()
+    return
+  }
+
   composing = false
   lastPreedit = null
   composingComposer = null
   hideUnderline()
   observer?.disconnect()
   observer = null
-  const composer = findComposer()
   if (composer == null) {
     return
   }
@@ -334,7 +235,7 @@ export function clearPreedit(): void {
   expectedValue = composer.value
   expectedSelectionStart = baseStart
   expectedSelectionEnd = baseEnd
-  releaseSendButton(composer)
+  syncToolbar(composer)
 }
 
 /** The page enables send on any non-empty value, so keep it off while composing. */
@@ -366,13 +267,11 @@ function reassert(): void {
 function watchCaret(): void {
   document.addEventListener('selectionchange', checkCaret, true)
   document.addEventListener('pointerup', checkCaretLater, true)
-  document.addEventListener('focusout', checkFocusLater, true)
 }
 
 function unwatchCaret(): void {
   document.removeEventListener('selectionchange', checkCaret, true)
   document.removeEventListener('pointerup', checkCaretLater, true)
-  document.removeEventListener('focusout', checkFocusLater, true)
 }
 
 /**
@@ -408,13 +307,7 @@ function checkFocus(): void {
     return
   }
 
-  // The codes were written into another input, so the page rebuilt its toolbar: that is
-  // not the user leaving. See ADR 0034.
-  if (composingComposer != null && composer !== composingComposer) {
-    return
-  }
-
-  if (document.activeElement !== composer) {
+  if (!hasComposerFocus()) {
     cancel()
   }
 }
@@ -486,7 +379,7 @@ function forgetPreedit(): void {
   observer = null
   const composer = findComposer()
   if (composer != null) {
-    releaseSendButton(composer)
+    syncToolbar(composer)
   }
 }
 
@@ -558,10 +451,10 @@ function measureContext(): CanvasRenderingContext2D | null {
   return measure
 }
 
-/** Puts the page's own rule back: send stays off while the composer is empty. */
-function releaseSendButton(composer: HTMLInputElement): void {
-  const send = document.getElementById(SendButtonId)
-  if (send instanceof HTMLButtonElement) {
-    send.disabled = composer.value.trim().length === 0
+/** Let the original toolbar update from the new value, then protect uncommitted text. */
+function syncToolbar(composer: HTMLInputElement): void {
+  composer.dispatchEvent(new Event('input', { bubbles: true }))
+  if (composing) {
+    holdSendButton()
   }
 }

@@ -11,6 +11,8 @@ namespace XSOverlayKeyboardIme.Page
     {
         internal const string Missing = "missing";
 
+        internal const string ReadyMessage = "xso-keyboard-ime ready";
+
         /// <summary>The page asks the plugin to press the IME's language bar button.</summary>
         internal const string SwitchMessage = "xso-keyboard-ime switch";
 

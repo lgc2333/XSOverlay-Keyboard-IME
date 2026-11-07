@@ -23,12 +23,22 @@ import { createSwitchKey } from './switch-key'
 function install(): void {
   const bar = createCandidateBar()
   const switchKey = createSwitchKey()
+  // Cancelled codes may still have queued views; the host's idle view ends that stream.
+  let cancelledComposition = false
   keepComposerFocus((active) => switchKey.setActive(active))
-  onCompositionCancel(requestCancel)
+  onCompositionCancel(() => {
+    cancelledComposition = true
+    bar.render(null)
+    requestCancel()
+  })
 
   window.__xsoKeyboardIme = {
     insertText,
     showComposition: (view: CompositionView) => {
+      if (cancelledComposition) {
+        if (view.composing) return
+        cancelledComposition = false
+      }
       setImeComposing(view.composing)
       if (view.preedit.length > 0) {
         showPreedit(view.preedit, view.selectionStart, view.selectionEnd)
@@ -36,7 +46,7 @@ function install(): void {
         clearPreedit()
       }
 
-      bar.render(view)
+      bar.render(cancelledComposition ? null : view)
     },
     showSwitchIcon: (view: SwitchIconView | null) => {
       switchKey.show(view)
