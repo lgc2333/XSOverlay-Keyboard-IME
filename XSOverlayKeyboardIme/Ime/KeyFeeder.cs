@@ -54,15 +54,24 @@ namespace XSOverlayKeyboardIme.Ime
         /// <summary>Sends the system's language switch. See ADR 0036.</summary>
         private bool SendSystemSwitch()
         {
-            return SendBatch(
-                new List<NativeInput>(4)
-                {
-                    KeyInput.Create(VirtualKey.LeftWin, 0),
-                    KeyInput.Create(VirtualKey.Space, 0),
-                    KeyInput.Create(VirtualKey.Space, Win32Native.KeyEventKeyUp),
-                    KeyInput.Create(VirtualKey.LeftWin, Win32Native.KeyEventKeyUp),
-                }
-            );
+            // A latched Win is already down; pressing and lifting another copy would break
+            // the latch the page still believes in. See ADR 0038.
+            bool winHeld = _latched.Contains(VirtualKey.LeftWin) || _latched.Contains(VirtualKey.RightWin);
+
+            var strokes = new List<NativeInput>(4);
+            if (!winHeld)
+            {
+                strokes.Add(KeyInput.Create(VirtualKey.LeftWin, 0));
+            }
+
+            strokes.Add(KeyInput.Create(VirtualKey.Space, 0));
+            strokes.Add(KeyInput.Create(VirtualKey.Space, Win32Native.KeyEventKeyUp));
+            if (!winHeld)
+            {
+                strokes.Add(KeyInput.Create(VirtualKey.LeftWin, Win32Native.KeyEventKeyUp));
+            }
+
+            return SendBatch(strokes);
         }
 
         /// <summary>

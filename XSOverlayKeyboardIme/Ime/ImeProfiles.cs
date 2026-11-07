@@ -228,6 +228,23 @@ namespace XSOverlayKeyboardIme.Ime
             int hr = _profiles.ActivateLanguageProfile(ref service, profile.Language, ref guid);
             if (hr < 0)
             {
+                // A profile of another language is rejected until this thread speaks that
+                // language: measured, 0x80070057 for ja-JP while zh-CN was current, then 0
+                // once ChangeCurrentLanguage ran first. See ADR 0039.
+                ushort current;
+                if (
+                    _profiles.GetCurrentLanguage(out current) >= 0
+                    && current != profile.Language
+                    && _profiles.ChangeCurrentLanguage(profile.Language) >= 0
+                )
+                {
+                    HostLog.Info("the thread language moved to 0x" + profile.Language.ToString("x") + " for the pick");
+                    hr = _profiles.ActivateLanguageProfile(ref service, profile.Language, ref guid);
+                }
+            }
+
+            if (hr < 0)
+            {
                 HostLog.Warn("the profile could not be activated, hr=0x" + hr.ToString("x"));
                 return false;
             }

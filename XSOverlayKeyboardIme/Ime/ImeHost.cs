@@ -325,7 +325,14 @@ namespace XSOverlayKeyboardIme.Ime
                 }
             }
 
-            choices = listed;
+            // Copied: the list belongs to the profile reader and is refilled by its next read.
+            var copy = new ImeChoice[listed.Count];
+            for (int index = 0; index < listed.Count; index++)
+            {
+                copy[index] = listed[index];
+            }
+
+            choices = copy;
         }
 
         /// <summary>Switches this thread's IME. Called on the host thread. See ADR 0039.</summary>
@@ -363,8 +370,8 @@ namespace XSOverlayKeyboardIme.Ime
         {
             if (!ArmSwitchTimer(HostWindow.SwitchSettleTimerId, SwitchSettleMilliseconds))
             {
-                // Without the timer the hold would never be released, so the settle is
-                // queued rather than run inside the stroke drain. See ADR 0038.
+                // Without a timer the settle is queued rather than run inside the stroke
+                // drain, where the IME is still answering. See ADR 0038.
                 _window?.Post(HostWindow.SwitchSettledMessage);
             }
         }
@@ -408,6 +415,10 @@ namespace XSOverlayKeyboardIme.Ime
             if (_languageBar != null && _languageBar.Click())
             {
                 PublishSwitchIcon();
+
+                // The IME may end its composition on this press without a callback; the
+                // settle re-reads the name, the icon and the composition. See ADR 0038.
+                ScheduleSwitchSettled();
             }
         }
 
