@@ -306,6 +306,52 @@ namespace XSOverlayKeyboardIme.Page
             if (!ReferenceEquals(sender, _listening))
                 return;
             string message = args.Value;
+            if (message.StartsWith(ComposerReturnFeedback.MessagePrefix, StringComparison.Ordinal))
+            {
+                try
+                {
+                    var request = Newtonsoft.Json.JsonConvert.DeserializeObject<ComposerReturnFeedback.Request>(
+                        message.Substring(ComposerReturnFeedback.MessagePrefix.Length)
+                    );
+                    object feedback = ComposerReturnFeedback.Play(request);
+                    Call(
+                        _listening,
+                        "Return sound",
+                        CallVoid("playReturnSound", JavaScriptJson.Serialize(feedback)),
+                        outcome =>
+                        {
+                            if (outcome != "ok")
+                                HostLog.Warn("Return sound failed: " + outcome);
+                        }
+                    );
+                }
+                catch (Exception exception)
+                {
+                    HostLog.Warn("Return feedback failed: " + exception.Message);
+                }
+                return;
+            }
+            int returnId;
+            if (PageMessages.TryReadReturnRequest(message, out returnId))
+            {
+                bool taken = ComposerReturnInput.TryAccept();
+                IWebView page = sender as IWebView;
+                if (page != null && ReferenceEquals(page, _listening))
+                    Call(
+                        page,
+                        "Return routing",
+                        CallVoid(
+                            "resolveReturn",
+                            JavaScriptJson.Serialize(returnId) + "," + (taken ? "true" : "false")
+                        ),
+                        outcome =>
+                        {
+                            if (outcome != "ok")
+                                HostLog.Warn("Return routing failed: " + outcome);
+                        }
+                    );
+                return;
+            }
             if (message == PageScript.SwitchMessage)
             {
                 OnSwitchRequested();

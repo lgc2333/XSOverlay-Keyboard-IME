@@ -5,6 +5,16 @@ const ComposerActive = 'xso-keyboard-ime composer-active'
 const ComposerInactive = 'xso-keyboard-ime composer-inactive'
 const Profile = 'xso-keyboard-ime profile '
 
+export function requestReturn(id: number): boolean {
+  return post(`xso-keyboard-ime return ${id}`)
+}
+
+export function requestReturnFeedback(numpad: boolean, hapticTarget: string): boolean {
+  return post(
+    `xso-keyboard-ime return-feedback ${JSON.stringify({ numpad, hapticTarget })}`,
+  )
+}
+
 /**
  * Tells the plugin that the page runs the injected script. Vuplex hands the message to
  * C# as an IWebView.MessageEmitted event, so the plugin never polls. See ADR 0005.

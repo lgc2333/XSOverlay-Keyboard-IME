@@ -29,6 +29,7 @@ TBD
 - Windows 10 or later, 64-bit.
 - XSOverlay Beta 695. Other versions are untested.
 - BepInEx 5.4.23.6, x64. Other versions are untested.
+- This plugin modifies the keyboard page. Compatibility with other plugins is untested.
 
 ### IME
 

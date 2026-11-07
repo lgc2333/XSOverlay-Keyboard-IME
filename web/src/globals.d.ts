@@ -1,5 +1,6 @@
 import type { insertText } from './composer'
 import type { ComposerStateView, CompositionView, SwitchIconView } from './ime-view'
+import type { ReturnSound } from './return-feedback'
 
 declare global {
   interface Window {
@@ -15,6 +16,8 @@ interface VuplexHost {
 }
 
 interface KeyboardPageApi {
+  resolveReturn: (id: number, taken: boolean) => void
+  playReturnSound: (view: ReturnSound) => void
   insertText: typeof insertText
   showComposition: (view: CompositionView) => void
   showSwitchIcon: (view: SwitchIconView | null) => void

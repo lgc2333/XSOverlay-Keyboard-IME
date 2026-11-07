@@ -1,4 +1,5 @@
 import { createCandidateBar } from './candidate-bar'
+import { routeComposerReturn } from './composer-return'
 import {
   clearPreedit,
   insertText,
@@ -23,6 +24,7 @@ import { createSwitchKey } from './switch-key'
 function install(): void {
   const bar = createCandidateBar()
   const switchKey = createSwitchKey()
+  const returnRouting = routeComposerReturn()
   // Cancelled codes may still have queued views; the host's idle view ends that stream.
   let cancelledComposition = false
   keepComposerFocus((active) => switchKey.setActive(active))
@@ -33,6 +35,8 @@ function install(): void {
   })
 
   window.__xsoKeyboardIme = {
+    resolveReturn: returnRouting.resolve,
+    playReturnSound: returnRouting.sound,
     insertText,
     showComposition: (view: CompositionView) => {
       if (cancelledComposition) {

@@ -8,6 +8,21 @@ namespace XSOverlayKeyboardIme.Page
     {
         /// <summary>The page asks for the IME at this index: the prefix, then the number.</summary>
         internal const string ProfilePrefix = "xso-keyboard-ime profile ";
+        internal const string ReturnPrefix = "xso-keyboard-ime return ";
+
+        internal static bool TryReadReturnRequest(string message, out int id)
+        {
+            id = 0;
+            return message != null
+                && message.StartsWith(ReturnPrefix, StringComparison.Ordinal)
+                && int.TryParse(
+                    message.AsSpan(ReturnPrefix.Length),
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out id
+                )
+                && id > 0;
+        }
 
         /// <summary>
         /// Reads the index off a profile request. Anything but one whole non-negative number

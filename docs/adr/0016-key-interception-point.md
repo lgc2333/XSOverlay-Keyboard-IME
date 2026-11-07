@@ -1,6 +1,6 @@
 ---
 status: accepted
-amended_by: ['0026', '0041']
+amended_by: ['0026', '0041', '0047']
 ---
 
 # 在 XSOverlay 的 HandleKeypress 处拦截按键
