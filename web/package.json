@@ -5,6 +5,7 @@
   "private": true,
   "description": "Injected into the XSOverlay keyboard page: text writeback and the page bridge.",
   "scripts": {
+    "test": "pnpm build && playwright test",
     "build": "node scripts/build.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -13,6 +14,7 @@
   },
   "devDependencies": {
     "@antfu/eslint-config": "^10.0.0",
+    "@playwright/test": "^1.65.0",
     "esbuild": "^0.28.2",
     "eslint": "^10.14.0",
     "eslint-config-prettier": "^10.1.8",

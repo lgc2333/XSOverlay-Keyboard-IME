@@ -59,6 +59,30 @@ jobs:
         if: ${{ !cancelled() }}
         run: pnpm --dir web build
 
+  page-tests:
+    name: Page browser tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: '11'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm --dir web install --frozen-lockfile
+      - run: pnpm --dir web exec playwright install --with-deps chromium
+      - run: pnpm --dir web test
+      - name: Upload browser failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: page-test-failures
+          path: temp/page-tests
+          if-no-files-found: ignore
+
   tests:
     name: Unit tests
     runs-on: ubuntu-latest

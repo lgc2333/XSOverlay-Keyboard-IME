@@ -61,6 +61,10 @@ dotnet format analyzers --verify-no-changes --severity info
 pnpm --dir web typecheck
 pnpm --dir web lint
 pnpm --dir web build
+
+# 页面浏览器回归；首次运行前安装 Chromium
+pnpm --dir web exec playwright install chromium
+pnpm --dir web test
 ```
 
 - 先构建页面脚本，再构建插件：`pnpm --dir web build` 写出 `web/dist/keyboard-ime.js`，插件把它嵌进去，缺了它插件拒绝构建。
@@ -68,8 +72,9 @@ pnpm --dir web build
 - 不要递归子模块：`IngameIME_Win32` 经 SSH 地址取它自己那份 `IngameIME-Common`，而 `native/CMakeLists.txt` 用的是同级子模块。
 - CSharpier 是锁版本的本地工具。克隆后跑一次 `dotnet tool restore`，改动 `.config/dotnet-tools.json` 之后也要再跑一次。
 - XSOverlay 路径默认是 `D:\SteamLibrary\steamapps\common\XSOverlay_Beta`，用 `-p:GameDir=<path>` 覆盖。
+- 原页回车集成测试读取安装版页面模块，路径用 `XSOVERLAY_GAME_DIR` 覆盖；未安装 XSOverlay 时跳过。
 - 日志落到 XSOverlay 目录下的 `BepInEx\LogOutput.log`。
-- CI 跑单元测试、CSharpier、Prettier、测试工程上的分析器、页面脚本检查与原生构建。它从不构建插件：那需要 XSOverlay 的 Managed 程序集，而它们只留在这台机器上。
+- CI 跑单元测试、页面浏览器回归、CSharpier、Prettier、测试工程上的分析器、页面脚本检查与原生构建。它从不构建插件：那需要 XSOverlay 的 Managed 程序集，而它们只留在这台机器上。
 
 ## 运行时约束
 
