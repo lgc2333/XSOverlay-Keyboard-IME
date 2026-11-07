@@ -119,25 +119,25 @@ namespace XSOverlayKeyboardIme.Tests
         }
 
         [Fact]
-        public void Composing_feeds_the_latched_shift()
+        public void Composing_leaves_a_latched_shift_with_the_page()
         {
-            // The page latches Shift, so it arrives as Sticky and never as a character.
+            // The page keeps the latch, so every letter after it carries the shift state.
+            // See ADR 0038.
             Assert.Equal(
-                KeyOwnership.Ime,
+                KeyOwnership.Page,
                 ReadLatched(PageKeyStyle.Sticky, ShiftName, TakeoverGate.Composing, out List<KeyStroke> strokes)
             );
-            Assert.Equal(VirtualKey.Shift, Assert.Single(strokes).Key);
+            Assert.Empty(strokes);
         }
 
         [Fact]
-        public void Composing_feeds_the_toggled_caps()
+        public void Composing_leaves_a_toggled_caps_with_the_page()
         {
-            // Caps is a lock key, so the page delivers it as Toggle.
             Assert.Equal(
-                KeyOwnership.Ime,
+                KeyOwnership.Page,
                 ReadLatched(PageKeyStyle.Toggle, CapsName, TakeoverGate.Composing, out List<KeyStroke> strokes)
             );
-            Assert.Equal(VirtualKey.Capital, Assert.Single(strokes).Key);
+            Assert.Empty(strokes);
         }
 
         [Fact]

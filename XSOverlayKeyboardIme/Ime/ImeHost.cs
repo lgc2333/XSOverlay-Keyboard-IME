@@ -21,9 +21,16 @@ namespace XSOverlayKeyboardIme.Ime
         /// <summary>How long a language switch needs before the new IME can be read.</summary>
         private const uint SwitchSettleMilliseconds = 400;
 
+        /// <summary>How long the IME gets to finish a commit before the language changes.</summary>
+        private const uint SwitchGapMilliseconds = 60;
+
         private static ImeHost _current;
 
         private readonly ConcurrentQueue<KeyStroke> _strokes = new ConcurrentQueue<KeyStroke>();
+
+        // Keys taken while a switch is in flight, kept in order and fed once it settles.
+        // Dropping them would lose keys the page was never allowed to handle. See ADR 0038.
+        private readonly List<KeyStroke> _strokesDuringSwitch = new List<KeyStroke>();
         private readonly Action<string> _onCommitted;
         private readonly Action<CompositionView> _onView;
         private readonly Action<LanguageBarIcon> _onLanguageBarIcon;
@@ -40,6 +47,9 @@ namespace XSOverlayKeyboardIme.Ime
         private bool _iconMissing;
         private volatile bool _composerActive;
         private volatile bool _drainingStrokes;
+        private volatile bool _switchDue;
+        private bool _switchHeld;
+        private bool _switchIsPress;
         private int _finished;
 
         private ImeHost(
@@ -248,12 +258,17 @@ namespace XSOverlayKeyboardIme.Ime
 
             if (message == HostWindow.SwitchMessage)
             {
-                PressSwitch();
+                RequestPress();
             }
 
             if (message == HostWindow.SwitchSettledMessage)
             {
                 OnSwitchSettled();
+            }
+
+            if (message == HostWindow.SwitchDueMessage)
+            {
+                OnSwitchDue();
             }
         }
 
@@ -304,7 +319,17 @@ namespace XSOverlayKeyboardIme.Ime
             Win32Native.SetTimer(window.Handle, HostWindow.SwitchSettleTimerId, SwitchSettleMilliseconds, IntPtr.Zero);
         }
 
-        private void OnSwitchSettled()
+        /// <summary>Waits out the commit before the language changes. See ADR 0038.</summary>
+        private bool ScheduleSwitchDue()
+        {
+            HostWindow window = _window;
+            return window != null
+                && Win32Native.SetTimer(window.Handle, HostWindow.SwitchGapTimerId, SwitchGapMilliseconds, IntPtr.Zero)
+                    != IntPtr.Zero;
+        }
+
+        /// <summary>Feeds the switch the commit was holding back. See ADR 0038.</summary>
+        private void SendDeferredSwitch()
         {
             HostWindow window = _window;
             if (window == null)
@@ -312,8 +337,130 @@ namespace XSOverlayKeyboardIme.Ime
                 return;
             }
 
+            _switchDue = false;
+            _strokes.Enqueue(KeyStroke.FromSystem());
+            window.Post(HostWindow.StrokeMessage);
+        }
+
+        private void OnSwitchDue()
+        {
+            HostWindow window = _window;
+            if (window == null)
+            {
+                return;
+            }
+
+            Win32Native.KillTimer(window.Handle, HostWindow.SwitchGapTimerId);
+            if (!_switchDue)
+            {
+                return;
+            }
+
+            // The commit the gap waited for did not end the composition; switch anyway so
+            // the request cannot loop forever. See ADR 0038.
+            if (_session != null && _session.Composing)
+            {
+                HostLog.Warn("the commit did not end the composition; switching anyway");
+            }
+
+            if (_switchIsPress)
+            {
+                _switchIsPress = false;
+                _switchDue = false;
+                PressSwitch();
+                ScheduleSwitchSettled();
+                return;
+            }
+
+            SendDeferredSwitch();
+        }
+
+        /// <summary>Feeds the keys the switch held back, in the order they arrived.</summary>
+        private void ReplayStrokesDuringSwitch()
+        {
+            if (_strokesDuringSwitch.Count == 0)
+            {
+                return;
+            }
+
+            foreach (KeyStroke stroke in _strokesDuringSwitch)
+            {
+                _strokes.Enqueue(stroke);
+            }
+
+            _strokesDuringSwitch.Clear();
+            HostWindow window = _window;
+            if (window != null)
+            {
+                window.Post(HostWindow.StrokeMessage);
+            }
+        }
+
+        private void OnSwitchSettled()
+        {
+            // The foreground goes back even when the window is gone, or the lease would be
+            // held for the rest of the process. A composition that started during the settle
+            // owns it now, so the hold ends without the restore. See ADR 0038.
+            if (_switchHeld)
+            {
+                _switchHeld = false;
+                if (_session != null && _session.Composing)
+                {
+                    _lease?.ReleaseHold();
+                }
+                else
+                {
+                    _lease?.Unhold();
+                }
+            }
+
+            HostWindow window = _window;
+            if (window == null)
+            {
+                return;
+            }
+
             Win32Native.KillTimer(window.Handle, HostWindow.SwitchSettleTimerId);
+
+            if (_switchHeld)
+            {
+                _switchHeld = false;
+                _lease?.Unhold();
+            }
+
             LanguageChanged();
+
+            // A switch can end the composition without a callback, which would leave the page
+            // drawing codes the IME no longer holds. Re-read it here. See ADR 0038.
+            _session?.RefreshAfterSwitch();
+            ReplayStrokesDuringSwitch();
+        }
+
+        /// <summary>A request to press the IME's own switch, committed first. See ADR 0038.</summary>
+        private void RequestPress()
+        {
+            CompositionSession session = _session;
+            HostWindow window = _window;
+            if (session == null || window == null)
+            {
+                return;
+            }
+
+            if (!session.Composing)
+            {
+                PressSwitch();
+                return;
+            }
+
+            _lease?.Hold();
+            _switchHeld = true;
+            _switchAction = action;
+            session.Send(KeyStroke.FromKey(VirtualKey.Return, false));
+            _switchDue = true;
+            if (!ScheduleSwitchDue())
+            {
+                SendDeferredSwitch();
+            }
         }
 
         private void PressSwitch()
@@ -414,10 +561,31 @@ namespace XSOverlayKeyboardIme.Ime
 
                 while (_strokes.TryDequeue(out KeyStroke stroke))
                 {
+                    // A key that arrives mid-switch races the commit, so it waits for the
+                    // switch to settle instead of being fed or dropped. See ADR 0038.
+                    if (_switchDue)
+                    {
+                        HostLog.Info("a switch is in flight; holding " + stroke.Describe());
+                        _strokesDuringSwitch.Add(stroke);
+                        continue;
+                    }
+
+                    if (stroke.Kind == KeyStrokeKind.System && session.Composing)
+                    {
+                        _lease?.Hold();
+                        _switchHeld = true;
+                        session.Send(KeyStroke.FromKey(VirtualKey.Return, false));
+                        _switchDue = true;
+                        if (!ScheduleSwitchDue())
+                        {
+                            SendDeferredSwitch();
+                        }
+
+                        continue;
+                    }
+
                     session.Send(stroke);
 
-                    // We asked the system to switch, so nothing else will tell this host.
-                    // The new IME is only readable once the switch settles. See ADR 0036.
                     if (stroke.Kind == KeyStrokeKind.System)
                     {
                         ScheduleSwitchSettled();

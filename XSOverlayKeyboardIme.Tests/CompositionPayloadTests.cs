@@ -41,6 +41,28 @@ namespace XSOverlayKeyboardIme.Tests
         }
 
         [Fact]
+        public void A_view_built_from_the_idle_one_can_be_marked_live()
+        {
+            // The session starts from the idle view, so the flag has to be settable on it;
+            // the page cancels on a moved caret only while the flag is set. See ADR 0037.
+            CompositionView view = CompositionView
+                .Idle()
+                .WithPreedit("ni", new CompositionSelection(2, 2))
+                .WithComposing(true);
+
+            Assert.True(view.Composing);
+            Assert.Contains("\"composing\":true", CompositionPayload.Build(view));
+        }
+
+        [Fact]
+        public void The_live_flag_survives_a_candidate_page()
+        {
+            CompositionView view = CompositionView.Idle().WithComposing(true).WithCandidates(LiveCandidates, 0);
+
+            Assert.True(view.Composing);
+        }
+
+        [Fact]
         public void Quotes_and_newlines_survive_the_bridge()
         {
             var view = new CompositionView("a\"b\n", CompositionSelection.None, QuotedCandidates, 1, false);

@@ -38,16 +38,15 @@ const SwitchStyle = `
 export interface SwitchKey {
   /** Draws the IME's icon on the key, and keeps it after the page rebuilds. */
   show: (view: SwitchIconView | null) => void
-  /** Puts the key in the layout, or takes it out and gives its width back. */
+  /** Draws the key over the space bar, or takes it away. */
   setActive: (active: boolean) => void
 }
 
 /**
- * The switch as a key of the keyboard itself, left of the space bar, with the space bar
- * giving up one key of width. The key belongs to the composer, so it is in the layout
- * only while the composer holds the focus. The page rebuilds the whole tree on every
- * layout update, so the key is put back whenever it disappears. See ADR 0012, ADR 0028
- * and ADR 0035.
+ * The switch as a key of the keyboard itself, covering the left end of the space bar.
+ * It stays out of the row's layout, so the row keeps its length whatever the theme does.
+ * It belongs to the composer, so it is drawn only while the composer holds the focus, and
+ * put back whenever the page rebuilds the tree. See ADR 0028, ADR 0035 and ADR 0037.
  */
 export function createSwitchKey(): SwitchKey {
   let icon: SwitchIconView | null = null
@@ -81,42 +80,34 @@ export function createSwitchKey(): SwitchKey {
 
     const space = document.getElementById(SpaceId)
     const row = space?.parentElement
-    if (
-      space == null ||
-      row == null ||
-      space.previousElementSibling?.classList.contains(SwitchClass)
-    ) {
+    if (space == null || row == null || row.querySelector(`.${SwitchClass}`) != null) {
       return
     }
 
-    // One key of width comes off the space bar, so the row keeps its length.
     const unit = Number.parseFloat(space.style.height)
-    const width = Number.parseFloat(space.style.width)
-    if (!(unit > 0) || !(width > unit)) {
+    if (!(unit > 0)) {
       return
+    }
+
+    // The key covers the space bar's left end without joining the row's layout, so the
+    // row keeps exactly its length and nothing can overflow. See ADR 0037.
+    if (getComputedStyle(row).position === 'static') {
+      row.style.position = 'relative'
     }
 
     const key = createKey(space, unit)
     draw(key, icon)
-    row.insertBefore(key, space)
-    space.style.width = `${width - unit}px`
+    key.style.position = 'absolute'
+    key.style.left = `${space.offsetLeft}px`
+    key.style.top = `${space.offsetTop}px`
+    // Positioned by its own corner, so a copied margin would shift it off the space.
+    key.style.margin = '0'
+    row.appendChild(key)
   }
 
-  /** Takes the key out and gives its width back, so the space bar is whole again. */
+  /** Takes the key out; the space bar never changed, so nothing is given back. */
   function unmount(): void {
-    const key = document.querySelector<HTMLElement>(`.${SwitchClass}`)
-    if (key == null) {
-      return
-    }
-
-    const unit = Number.parseFloat(key.style.width)
-    key.remove()
-
-    const space = document.getElementById(SpaceId)
-    const width = Number.parseFloat(space?.style.width ?? '')
-    if (space != null && unit > 0 && Number.isFinite(width)) {
-      space.style.width = `${width + unit}px`
-    }
+    document.querySelector<HTMLElement>(`.${SwitchClass}`)?.remove()
   }
 
   function observeRebuilds(): void {
@@ -146,7 +137,6 @@ function createKey(space: HTMLElement, unit: number): HTMLElement {
     margin: space.style.margin,
     marginTop: space.style.marginTop,
     backgroundColor: model.style.backgroundColor,
-    position: 'relative',
     pointerEvents: 'auto',
   })
 

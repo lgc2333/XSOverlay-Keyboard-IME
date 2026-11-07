@@ -6,6 +6,12 @@ const BarId = 'keyboard-ime-bar'
 const StyleId = 'keyboard-ime-bar-style'
 const ContainerId = 'keyboard-container'
 const BackgroundId = 'keyboard-background'
+const SelectedClass = 'ime-selected'
+const OverflowStartClass = 'ime-overflow-start'
+const OverflowEndClass = 'ime-overflow-end'
+
+/** The width of the side fade; the reveal keeps the active candidate clear of it. */
+const EdgeFadeWidth = 32
 
 /** The stylesheet names the bar by a placeholder, so the id lives in one place. */
 const BarStyle = barStyles.replaceAll('#bar-id', `#${BarId}`)
@@ -19,30 +25,85 @@ export interface CandidateBar {
  * The candidate bar: one row between the toolbar and the keys, owned by this script.
  * It shows the candidates, and the IME this thread composes with while the composer
  * holds the focus. See ADR 0004, ADR 0018 and ADR 0035.
+ * The active candidate is scrolled just far enough into view, never centred, and only
+ * a side that still hides candidates fades. See ADR 0018.
  * The page rebuilds the whole keyboard tree on every layout update, so the bar is put
  * back whenever it is not a child of the current container. See ADR 0004.
  */
 export function createCandidateBar(): CandidateBar {
   const bar = document.createElement('div')
   bar.id = BarId
+  // The stylesheet reads the fade width from here, so it lives in one place.
+  bar.style.setProperty('--ime-edge-fade-width', `${EdgeFadeWidth}px`)
+
+  const frame = document.createElement('div')
+  frame.className = 'ime-candidates-frame'
 
   const candidates = document.createElement('div')
   candidates.className = 'ime-candidates'
+
+  const startFade = document.createElement('div')
+  startFade.className = 'ime-edge-fade ime-edge-fade-start'
+  startFade.setAttribute('aria-hidden', 'true')
+
+  const endFade = document.createElement('div')
+  endFade.className = 'ime-edge-fade ime-edge-fade-end'
+  endFade.setAttribute('aria-hidden', 'true')
+
+  frame.append(candidates, startFade, endFade)
+
   const chip = document.createElement('div')
   chip.className = 'ime-chip'
   chip.hidden = true
-  bar.append(candidates, chip)
+  bar.append(frame, chip)
+
+  /** The candidate the IME has highlighted, or null when it reports no selection. */
+  let active: HTMLElement | null = null
 
   function render(view: CompositionView | null): void {
     const shown = view?.candidates ?? []
     candidates.replaceChildren(
       ...shown.map((text, index) => createCandidate(text, index, view)),
     )
+    active = candidates.querySelector<HTMLElement>(`.${SelectedClass}`)
+    revealActive()
+    updateEdges()
   }
 
   function showState(view: ComposerStateView): void {
     chip.hidden = !view.active || view.ime.length === 0
     chip.textContent = view.ime
+    // The chip takes width from the candidates, so the active one may have moved out.
+    revealActive()
+    updateEdges()
+  }
+
+  /** Scrolls the shortest way that shows the active candidate; it stays where it is. */
+  function revealActive(): void {
+    if (active == null || candidates.clientWidth === 0) {
+      return
+    }
+
+    // Layout coordinates, so a scaled page does not skew the amount scrolled. A candidate
+    // already inside the list stays put; one outside is scrolled in, clear of the fades.
+    const itemStart = active.offsetLeft
+    const itemEnd = itemStart + active.offsetWidth
+    const visibleStart = candidates.scrollLeft
+    const visibleEnd = visibleStart + candidates.clientWidth
+    if (itemEnd <= visibleStart || itemStart >= visibleEnd) {
+      const start = itemStart - EdgeFadeWidth
+      const end = itemEnd + EdgeFadeWidth
+      candidates.scrollLeft =
+        itemStart < visibleStart ? start : end - candidates.clientWidth
+    }
+  }
+
+  /** Marks each side that still hides candidates, so only that side fades. */
+  function updateEdges(): void {
+    const max = candidates.scrollWidth - candidates.clientWidth
+    const atEnd = max > 0 && candidates.scrollLeft >= max - 0.5
+    bar.classList.toggle(OverflowStartClass, candidates.scrollLeft > 0.5)
+    bar.classList.toggle(OverflowEndClass, max > 0 && !atEnd)
   }
 
   function createCandidate(
@@ -52,7 +113,7 @@ export function createCandidateBar(): CandidateBar {
   ): HTMLElement {
     const element = document.createElement('div')
     element.className = 'ime-candidate'
-    element.classList.toggle('ime-selected', view != null && index === view.selected)
+    element.classList.toggle(SelectedClass, view != null && index === view.selected)
 
     const number = document.createElement('span')
     number.className = 'ime-number'
@@ -65,6 +126,13 @@ export function createCandidateBar(): CandidateBar {
     element.append(number, label)
     return element
   }
+
+  candidates.addEventListener('scroll', updateEdges, { passive: true })
+  const observer = new ResizeObserver(() => {
+    revealActive()
+    updateEdges()
+  })
+  observer.observe(candidates)
 
   ensurePageStyle(StyleId, BarStyle)
   render(null)
@@ -83,10 +151,15 @@ export function createCandidateBar(): CandidateBar {
       bar,
       background?.parentElement === container ? background : null,
     )
+    revealActive()
+    updateEdges()
   }
 
   function observeRebuilds(): void {
-    const observer = new MutationObserver(mount)
-    observer.observe(document.documentElement, { childList: true, subtree: true })
+    const mutation = new MutationObserver(mount)
+    mutation.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+    })
   }
 }

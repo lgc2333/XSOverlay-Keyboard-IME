@@ -17,12 +17,30 @@
   z-index: 120;
 }
 
+#bar-id .ime-candidates-frame {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  align-self: stretch;
+  min-width: 0;
+  overflow: hidden;
+}
+
 #bar-id .ime-candidates {
   display: flex;
+  align-items: center;
   gap: 8px;
   flex: 1 1 auto;
   min-width: 0;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+#bar-id .ime-candidates::-webkit-scrollbar {
+  display: none;
 }
 
 #bar-id .ime-candidate {
@@ -62,6 +80,32 @@
 
 #bar-id .ime-candidate.ime-selected .ime-text {
   font-weight: 600;
+}
+
+/* A side shows its fade only while candidates remain past it. */
+#bar-id .ime-edge-fade {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--ime-edge-fade-width);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--keyboard-animation-time);
+}
+
+#bar-id .ime-edge-fade-start {
+  left: 0;
+  background: linear-gradient(to right, var(--theme-dark), transparent);
+}
+
+#bar-id .ime-edge-fade-end {
+  right: 0;
+  background: linear-gradient(to left, var(--theme-dark), transparent);
+}
+
+#bar-id.ime-overflow-start .ime-edge-fade-start,
+#bar-id.ime-overflow-end .ime-edge-fade-end {
+  opacity: 1;
 }
 
 /* The page's own display rule would keep an empty chip visible while it is hidden. */

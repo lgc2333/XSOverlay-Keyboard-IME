@@ -56,6 +56,26 @@ namespace XSOverlayKeyboardIme.Ime
             Publish();
         }
 
+        /// <summary>
+        /// Re-publishes the view once a switch has landed. A switch that kills the composition
+        /// can end it without a commit callback, and the page would keep the last codes.
+        /// </summary>
+        internal void RefreshAfterSwitch()
+        {
+            if (!_open)
+            {
+                return;
+            }
+
+            if (!_ime.Composing)
+            {
+                End();
+                return;
+            }
+
+            Publish();
+        }
+
         /// <summary>Feeds one taken key, then acts on what the IME did with it.</summary>
         internal void Send(KeyStroke stroke)
         {
@@ -128,7 +148,11 @@ namespace XSOverlayKeyboardIme.Ime
 
         private void HandlePreEdit(string text, int selectionStart, int selectionEnd)
         {
-            _view = _view.WithPreedit(text, new CompositionSelection(selectionStart, selectionEnd));
+            // The page cancels on a changed caret only while this flag is set, so it has to
+            // carry what the IME holds, not a constant. See ADR 0037.
+            _view = _view
+                .WithPreedit(text, new CompositionSelection(selectionStart, selectionEnd))
+                .WithComposing(_ime.Composing);
             if (_ime.Composing && _preeditWatch.Observe(text.Length > 0))
             {
                 HostLog.Warn("the IME reported no composing string; enable inline preedit to see the typed codes");
@@ -139,7 +163,7 @@ namespace XSOverlayKeyboardIme.Ime
 
         private void HandleCandidates(string[] candidates, int selected)
         {
-            _view = _view.WithCandidates(candidates, selected);
+            _view = _view.WithCandidates(candidates, selected).WithComposing(_ime.Composing);
             Publish();
         }
 

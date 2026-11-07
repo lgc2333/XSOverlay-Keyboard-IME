@@ -23,7 +23,7 @@ import { createSwitchKey } from './switch-key'
 function install(): void {
   const bar = createCandidateBar()
   const switchKey = createSwitchKey()
-  keepComposerFocus()
+  keepComposerFocus((active) => switchKey.setActive(active))
   onCompositionCancel(requestCancel)
 
   window.__xsoKeyboardIme = {
@@ -42,7 +42,6 @@ function install(): void {
       switchKey.show(view)
     },
     showComposerState: (view: ComposerStateView) => {
-      switchKey.setActive(view.active)
       bar.showState(view)
     },
   }

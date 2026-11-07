@@ -35,6 +35,12 @@ namespace XSOverlayKeyboardIme.Ime
         /// <summary>True while the IME holds a composition. See ADR 0027.</summary>
         internal bool Composing { get; }
 
+        /// <summary>The same view, marked with whether the IME holds a composition right now.</summary>
+        internal CompositionView WithComposing(bool composing)
+        {
+            return new CompositionView(Preedit, Selection, Candidates, Selected, composing);
+        }
+
         /// <summary>The same view with a new composing string and its caret.</summary>
         internal CompositionView WithPreedit(string preedit, CompositionSelection selection)
         {
