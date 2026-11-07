@@ -20,13 +20,33 @@
 
 ## 当前待解决
 
+2026-11-07 调查结果：以下问题均已定位，仍待修复与验收。前三项见 [VR 问题交接](./handoffs/26-11-07-4_confirmed-vr-defects.md)，其余见 [输入法状态问题交接](./handoffs/26-11-07-5_confirmed-ime-state-defects.md)。
+
+### 已定位根因
+
 - [ ] 中英切换按钮很丑，叠到空格上了，不能这么做
-- [ ] 组字中点清空仍然无法结束组字。这种特殊情况应该去主动控制输入法
+  - 来源：插件布局设计。[切换键](../web/src/switch-key.ts) 按 [0037](./adr/0037-the-page-owns-the-composer-state.md) 盖在空格左端，空格本体未缩短。
+  - 用户要求放在左 Alt 右侧。隔离页已测量等量缩短空格的方案：尺寸与边距即时调整，并保留放大间距后，ANSI、ISO、JIS 的三种布局格式均保持行宽与右 Ctrl 位置，双键悬停无覆盖。原页全属性过渡会造成约 77 像素的瞬时增宽；产品代码与真实主题尚未验收。
 - [ ] 候选栏滚动希望能支持摇杆左右方向的控制
+  - 来源：XSOverlay 的滚动通路限制与插件缺少横轴接线。XSOverlay 只读取摇杆的 `axis.y`，向网页发送的横向增量为零；[候选栏](../web/src/candidate-bar.ts) 没有另接横轴，仅改样式无法支持左右摇杆。
+  - 已决定悬停时用横轴浏览，忽略纵轴；候选内容或选中项变化时重新揭示活跃候选，其他刷新保留手动浏览位置。见 [0043](./adr/0043-browse-candidates-with-the-horizontal-axis.md)，尚未实现。
 - [ ] 组字中按回车会出问题，输入框直接丢焦，当前组字不会上屏输入框
-- [ ] 输入法切换失效，无论是通过下拉还是win+空格
-- [ ] 下拉框出现的语言列表有问题，我没有启动微软五笔，但是它显示在输入框。美式键盘直接没掉了。我系统的输入法列表：中文-小狼毫，微软拼音；英文-美式键盘；日语-微软输入法
+  - 来源：插件接管入口遗漏。XSOverlay 原键盘页提前消费回车，执行发送并释放焦点，绕过插件补丁所在的 `HandleKeypress`；隔离页面已复现 `ReleaseKeyboardInputFocus`、`SendKeyboardText` 与失焦，输入法没有收到 Return。
+  - 回车沿用原有按住重复规则，不增加只处理首次按下的限制。
+- [ ] 下拉框出现的语言列表有问题，我没有启用微软五笔，但是它显示在输入框。美式键盘直接没掉了。我系统的输入法列表：中文-小狼毫，微软拼音；英文-美式键盘；日语-微软输入法
+  - 来源：插件枚举与过滤缺陷。[ImeProfiles](../XSOverlayKeyboardIme/Ime/ImeProfiles.cs) 只按描述非空纳入，未检查 enabled；当前机器只读探针确认五笔 enabled=0，仍被插件列出。旧 `EnumLanguageProfiles` 对英语返回零项，新 `EnumProfiles` 能读到 enabled 的美式普通键盘布局，当前模型与激活路径也未覆盖这种布局。
+- [ ] 下拉选择微软拼音，下一次输入又回到小狼毫
+  - 来源：插件在后台宿主激活档案，随后才为送键取得前台，所选档案在前台交接时失效。真实活动档案查询已重复确认：`SwitchProfile` 后为微软拼音，`ForegroundLease.Take` 前仍为微软拼音，收到 `WM_SETFOCUS` 后、`Take` 返回前变回小狼毫，`KeyFeeder.Send` 随后才执行；HKL 一直为 `08040804`。这次是真实档案回退。
+  - 当前系统使用共享输入法选择（`IsLegacySwitchingMode=False`），[SwitchProfile](../XSOverlayKeyboardIme/Ime/ImeHost.cs) 使用旧 `ActivateLanguageProfile` 激活后台线程。[新 API](https://learn.microsoft.com/en-us/windows/win32/api/msctf/nf-msctf-itfinputprocessorprofilemgr-activateprofile) 支持进程或桌面作用范围，但修复的范围与前台顺序尚未选择。前台获取失败的样本没有发送按键，不能用于验收切换后的输入。
+- [ ] 组字中点清空仍然无法结束组字。这种特殊情况应该去主动控制输入法
+  - 来源：插件的取消判断与旧视图回放竞争。真实 VR 记录确认：按钮可用，清值先执行，整页失活时 DOM 仍短暂把 composer 视为聚焦；随后 `composer-inactive` 刷新触发 [KeyboardPage.Attach](../XSOverlayKeyboardIme/Page/KeyboardPage.cs) 重播旧组字，指针抬起前文本和预期值已一起恢复，没有发出取消通知或 Escape，原生组字继续。
+  - [checkFocus](../web/src/composer.ts) 只检查 DOM 焦点，未识别整页失活；按现场顺序重放，旧视图回放导致零次取消并恢复编码，去掉回放则发出一次取消并保持清空。用户复测确认：已有 `你好` 时组字、清空后仍可继续组字，空格提交未写回，输入框退回 `你好`；取消丢失后，提交受页面焦点校验阻挡。另有工具栏状态失同步：从空输入框开始组字时，清空按钮仍禁用。
 - [ ] 按下win+空格之后，即使输入框没有焦点，也会自动聚焦上去。我在桌面浮窗输入呢，突然聚焦上去了。预期行为是不改动输入框焦点
+  - 来源：插件的焦点恢复资格没有随真正失焦撤销。[reclaimFocus](../web/src/composer.ts) 保留历史输入框，节点断开后直接聚焦新输入框；隔离页面与真实 VR 均已复现。现场在 composer 无焦点时按 Win+空格，随后同轮记录出现无输入框点击的 `focusin`、`dom-replaced` 和 `composer-active`，用户确认桌面输入被抢。
+  - XSOverlay 每 100 毫秒检查前台线程 HKL，变化后推送 `UpdateKeyboardLayout`，原页面随之重建。当前 `KeyboardState` 更新只改状态与样式，不重建输入框。
+- [ ] Win+空格切换后，实际输入与界面显示不一致
+  - 来源：插件在系统完成切换前刷新显示并归还前台，缺少同语言档案切换的通知接线，下一键又重现前台交接回退。现场确认：`KeyFeeder.Send` 返回时仍为小狼毫，归还前台后的下一次观察已为微软拼音，下一键的 `Take` 又切回小狼毫；HKL 不变，未出现 `WM_INPUTLANGCHANGE`。
+  - [KeyFeeder](../XSOverlayKeyboardIme/Ime/KeyFeeder.cs) 只排空键盘消息，[ImeHost](../XSOverlayKeyboardIme/Ime/ImeHost.cs) 随即刷新，[HostWindow](../XSOverlayKeyboardIme/Ime/HostWindow.cs) 只用语言消息触发切换通知，没有订阅 TSF 档案激活事件。[ReadName](../XSOverlayKeyboardIme/Ime/ImeProfiles.cs) 还会在活动项缺失时显示默认档案；这轮结论使用无回退的活动档案查询。输入法重新激活后的默认中英状态归输入法处理。
 
 ## 待真机验证
 
