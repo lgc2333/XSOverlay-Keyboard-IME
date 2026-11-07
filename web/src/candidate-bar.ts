@@ -1,6 +1,6 @@
 import barStyles from './candidate-bar.css'
 import type { ComposerStateView, CompositionView, ProfileView } from './ime-view'
-import { requestProfile } from './native-bridge'
+import { reportCandidateArea, requestProfile } from './native-bridge'
 import { ensurePageStyle } from './page-style'
 
 const BarId = 'keyboard-ime-bar'
@@ -76,6 +76,9 @@ export function createCandidateBar(): CandidateBar {
 
   /** The candidate the IME has highlighted, or null when it reports no selection. */
   let active: HTMLElement | null = null
+  let candidateSignature = ''
+  let areaSignature = ''
+  let revealPending = false
 
   /** The IME name and the profiles the last state carried, in activation order. */
   let ime = ''
@@ -86,10 +89,14 @@ export function createCandidateBar(): CandidateBar {
 
   function render(view: CompositionView | null): void {
     const shown = view?.candidates ?? []
+    const signature = JSON.stringify([shown, view?.selected ?? -1])
+    if (signature === candidateSignature) return
+    candidateSignature = signature
     candidates.replaceChildren(
       ...shown.map((text, index) => createCandidate(text, index, view)),
     )
     active = candidates.querySelector<HTMLElement>(`.${SelectedClass}`)
+    revealPending = true
     revealActive()
     updateEdges()
   }
@@ -116,8 +123,6 @@ export function createCandidateBar(): CandidateBar {
       chip.removeAttribute('aria-expanded')
     }
 
-    // The chip takes width from the candidates, so the active one may have moved out.
-    revealActive()
     updateEdges()
   }
 
@@ -130,10 +135,16 @@ export function createCandidateBar(): CandidateBar {
 
     profileSignature = signature
     const showLanguage = new Set(profiles.map((profile) => profile.language)).size > 1
-    menu.replaceChildren(...profiles.map((profile, index) => createProfile(profile, index, showLanguage)))
+    menu.replaceChildren(
+      ...profiles.map((profile, index) => createProfile(profile, index, showLanguage)),
+    )
   }
 
-  function createProfile(profile: ProfileView, index: number, showLanguage: boolean): HTMLElement {
+  function createProfile(
+    profile: ProfileView,
+    index: number,
+    showLanguage: boolean,
+  ): HTMLElement {
     const item = document.createElement('div')
     item.className = `ime-profile ${RayItemClass}`
     item.setAttribute('role', 'menuitem')
@@ -203,6 +214,7 @@ export function createCandidateBar(): CandidateBar {
     if (active == null || candidates.clientWidth === 0) {
       return
     }
+    revealPending = false
 
     // Layout coordinates, so a scaled page does not skew the amount scrolled. A candidate
     // clear of the fades stays put; one the fades or the edge cut into is scrolled in by the
@@ -279,10 +291,14 @@ export function createCandidateBar(): CandidateBar {
 
   candidates.addEventListener('scroll', updateEdges, { passive: true })
   const observer = new ResizeObserver(() => {
-    revealActive()
+    if (revealPending) revealActive()
     updateEdges()
+    reportArea()
   })
   observer.observe(candidates)
+  observer.observe(bar)
+  window.addEventListener('resize', reportArea)
+  document.addEventListener('scroll', reportArea, true)
 
   ensurePageStyle(StyleId, BarStyle)
   render(null)
@@ -302,8 +318,30 @@ export function createCandidateBar(): CandidateBar {
       background?.parentElement === container ? background : null,
     )
     // A rebuild keeps the bar and the open list as they are; only the anchor moved.
-    revealActive()
+    if (revealPending) revealActive()
     updateEdges()
+    reportArea()
+  }
+
+  function reportArea(): void {
+    const bounds = bar.getBoundingClientRect()
+    const viewport = candidates.getBoundingClientRect()
+    const area =
+      bar.isConnected && innerWidth > 0 && innerHeight > 0
+        ? {
+            left: bounds.left / innerWidth,
+            top: bounds.top / innerHeight,
+            right: bounds.right / innerWidth,
+            bottom: bounds.bottom / innerHeight,
+            scrollX: (viewport.left + viewport.width / 2) / innerWidth,
+            scrollY: (viewport.top + viewport.height / 2) / innerHeight,
+          }
+        : null
+    const signature = JSON.stringify(area)
+    if (signature !== areaSignature) {
+      areaSignature = signature
+      reportCandidateArea(area)
+    }
   }
 
   function observeRebuilds(): void {

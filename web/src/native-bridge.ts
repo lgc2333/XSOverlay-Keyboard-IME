@@ -4,6 +4,7 @@ const Cancel = 'xso-keyboard-ime cancel'
 const ComposerActive = 'xso-keyboard-ime composer-active'
 const ComposerInactive = 'xso-keyboard-ime composer-inactive'
 const Profile = 'xso-keyboard-ime profile '
+const CandidateArea = 'xso-keyboard-ime candidate-area '
 
 export function requestReturn(id: number): boolean {
   return post(`xso-keyboard-ime return ${id}`)
@@ -13,6 +14,20 @@ export function requestReturnFeedback(numpad: boolean, hapticTarget: string): bo
   return post(
     `xso-keyboard-ime return-feedback ${JSON.stringify({ numpad, hapticTarget })}`,
   )
+}
+
+export interface CandidateAreaBounds {
+  left: number
+  top: number
+  right: number
+  bottom: number
+  scrollX: number
+  scrollY: number
+}
+
+/** Reports the whole bar as a ray target, with wheel events aimed at its candidate viewport. */
+export function reportCandidateArea(bounds: CandidateAreaBounds | null): boolean {
+  return post(`${CandidateArea}${JSON.stringify(bounds)}`)
 }
 
 /**

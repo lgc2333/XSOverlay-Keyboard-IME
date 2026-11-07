@@ -18,6 +18,10 @@ namespace XSOverlayKeyboardIme.Page
         private static IWebView _injected;
         private static bool _confirmed;
         private static bool _missingLogged;
+        private static CandidateScrollArea _scrollArea;
+
+        internal static CandidateScrollArea ScrollAreaFor(IWebView page) =>
+            page != null && !page.IsDisposed && ReferenceEquals(page, _listening) ? _scrollArea : null;
 
         /// <summary>Raised when the page's switch button is pressed. Set by the root.</summary>
         internal static Action SwitchRequested;
@@ -291,14 +295,26 @@ namespace XSOverlayKeyboardIme.Page
             }
 
             IWebView previous = _listening;
+            _scrollArea = null;
             _listening = page;
             _messageHandler ??= OnMessage;
             if (previous != null && !previous.IsDisposed)
             {
                 previous.MessageEmitted -= _messageHandler;
+                previous.LoadProgressChanged -= OnLoadProgress;
             }
 
             page.MessageEmitted += _messageHandler;
+            page.LoadProgressChanged += OnLoadProgress;
+        }
+
+        private static void OnLoadProgress(object sender, ProgressChangedEventArgs args)
+        {
+            if (args.Type == ProgressChangeType.Started)
+            {
+                _scrollArea = null;
+                _confirmed = false;
+            }
         }
 
         private static void OnMessage(object sender, EventArgs<string> args)
@@ -350,6 +366,19 @@ namespace XSOverlayKeyboardIme.Page
                                 HostLog.Warn("Return routing failed: " + outcome);
                         }
                     );
+                return;
+            }
+            if (message.StartsWith(CandidateScrollArea.MessagePrefix, StringComparison.Ordinal))
+            {
+                try
+                {
+                    _scrollArea = CandidateScrollArea.Read(message.Substring(CandidateScrollArea.MessagePrefix.Length));
+                }
+                catch (Newtonsoft.Json.JsonException exception)
+                {
+                    _scrollArea = null;
+                    HostLog.Warn("candidate area was rejected: " + exception.Message);
+                }
                 return;
             }
             if (message == PageScript.SwitchMessage)
