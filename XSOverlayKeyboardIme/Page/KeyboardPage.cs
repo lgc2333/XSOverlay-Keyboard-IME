@@ -100,7 +100,7 @@ namespace XSOverlayKeyboardIme.Page
             Call(
                 page,
                 "writeback",
-                CallReturning("insertText", JavaScriptString.Literal(text)),
+                CallReturning("insertText", JavaScriptJson.Serialize(text)),
                 outcome =>
                 {
                     if (outcome == null || outcome.StartsWith("error", StringComparison.Ordinal))

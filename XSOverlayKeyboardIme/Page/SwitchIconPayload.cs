@@ -1,6 +1,3 @@
-using System;
-using System.Globalization;
-using System.Text;
 using XSOverlayKeyboardIme.Ime;
 
 namespace XSOverlayKeyboardIme.Page
@@ -11,17 +8,16 @@ namespace XSOverlayKeyboardIme.Page
         /// <summary>An IME with no bar item sends its null icon as the literal null.</summary>
         internal static string Build(LanguageBarIcon icon)
         {
-            if (icon == null)
-            {
-                return "null";
-            }
-
-            var payload = new StringBuilder();
-            payload.Append("{\"width\":").Append(icon.Width.ToString(CultureInfo.InvariantCulture));
-            payload.Append(",\"height\":").Append(icon.Height.ToString(CultureInfo.InvariantCulture));
-            payload.Append(",\"rgba\":").Append(JavaScriptString.Literal(Convert.ToBase64String(icon.Rgba)));
-            payload.Append('}');
-            return payload.ToString();
+            return JavaScriptJson.Serialize(
+                icon == null
+                    ? null
+                    : new
+                    {
+                        width = icon.Width,
+                        height = icon.Height,
+                        rgba = icon.Rgba,
+                    }
+            );
         }
     }
 }

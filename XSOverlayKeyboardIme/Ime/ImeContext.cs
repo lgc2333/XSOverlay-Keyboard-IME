@@ -1,6 +1,5 @@
 using System;
 using System.Runtime.InteropServices;
-using System.Text;
 using XSOverlayKeyboardIme.Diagnostics;
 using XSOverlayKeyboardIme.Interop;
 
@@ -173,31 +172,10 @@ namespace XSOverlayKeyboardIme.Ime
             return result;
         }
 
-        /// <summary>
-        /// Reads a UTF-8 string the native side owns. The runtime has no portable
-        /// one-call decoder on this profile, so the length is counted first.
-        /// </summary>
+        /// <summary>Reads a UTF-8 string the native side owns.</summary>
         private static string Decode(IntPtr pointer)
         {
-            if (pointer == IntPtr.Zero)
-            {
-                return string.Empty;
-            }
-
-            int length = 0;
-            while (Marshal.ReadByte(pointer, length) != 0)
-            {
-                length++;
-            }
-
-            if (length == 0)
-            {
-                return string.Empty;
-            }
-
-            var bytes = new byte[length];
-            Marshal.Copy(pointer, bytes, 0, length);
-            return Encoding.UTF8.GetString(bytes);
+            return Marshal.PtrToStringUTF8(pointer) ?? string.Empty;
         }
     }
 }

@@ -14,7 +14,7 @@ namespace XSOverlayKeyboardIme.Tests
         {
             string payload = CompositionPayload.Build(CompositionView.Idle());
 
-            Assert.Equal(
+            JsonPayloadAssert.Equal(
                 "{\"preedit\":\"\",\"selected\":-1,\"selectionStart\":0,\"selectionEnd\":0,\"composing\":false,\"candidates\":[]}",
                 payload
             );
@@ -68,9 +68,20 @@ namespace XSOverlayKeyboardIme.Tests
             var view = new CompositionView("a\"b\n", CompositionSelection.None, QuotedCandidates, 1, false);
             string payload = CompositionPayload.Build(view);
 
-            Assert.Equal(
+            JsonPayloadAssert.Equal(
                 "{\"preedit\":\"a\\\"b\\n\",\"selected\":1,\"selectionStart\":0,\"selectionEnd\":0,\"composing\":false,\"candidates\":[\"你\\\"好\",\"a\\\\b\"]}",
                 payload
+            );
+        }
+
+        [Fact]
+        public void A_null_candidate_still_reaches_the_page_as_empty_text()
+        {
+            var view = new CompositionView("ni", CompositionSelection.None, new string[] { null }, 0, true);
+
+            JsonPayloadAssert.Equal(
+                "{\"preedit\":\"ni\",\"selected\":0,\"selectionStart\":0,\"selectionEnd\":0,\"composing\":true,\"candidates\":[\"\"]}",
+                CompositionPayload.Build(view)
             );
         }
     }

@@ -1,3 +1,4 @@
+using System.Globalization;
 using XSOverlayKeyboardIme.Ime;
 using XSOverlayKeyboardIme.Page;
 using Xunit;
@@ -15,7 +16,7 @@ namespace XSOverlayKeyboardIme.Tests
         [Fact]
         public void A_composer_without_focus_asks_the_page_to_show_nothing()
         {
-            Assert.Equal(
+            JsonPayloadAssert.Equal(
                 "{\"active\":false,\"ime\":\"\",\"activeProfile\":-1,\"profiles\":[]}",
                 ComposerStatePayload.Build(ComposerState.Hidden)
             );
@@ -26,7 +27,7 @@ namespace XSOverlayKeyboardIme.Tests
         {
             var state = new ComposerState(true, "小狼毫");
 
-            Assert.Equal(
+            JsonPayloadAssert.Equal(
                 "{\"active\":true,\"ime\":\"小狼毫\",\"activeProfile\":-1,\"profiles\":[]}",
                 ComposerStatePayload.Build(state)
             );
@@ -37,7 +38,7 @@ namespace XSOverlayKeyboardIme.Tests
         {
             var state = new ComposerState(true, "a\"b\\c");
 
-            Assert.Equal(
+            JsonPayloadAssert.Equal(
                 "{\"active\":true,\"ime\":\"a\\\"b\\\\c\",\"activeProfile\":-1,\"profiles\":[]}",
                 ComposerStatePayload.Build(state)
             );
@@ -48,10 +49,30 @@ namespace XSOverlayKeyboardIme.Tests
         {
             var state = new ComposerState(true, "小狼毫", TwoImes, 0);
 
-            Assert.Equal(
+            JsonPayloadAssert.Equal(
                 "{\"active\":true,\"ime\":\"小狼毫\",\"activeProfile\":0,\"profiles\":[{\"name\":\"小狼毫\",\"language\":\"中文(简体)\"},{\"name\":\"微软拼音\",\"language\":\"中文(简体)\"}]}",
                 ComposerStatePayload.Build(state)
             );
+        }
+
+        [Fact]
+        public void Profile_indices_use_json_numbers_under_any_culture()
+        {
+            CultureInfo previous = CultureInfo.CurrentCulture;
+            var culture = (CultureInfo)CultureInfo.InvariantCulture.Clone();
+            culture.NumberFormat.NegativeSign = "~";
+            try
+            {
+                CultureInfo.CurrentCulture = culture;
+                JsonPayloadAssert.Equal(
+                    "{\"active\":false,\"ime\":\"\",\"activeProfile\":-1,\"profiles\":[]}",
+                    ComposerStatePayload.Build(ComposerState.Hidden)
+                );
+            }
+            finally
+            {
+                CultureInfo.CurrentCulture = previous;
+            }
         }
     }
 }

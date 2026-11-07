@@ -68,7 +68,7 @@ jobs:
         with:
           dotnet-version: 10.0.x
       # The plugin project references the game's Managed assemblies, so only the
-      # test project builds here; it compiles the dependency-free sources directly.
+      # test project builds here; it compiles sources without game dependencies directly.
       - name: Run unit tests
         run: dotnet test XSOverlayKeyboardIme.Tests/XSOverlayKeyboardIme.Tests.csproj -c Release --nologo
 

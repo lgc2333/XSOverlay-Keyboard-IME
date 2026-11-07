@@ -13,7 +13,7 @@ XSOverlayKeyboardIme/              BepInEx 5 插件
   Input/                           虚拟键码
   Interop/                         原始声明：Win32、GDI、TSF 接口（输入法名字、语言栏）、shim 的 P/Invoke
   Diagnostics/                     日志
-XSOverlayKeyboardIme.Tests/        单元测试；直接编译那些没有依赖的源码
+XSOverlayKeyboardIme.Tests/        单元测试；直接编译不依赖游戏的源码
 native/                            IngameIME.dll 的 CMake 构建
   IngameIME_Win32/                 子模块；上游的 TSF 实现
   IngameIME-Common/                子模块；上游的公共头文件
@@ -103,6 +103,8 @@ pnpm --dir web build
 - 关系是双向的：一条关系是一对互相镜像的键。只是提到另一个 ADR 不配拥有键；只有文件自己就是建立关系的那一方时，ADR 才记这个键。
 
 ### 代码风格规则
+
+- 通用能力先查标准 API、现有依赖与运行时自带库，再选成熟库；已有可用实现时，不手写序列化、转义、编码等通用逻辑。
 
 - 一种文件类型只配一个格式化器。`CSharpier` 管 C# 与 msbuild XML（`*.cs`、`*.csproj`、`*.props`、`*.targets`、`*.slnx`）；`prettier` 管 markdown、结构化数据与页面样式表（`*.{md,json,yaml,toml,css}`）。
 - 绝不裸跑 `dotnet format`，它会回退 CSharpier 的改动。它在这里的唯一角色是 `dotnet format analyzers`。

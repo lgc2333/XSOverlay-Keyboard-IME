@@ -150,9 +150,7 @@ export function createCandidateBar(): CandidateBar {
 
   /** Rebuilds the items only when the list or the current position changed. */
   function refreshProfiles(): void {
-    const signature = `${activeProfile}\u0000${profiles
-      .map((profile) => `${profile.name}\u0001${profile.language}`)
-      .join('\u0000')}`
+    const signature = JSON.stringify([activeProfile, profiles])
     if (signature === profileSignature) {
       return
     }

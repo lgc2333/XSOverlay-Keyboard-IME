@@ -1,5 +1,4 @@
-using System.Globalization;
-using System.Text;
+using System.Linq;
 using XSOverlayKeyboardIme.Ime;
 
 namespace XSOverlayKeyboardIme.Page
@@ -9,25 +8,17 @@ namespace XSOverlayKeyboardIme.Page
     {
         internal static string Build(CompositionView view)
         {
-            var payload = new StringBuilder();
-            payload.Append("{\"preedit\":").Append(JavaScriptString.Literal(view.Preedit));
-            payload.Append(",\"selected\":").Append(view.Selected.ToString(CultureInfo.InvariantCulture));
-            payload.Append(",\"selectionStart\":").Append(view.Selection.Start.ToString(CultureInfo.InvariantCulture));
-            payload.Append(",\"selectionEnd\":").Append(view.Selection.End.ToString(CultureInfo.InvariantCulture));
-            payload.Append(",\"composing\":").Append(view.Composing ? "true" : "false");
-            payload.Append(",\"candidates\":[");
-            for (int index = 0; index < view.Candidates.Length; index++)
-            {
-                if (index > 0)
+            return JavaScriptJson.Serialize(
+                new
                 {
-                    payload.Append(',');
+                    preedit = view.Preedit,
+                    selected = view.Selected,
+                    selectionStart = view.Selection.Start,
+                    selectionEnd = view.Selection.End,
+                    composing = view.Composing,
+                    candidates = view.Candidates.Select(candidate => candidate ?? string.Empty),
                 }
-
-                payload.Append(JavaScriptString.Literal(view.Candidates[index] ?? string.Empty));
-            }
-
-            payload.Append("]}");
-            return payload.ToString();
+            );
         }
     }
 }
