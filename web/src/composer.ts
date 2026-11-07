@@ -72,6 +72,8 @@ let cancelComposition: (() => void) | null = null
  */
 export function keepComposerFocus(onActiveChange: (active: boolean) => void): void {
   onFocusChange = onActiveChange
+  const composer = findComposer()
+  focused = document.activeElement === composer ? composer : null
 
   document.addEventListener(
     'focusin',
