@@ -42,11 +42,21 @@ TBD
 
 ## Design trade-offs
 
+<!-- ordered from the most surprising behaviour to the least -->
+
 The behaviours in this section look like faults. They are deliberate.
 
 ### Why the candidates cannot be clicked
 
 The candidate bar is display only. Clicking a candidate does nothing. The bar has no paging buttons and no page numbers.
+
+#### Why it is designed this way
+
+This trade-off is deliberate, to keep the code as clean as possible. The plugin aims to work with any IME through public APIs only, and does not add per-IME special cases for now. The cost of that choice shows up here.
+
+Clicking a candidate would make the plugin press keys for you. The same keys do different things in different IMEs: they may move the candidate, page, or do nothing at all. So the keys stay in your hands, and the IME interprets them as it always does.
+
+Page numbers are the same. The numbers an IME reports are unreliable, so the bar shows none rather than a wrong one.
 
 #### What to do instead
 
@@ -57,13 +67,35 @@ For example, the default keys of rime-frost, the scheme I use:
 - Number keys, Space: pick a candidate; `-`, `=`: page
 - `↑`, `↓`: move between candidates; `←`, `→`: move the caret in the composing string; `[`, `]`: pick by word; and so on.
 
-#### Why it is designed this way
+### Key results follow the IME and the system, as on a physical keyboard
 
-This trade-off is deliberate, to keep the code as clean as possible. The plugin aims to work with any IME through public APIs only, and does not add per-IME special cases for now. The cost of that choice shows up here.
+The plugin does not process the keys. They take the same path as on a physical keyboard, so they give the same result.
 
-Clicking a candidate would make the plugin press keys for you. The same keys do different things in different IMEs: they may move the candidate, page, or do nothing at all. So the keys stay in your hands, and the IME interprets them as it always does.
+During a composition, Shift is really held down: the letters typed next come out uppercase, and pressing it again releases it. When the input box loses the focus, every modifier the plugin holds is lifted. Caps is the system's lock key, and the plugin leaves it alone.
 
-Page numbers are the same. The numbers an IME reports are unreliable, so the bar shows none rather than a wrong one.
+Switching the IME during a composition loses the code being composed. That is expected. The plugin does not commit on the IME's behalf; it only re-reads the name, the icon and the composition state once the switch settles.
+
+The cost is that the IME's own faults land on the keyboard unchanged. Take Weasel: pressing the 中/英 switch during a composition (the same as clicking the language bar icon, not pressing Shift) leaves the composition open but drops the candidates; switching back to Chinese lets you compose again. Microsoft Pinyin, on the other hand, commits the raw code as it is. This is confusing, but it is the IME's own business, and the plugin does not clean up after it.
+
+### Why the IME name and the 中/英 switch are hidden while the input box has no focus
+
+Once the input box loses the focus, the IME information has no stable source. The plugin cannot get a value that stays true, so whatever it showed could stop matching reality at any moment. Hiding it is better than showing an unreliable name.
+
+The name means the IME the next key goes to. The switch key switches the IME that takes text in this input box, so without the focus there is nothing to switch. Both appear and disappear together.
+
+With the focus, the bar shows the IME name and the dropdown on the right, and the 中/英 switch appears left of Space. The switch key covers the left end of Space and does not change the width of the row.
+
+The VR keyboard uses the system IME. The plugin reads only the IME on the game's own input chain, and neither reads nor changes other programs. Win+Space changes the IME, and the name and icon follow; it changes the IME of the whole desktop, so windows outside the game change too. The dropdown lists the IMEs of every installed language; picking one switches to it.
+
+### Why it only works in the input box on the keyboard page
+
+Composing means taking the foreground and pressing keys for you. Widen the scope and it reaches into other windows, which costs more than it gains. So the plugin takes the keys of the keyboard page's own input box only. Other input boxes in the game, the desktop and other applications are out of scope, and will stay out of scope.
+
+### Why composing briefly takes the foreground
+
+There is only one way to deliver keys to the IME: inject global key input. Injected keys reach the foreground window only.
+
+So a composition starts by bringing the plugin's hidden window to the foreground, and hands it back to your window when the keys are in. If another window takes it in the meantime, the plugin takes it again. You see the game lose focus for a moment, and the desktop focus jump away and back.
 
 ### Why the bar stays when it is empty
 
@@ -71,25 +103,9 @@ The bar does not go away when it shows no candidates. The keyboard window keeps 
 
 A composition starts and ends as you type. A bar that came and went with the content would change the height again and again, which is unpleasant in VR.
 
-### When the IME name and the 中/英 switch appear
-
-When the input box on the keyboard page takes the focus, the bar shows the name of the current IME and the switch key appears left of Space. Both go away when the input box loses the focus, and Space takes the width back.
-
-The plugin uses the IME of the game's own input chain only. It does not read or change other windows. Pressing Win+Space in the game therefore does not change the IME of the VR keyboard.
-
-To change the IME, pick it before you start the game. In VR, only 中 and 英 switch. The dropdown on the bar is not built yet.
-
-### Why it only works in the input box on the keyboard page
-
-Composing means taking the foreground and pressing keys for you. Widen the scope and it reaches into other windows, which costs more than it gains. So the plugin takes the keys of the keyboard page's own input box only. Other input boxes in the game, the desktop and other applications are out of scope, and will stay out of scope.
-
 ### Why the send button is grey while composing
 
 The composing string sits in the input box for a moment. The keyboard page enables send whenever the box is not empty, so the pinyin can go out without warning. The plugin therefore keeps send disabled while composing. It returns to normal once the text is committed or cancelled.
-
-### Why composing briefly takes the foreground
-
-Composing has to reach the IME. The only way is to inject global key input, and injected keys only reach the foreground window. So a composition starts by bringing the plugin's hidden window to the foreground. It hands the foreground back to your window when the keys are in. If another window takes it in the meantime, the plugin takes it again. You see the game lose focus for a moment, and the desktop focus jump away and back. There is no other way to reach the IME. Either implement a whole text store, or the keys never arrive.
 
 ## Build
 
