@@ -19,9 +19,11 @@ namespace XSOverlayKeyboardIme.Game.Patches
         [HarmonyPrefix]
         private static bool Prefix(
             XSOverlay.Websockets.API.Objects.KeyboardEvent __0,
-            XSOverlay.InputManager __instance
+            XSOverlay.InputManager __instance,
+            out bool __state
         )
         {
+            __state = false;
             try
             {
                 ImeHost host = ImeHost.Current;
@@ -37,20 +39,46 @@ namespace XSOverlayKeyboardIme.Game.Patches
                 }
 
                 PageModifiers modifiers = KeyboardModifiers.Read(__instance);
-                var key = new PageKey(ReadStyle(__0), __0?.value, __0?.webValue, modifiers);
+                var key = new PageKey(
+                    ReadStyle(__0),
+                    __0?.value,
+                    __0?.webValue,
+                    modifiers,
+                    KeyboardModifierInput.ReadNativeKey(__0?.value)
+                );
 
-                if (!host.TryAcceptKey(key))
+                if (!host.TryAcceptKey(key, () => KeyboardModifierInput.ConsumeSticky(__instance)))
                 {
                     Refuse("the key was not taken: " + DescribeKey(__0, modifiers));
                     return true;
                 }
 
+                __state = true;
                 return false;
             }
             catch (Exception ex)
             {
                 HostLog.Error("take-over failed " + ex.GetType().Name + ": " + ex.Message);
                 return true;
+            }
+        }
+
+        [HarmonyPostfix]
+        private static void Postfix(
+            XSOverlay.Websockets.API.Objects.KeyboardEvent __0,
+            XSOverlay.InputManager __instance,
+            bool __state
+        )
+        {
+            if (
+                !__state
+                && __0?.keyPressStyle == XSOverlay.Websockets.API.Enums.KeyPressStyle.Standard
+                && ImeHost.Current?.Ready == true
+                && KeyboardOverlayScope.HasKeyboardFocus()
+            )
+            {
+                // Taken keys skip XSOverlay's handler, but must still consume its sticky keys.
+                KeyboardModifierInput.ConsumeSticky(__instance);
             }
         }
 

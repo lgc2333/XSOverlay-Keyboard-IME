@@ -188,7 +188,7 @@ namespace XSOverlayKeyboardIme.Page
         {
             LanguageBarIcon icon = _switchIcon;
 
-            // A null icon is news too: the page falls back to its own glyph. See ADR 0036.
+            // A null icon removes the switch, including one from the previous IME. See ADR 0042.
             Call(
                 page,
                 "input mode",

@@ -30,9 +30,6 @@ const SwitchStyle = `
 #${ContainerId} .${SwitchClass} canvas {
   width: 32px; height: 32px; image-rendering: pixelated; pointer-events: none;
 }
-#${ContainerId} .${SwitchClass} .ime-switch-fallback {
-  font-size: 16px; line-height: 1;
-}
 `
 
 export interface SwitchKey {
@@ -53,19 +50,25 @@ export function createSwitchKey(): SwitchKey {
   let active = false
 
   function show(view: SwitchIconView | null): void {
-    icon = view
-    const key = document.querySelector<HTMLElement>(`.${SwitchClass}`)
-    if (key != null) {
-      draw(key, icon)
-    }
+    icon = view != null && view.width > 0 && view.height > 0 ? view : null
+    sync()
   }
 
   function setActive(value: boolean): void {
     active = value
-    if (active) {
-      mount()
-    } else {
+    sync()
+  }
+
+  function sync(): void {
+    if (!active || icon == null) {
       unmount()
+      return
+    }
+
+    mount()
+    const key = document.querySelector<HTMLElement>(`.${SwitchClass}`)
+    if (key != null) {
+      draw(key, icon)
     }
   }
 
@@ -74,7 +77,7 @@ export function createSwitchKey(): SwitchKey {
   return { show, setActive }
 
   function mount(): void {
-    if (!active) {
+    if (!active || icon == null) {
       return
     }
 
@@ -111,7 +114,7 @@ export function createSwitchKey(): SwitchKey {
   }
 
   function observeRebuilds(): void {
-    const observer = new MutationObserver(mount)
+    const observer = new MutationObserver(sync)
     observer.observe(document.documentElement, { childList: true, subtree: true })
   }
 }
@@ -141,11 +144,7 @@ function createKey(space: HTMLElement, unit: number): HTMLElement {
   })
 
   const canvas = document.createElement('canvas')
-  canvas.hidden = true
-  const fallback = document.createElement('span')
-  fallback.className = 'ime-switch-fallback'
-  fallback.textContent = '中/英'
-  key.append(canvas, fallback)
+  key.append(canvas)
 
   key.addEventListener('pointerdown', (event) => {
     event.preventDefault()
@@ -327,16 +326,9 @@ function clampUnit(value: number): number {
   return Math.max(0, Math.min(1, value))
 }
 
-function draw(key: HTMLElement, view: SwitchIconView | null): void {
+function draw(key: HTMLElement, view: SwitchIconView): void {
   const canvas = key.querySelector('canvas')
-  const fallback = key.querySelector<HTMLElement>('.ime-switch-fallback')
-  if (canvas == null || fallback == null) {
-    return
-  }
-
-  if (view == null || view.width <= 0 || view.height <= 0) {
-    canvas.hidden = true
-    fallback.hidden = false
+  if (canvas == null) {
     return
   }
 
@@ -352,8 +344,6 @@ function draw(key: HTMLElement, view: SwitchIconView | null): void {
     0,
     0,
   )
-  canvas.hidden = false
-  fallback.hidden = true
 }
 
 /** The plugin sends straight RGBA; the canvas wants bytes it can clamp. */

@@ -3,9 +3,9 @@
 [简体中文](README.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | **English**
 
 > [!NOTE]
-> This document was translated by an LLM. It may contain mistranslations, or tones that differ from the original.
+> This document was translated from the Chinese version by an LLM. It may contain mistranslations, or tones that differ from the original.
 
-This plugin adds a system IME to the VR keyboard of XSOverlay. Compose text in the input box on the keyboard page. The composing string and the candidates show on the keyboard. Pick a candidate with the keyboard keys. The committed text goes back into the input box.
+This plugin connects XSOverlay's VR keyboard to the system IME. Compose text in the input box on the keyboard page. The composing string and the candidates show on the keyboard. Pick a candidate with the keyboard keys. The committed text goes back into the input box.
 
 ## Why this plugin
 
@@ -69,11 +69,13 @@ For example, the default keys of rime-frost, the scheme I use:
 
 ### Key results follow the IME and the system, as on a physical keyboard
 
-The plugin does not process the keys. They take the same path as on a physical keyboard, so they give the same result.
+The plugin forwards ordinary keys to the system and the IME. They decide the result.
 
-During a composition, Shift is really held down: the letters typed next come out uppercase, and pressing it again releases it. When the input box loses the focus, every modifier the plugin holds is lifted. Caps is the system's lock key, and the plugin leaves it alone.
+When you switch IMEs during composition, the IME decides whether to discard or commit the raw code. The plugin sends no extra keys. Notifications or later keys refresh the name and icon, so updates can wait until your next key.
 
-Switching the IME during a composition loses the code being composed. That is expected. The plugin does not commit on the IME's behalf; it only re-reads the name, the icon and the composition state once the switch settles.
+Shift, Ctrl, and Alt presses and releases reach Windows immediately. Sticky, held, and release rules follow XSOverlay. Closing the keyboard releases these keys and preserves Caps Lock.
+
+The keyboard page uses Win only for Win+Space. Pressing Win alone does not open Start. Other Win combinations do nothing, which prevents accidental desktop windows while typing in VR.
 
 The cost is that the IME's own faults land on the keyboard unchanged. Take Weasel: pressing the 中/英 switch during a composition (the same as clicking the language bar icon, not pressing Shift) leaves the composition open but drops the candidates; switching back to Chinese lets you compose again. Microsoft Pinyin, on the other hand, commits the raw code as it is. This is confusing, but it is the IME's own business, and the plugin does not clean up after it.
 
@@ -81,9 +83,9 @@ The cost is that the IME's own faults land on the keyboard unchanged. Take Wease
 
 Once the input box loses the focus, the IME information has no stable source. The plugin cannot get a value that stays true, so whatever it showed could stop matching reality at any moment. Hiding it is better than showing an unreliable name.
 
-The name means the IME the next key goes to. The switch key switches the IME that takes text in this input box, so without the focus there is nothing to switch. Both appear and disappear together.
+The name identifies the IME that receives your next key. It appears while the input box has focus. The 中/英 switch also requires a displayable IME icon. Without an icon, the switch stays hidden.
 
-With the focus, the bar shows the IME name and the dropdown on the right, and the 中/英 switch appears left of Space. The switch key covers the left end of Space and does not change the width of the row.
+The bar shows the name and dropdown on the right. The switch covers the left end of Space without changing the row width. When hidden, this area remains part of Space.
 
 The VR keyboard uses the system IME. The plugin reads only the IME on XSOverlay's own input chain, and neither reads nor changes other programs. Win+Space changes the IME, and the name and icon follow; it changes the IME of the whole desktop, so windows outside XSOverlay change too. The dropdown lists the IMEs of every installed language; picking one switches to it.
 
@@ -95,7 +97,7 @@ Composing means taking the foreground and pressing keys for you. Widen the scope
 
 There is only one way to deliver keys to the IME: inject global key input. Injected keys reach the foreground window only.
 
-So a composition starts by bringing the plugin's hidden window to the foreground, and hands it back to your window when the keys are in. If another window takes it in the meantime, the plugin takes it again. You see XSOverlay lose focus for a moment, and the desktop focus jump away and back.
+Before sending keys, the plugin tries to bring its hidden window to the foreground. It restores the foreground afterward. If the switch fails, the plugin logs the failure and stops that key. It does not retry.
 
 ### Why the bar stays when it is empty
 
@@ -139,7 +141,7 @@ dotnet build -c Release -p:DeployToGame=true -p:GameDir="D:\Steam\steamapps\comm
 ## Credits
 
 - [Windmill-City/IngameIME-Common](https://github.com/Windmill-City/IngameIME-Common), [Windmill-City/IngameIME_Win32](https://github.com/Windmill-City/IngameIME_Win32): TSF input context and composition callbacks. This dependency is compiled into `IngameIME.dll` together with this repository's C shim. The whole library ships under LGPL 2.1; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
-- DeepSeek V4.1 Flash & DeepSeek Harness: this project was built end to end by 大肥鱼妈妈 (Big Fat Fish Mom).
+- DeepSeek V4.1 Flash & DeepSeek Harness, GPT 6.1 Sol & Codex: The Fat Whale Mom and the Little Dragon Girl built the entire project.
 
 ## Sponsor
 

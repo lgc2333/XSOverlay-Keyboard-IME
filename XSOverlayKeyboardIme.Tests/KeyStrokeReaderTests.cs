@@ -29,14 +29,27 @@ namespace XSOverlayKeyboardIme.Tests
             return KeyStrokeReader.Read(key, gate, strokes);
         }
 
-        private static KeyOwnership ReadText(string text, TakeoverGate gate, out List<KeyStroke> strokes)
+        private static KeyOwnership ReadText(
+            string text,
+            VirtualKey nativeKey,
+            TakeoverGate gate,
+            out List<KeyStroke> strokes
+        )
         {
-            return Read(new PageKey(PageKeyStyle.Standard, null, text, PageModifiers.None), gate, out strokes);
+            return Read(
+                new PageKey(PageKeyStyle.Standard, null, text, PageModifiers.None, nativeKey),
+                gate,
+                out strokes
+            );
         }
 
         private static KeyOwnership ReadNamed(string[] names, TakeoverGate gate, out List<KeyStroke> strokes)
         {
-            return Read(new PageKey(PageKeyStyle.Standard, names, null, PageModifiers.None), gate, out strokes);
+            return Read(
+                new PageKey(PageKeyStyle.Standard, names, null, PageModifiers.None, default),
+                gate,
+                out strokes
+            );
         }
 
         private static KeyOwnership ReadLatched(
@@ -46,34 +59,45 @@ namespace XSOverlayKeyboardIme.Tests
             out List<KeyStroke> strokes
         )
         {
-            return Read(new PageKey(style, names, names[0], PageModifiers.None), gate, out strokes);
+            return Read(new PageKey(style, names, names[0], PageModifiers.None, default), gate, out strokes);
         }
 
         private static KeyOwnership ReadHeld(
             string text,
+            VirtualKey nativeKey,
             PageModifiers modifiers,
             TakeoverGate gate,
             out List<KeyStroke> strokes
         )
         {
-            return Read(new PageKey(PageKeyStyle.Standard, null, text, modifiers), gate, out strokes);
+            return Read(new PageKey(PageKeyStyle.Standard, null, text, modifiers, nativeKey), gate, out strokes);
         }
 
         [Fact]
         public void Idle_takes_a_character_and_starts_a_session()
         {
-            Assert.Equal(KeyOwnership.Ime, ReadText("n", TakeoverGate.Idle, out List<KeyStroke> strokes));
+            Assert.Equal(
+                KeyOwnership.Ime,
+                ReadText("n", (VirtualKey)0x4E, TakeoverGate.Idle, out List<KeyStroke> strokes)
+            );
 
             KeyStroke stroke = Assert.Single(strokes);
             Assert.Equal(KeyStrokeKind.Text, stroke.Kind);
             Assert.Equal('n', stroke.Text);
+            Assert.Equal((VirtualKey)0x4E, stroke.Key);
+            Assert.False(stroke.Shift);
+            Assert.False(stroke.IsModifier);
+            Assert.True(stroke.CountsAsComposition);
         }
 
         [Fact]
         public void Idle_leaves_a_space_with_the_page()
         {
             // A space never starts a composition.
-            Assert.Equal(KeyOwnership.Page, ReadText(" ", TakeoverGate.Idle, out List<KeyStroke> strokes));
+            Assert.Equal(
+                KeyOwnership.Page,
+                ReadText(" ", VirtualKey.Space, TakeoverGate.Idle, out List<KeyStroke> strokes)
+            );
             Assert.Empty(strokes);
         }
 
@@ -87,11 +111,16 @@ namespace XSOverlayKeyboardIme.Tests
         [Fact]
         public void Composing_takes_a_space()
         {
-            Assert.Equal(KeyOwnership.Ime, ReadText(" ", TakeoverGate.Composing, out List<KeyStroke> strokes));
+            Assert.Equal(
+                KeyOwnership.Ime,
+                ReadText(" ", VirtualKey.Space, TakeoverGate.Composing, out List<KeyStroke> strokes)
+            );
 
             KeyStroke stroke = Assert.Single(strokes);
             Assert.Equal(KeyStrokeKind.Key, stroke.Kind);
             Assert.Equal(VirtualKey.Space, stroke.Key);
+            Assert.False(stroke.IsModifier);
+            Assert.True(stroke.CountsAsComposition);
         }
 
         [Fact]
@@ -119,16 +148,13 @@ namespace XSOverlayKeyboardIme.Tests
         }
 
         [Fact]
-        public void Composing_presses_a_latched_shift_on_the_host()
+        public void Composing_leaves_a_latched_shift_with_the_page()
         {
-            // The host holds the real key down, so the IME sees a held shift. See ADR 0038.
             Assert.Equal(
-                KeyOwnership.Ime,
+                KeyOwnership.Page,
                 ReadLatched(PageKeyStyle.Sticky, ShiftName, TakeoverGate.Composing, out List<KeyStroke> strokes)
             );
-            KeyStroke stroke = Assert.Single(strokes);
-            Assert.Equal(KeyStrokeKind.Modifier, stroke.Kind);
-            Assert.Equal(VirtualKey.LeftShift, stroke.Key);
+            Assert.Empty(strokes);
         }
 
         [Fact]
@@ -142,13 +168,13 @@ namespace XSOverlayKeyboardIme.Tests
         }
 
         [Fact]
-        public void Idle_presses_a_latched_shift_on_the_host()
+        public void Idle_leaves_a_latched_shift_with_the_page()
         {
             Assert.Equal(
-                KeyOwnership.Ime,
+                KeyOwnership.Page,
                 ReadLatched(PageKeyStyle.Sticky, ShiftName, TakeoverGate.Idle, out List<KeyStroke> strokes)
             );
-            Assert.Equal(KeyStrokeKind.Modifier, Assert.Single(strokes).Kind);
+            Assert.Empty(strokes);
         }
 
         [Fact]
@@ -162,13 +188,13 @@ namespace XSOverlayKeyboardIme.Tests
         }
 
         [Fact]
-        public void Composing_presses_a_latched_control_on_the_host()
+        public void Composing_leaves_a_latched_control_with_the_page()
         {
             Assert.Equal(
-                KeyOwnership.Ime,
+                KeyOwnership.Page,
                 ReadLatched(PageKeyStyle.Sticky, ControlName, TakeoverGate.Composing, out List<KeyStroke> strokes)
             );
-            Assert.Equal(VirtualKey.LeftControl, Assert.Single(strokes).Key);
+            Assert.Empty(strokes);
         }
 
         [Fact]
@@ -194,23 +220,30 @@ namespace XSOverlayKeyboardIme.Tests
         {
             // Only Shift is read, because the page already folded it into the character.
             // Every other combination belongs to the page. See ADR 0026.
-            var key = new PageKey(PageKeyStyle.Standard, ControlName, "a", PageModifiers.None);
+            var key = new PageKey(PageKeyStyle.Standard, ControlName, "a", PageModifiers.None, (VirtualKey)0x41);
 
             Assert.Equal(KeyOwnership.Page, KeyStrokeReader.Read(key, TakeoverGate.Composing, new List<KeyStroke>()));
         }
 
-        [Fact]
-        public void A_shifted_character_still_starts_a_session()
+        [Theory]
+        [InlineData((int)TakeoverGate.Idle)]
+        [InlineData((int)TakeoverGate.Composing)]
+        public void A_named_shift_preserves_the_character_native_key_and_shift(int gate)
         {
-            var key = new PageKey(PageKeyStyle.Standard, ShiftName, "N", PageModifiers.None);
+            var key = new PageKey(PageKeyStyle.Standard, ShiftName, "N", PageModifiers.None, (VirtualKey)0x4E);
 
-            Assert.Equal(KeyOwnership.Ime, KeyStrokeReader.Read(key, TakeoverGate.Idle, new List<KeyStroke>()));
+            Assert.Equal(KeyOwnership.Ime, Read(key, (TakeoverGate)gate, out List<KeyStroke> strokes));
+
+            KeyStroke stroke = Assert.Single(strokes);
+            Assert.Equal('N', stroke.Text);
+            Assert.Equal((VirtualKey)0x4E, stroke.Key);
+            Assert.True(stroke.Shift);
         }
 
         [Fact]
         public void A_press_the_plugin_does_not_model_is_refused()
         {
-            var key = new PageKey(PageKeyStyle.Other, null, "n", PageModifiers.None);
+            var key = new PageKey(PageKeyStyle.Other, null, "n", PageModifiers.None, (VirtualKey)0x4E);
 
             Assert.Equal(KeyOwnership.Page, KeyStrokeReader.Read(key, TakeoverGate.Composing, new List<KeyStroke>()));
         }
@@ -219,7 +252,10 @@ namespace XSOverlayKeyboardIme.Tests
         public void A_space_without_a_name_still_commits()
         {
             // The page reported the character but no key name for it.
-            Assert.Equal(KeyOwnership.Ime, ReadText(" ", TakeoverGate.Composing, out List<KeyStroke> strokes));
+            Assert.Equal(
+                KeyOwnership.Ime,
+                ReadText(" ", VirtualKey.Space, TakeoverGate.Composing, out List<KeyStroke> strokes)
+            );
             Assert.Equal(VirtualKey.Space, Assert.Single(strokes).Key);
         }
 
@@ -227,7 +263,7 @@ namespace XSOverlayKeyboardIme.Tests
         public void A_character_wins_over_a_named_key()
         {
             // The page resolved the character, so the name is not needed.
-            var key = new PageKey(PageKeyStyle.Standard, CharacterName, "n", PageModifiers.None);
+            var key = new PageKey(PageKeyStyle.Standard, CharacterName, "n", PageModifiers.None, (VirtualKey)0x4E);
 
             Assert.Equal(KeyOwnership.Ime, KeyStrokeReader.Read(key, TakeoverGate.Composing, new List<KeyStroke>()));
         }
@@ -238,7 +274,13 @@ namespace XSOverlayKeyboardIme.Tests
             // A combination belongs to the page. See ADR 0029.
             Assert.Equal(
                 KeyOwnership.Page,
-                ReadHeld("a", PageModifiers.Control, TakeoverGate.Composing, out List<KeyStroke> strokes)
+                ReadHeld(
+                    "a",
+                    (VirtualKey)0x41,
+                    PageModifiers.Control,
+                    TakeoverGate.Composing,
+                    out List<KeyStroke> strokes
+                )
             );
             Assert.Empty(strokes);
         }
@@ -248,7 +290,7 @@ namespace XSOverlayKeyboardIme.Tests
         {
             Assert.Equal(
                 KeyOwnership.Page,
-                ReadHeld("a", PageModifiers.Alt, TakeoverGate.Composing, out List<KeyStroke> strokes)
+                ReadHeld("a", (VirtualKey)0x41, PageModifiers.Alt, TakeoverGate.Composing, out List<KeyStroke> strokes)
             );
             Assert.Empty(strokes);
         }
@@ -259,15 +301,18 @@ namespace XSOverlayKeyboardIme.Tests
             // The switch reaches our own IME, so the key must not be swallowed. See ADR 0036.
             Assert.Equal(
                 KeyOwnership.System,
-                ReadHeld(" ", PageModifiers.Meta, TakeoverGate.Idle, out List<KeyStroke> strokes)
+                ReadHeld(" ", VirtualKey.Space, PageModifiers.Meta, TakeoverGate.Idle, out List<KeyStroke> strokes)
             );
-            Assert.Equal(KeyStrokeKind.System, Assert.Single(strokes).Kind);
+            KeyStroke stroke = Assert.Single(strokes);
+            Assert.Equal(KeyStrokeKind.System, stroke.Kind);
+            Assert.False(stroke.IsModifier);
+            Assert.False(stroke.CountsAsComposition);
         }
 
         [Fact]
         public void Win_space_named_only_by_the_page_belongs_to_the_system()
         {
-            var key = new PageKey(PageKeyStyle.Standard, WinSpace, " ", PageModifiers.None);
+            var key = new PageKey(PageKeyStyle.Standard, WinSpace, " ", PageModifiers.None, VirtualKey.Space);
 
             Assert.Equal(KeyOwnership.System, KeyStrokeReader.Read(key, TakeoverGate.Composing, new List<KeyStroke>()));
         }
@@ -282,24 +327,29 @@ namespace XSOverlayKeyboardIme.Tests
         }
 
         [Fact]
-        public void A_latched_win_is_pressed_on_the_host()
+        public void A_latched_win_stays_with_the_page()
         {
-            // Win is a modifier like the others, so it is held for real. See ADR 0038.
             Assert.Equal(
-                KeyOwnership.Ime,
+                KeyOwnership.Page,
                 ReadLatched(PageKeyStyle.Sticky, WinName, TakeoverGate.Idle, out List<KeyStroke> strokes)
             );
-            Assert.Equal(VirtualKey.LeftWin, Assert.Single(strokes).Key);
+            Assert.Empty(strokes);
         }
 
-        [Fact]
-        public void A_held_shift_still_starts_a_session()
+        [Theory]
+        [InlineData((int)TakeoverGate.Idle)]
+        [InlineData((int)TakeoverGate.Composing)]
+        public void A_held_shift_preserves_the_character_native_key_and_shift(int gate)
         {
             Assert.Equal(
                 KeyOwnership.Ime,
-                ReadHeld("N", PageModifiers.Shift, TakeoverGate.Idle, out List<KeyStroke> strokes)
+                ReadHeld("!", (VirtualKey)0x31, PageModifiers.Shift, (TakeoverGate)gate, out List<KeyStroke> strokes)
             );
-            Assert.Equal(KeyStrokeKind.Text, Assert.Single(strokes).Kind);
+            KeyStroke stroke = Assert.Single(strokes);
+            Assert.Equal(KeyStrokeKind.Text, stroke.Kind);
+            Assert.Equal('!', stroke.Text);
+            Assert.Equal((VirtualKey)0x31, stroke.Key);
+            Assert.True(stroke.Shift);
         }
     }
 }

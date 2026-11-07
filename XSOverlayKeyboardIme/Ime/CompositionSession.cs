@@ -21,6 +21,7 @@ namespace XSOverlayKeyboardIme.Ime
 
         private CompositionView _view;
         private bool _open;
+        private bool _batchOpen;
 
         internal CompositionSession(
             ImeContext ime,
@@ -56,36 +57,35 @@ namespace XSOverlayKeyboardIme.Ime
             Publish();
         }
 
-        /// <summary>
-        /// Re-publishes the view once a switch has landed. A switch that kills the composition
-        /// can end it without a commit callback, and the page would keep the last codes.
-        /// </summary>
-        internal void RefreshAfterSwitch()
-        {
-            if (!_open)
-            {
-                return;
-            }
-
-            if (!_ime.Composing)
-            {
-                End();
-                return;
-            }
-
-            Publish();
-        }
-
         /// <summary>Feeds one taken key, then acts on what the IME did with it.</summary>
         internal void Send(KeyStroke stroke)
         {
-            if (!_open)
+            // Releases must reach Windows even after the keyboard has closed. They must
+            // not take foreground back from the user's next window. See ADR 0040.
+            if (stroke.Kind != KeyStrokeKind.ModifierUp)
             {
-                Begin();
+                if (!(_open ? _lease.Ensure() : _lease.Acquire()))
+                {
+                    return;
+                }
+
+                _open = true;
             }
 
             HostLog.Info("feed " + stroke.Describe());
-            _feeder.Send(stroke);
+            if (!_feeder.Send(stroke))
+            {
+                if (!_ime.Composing)
+                    End();
+                return;
+            }
+
+            if (stroke.Kind == KeyStrokeKind.ModifierDown)
+            {
+                // Keep the same input target until the release or next ordinary key.
+                _open = true;
+                return;
+            }
 
             // A commit ends the session from inside the callback, which settles the key.
             if (!_open)
@@ -103,11 +103,17 @@ namespace XSOverlayKeyboardIme.Ime
             }
         }
 
-        /// <summary>Takes the foreground and opens the session. See ADR 0026.</summary>
-        private void Begin()
+        internal void BeginBatch()
         {
-            _open = true;
-            _lease.Acquire();
+            _batchOpen = true;
+        }
+
+        /// <summary>Restore after queued sticky releases have followed the ordinary key.</summary>
+        internal void CompleteBatch()
+        {
+            _batchOpen = false;
+            if (!_open)
+                _lease.Restore();
         }
 
         /// <summary>
@@ -142,7 +148,8 @@ namespace XSOverlayKeyboardIme.Ime
 
             _open = false;
             _view = CompositionView.Idle();
-            _lease.Restore();
+            if (!_batchOpen)
+                _lease.Restore();
             Publish();
         }
 

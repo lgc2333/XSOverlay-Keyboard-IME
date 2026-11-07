@@ -56,7 +56,7 @@ namespace XSOverlayKeyboardIme.Ime
             IEnumTfLangBarItems items = null;
             if (manager == null || manager.EnumItems(out items) < 0 || items == null)
             {
-                HostLog.Info("the language bar lists nothing yet; the switch waits for it");
+                HostLog.Info("no language bar items; the switch is hidden");
                 Release(threadManager);
                 return null;
             }
@@ -73,7 +73,7 @@ namespace XSOverlayKeyboardIme.Ime
 
             if (found == null)
             {
-                HostLog.Info("no language bar item draws an icon yet; the switch waits for one");
+                HostLog.Info("the language bar switch is hidden");
                 Release(threadManager);
                 return null;
             }
@@ -103,14 +103,27 @@ namespace XSOverlayKeyboardIme.Ime
             }
 
             IntPtr icon;
-            if (_button.GetIcon(out icon) < 0 || icon == IntPtr.Zero)
+            int hr = _button.GetIcon(out icon);
+            if (hr < 0)
+            {
+                HostLog.Warn("the language bar icon could not be read, hr=0x" + hr.ToString("x"));
+                return null;
+            }
+
+            if (icon == IntPtr.Zero)
             {
                 return null;
             }
 
             try
             {
-                return ToIcon(icon);
+                LanguageBarIcon result = ToIcon(icon);
+                if (result == null)
+                {
+                    HostLog.Warn("the language bar icon could not be converted; the switch is hidden");
+                }
+
+                return result;
             }
             finally
             {
@@ -137,44 +150,42 @@ namespace XSOverlayKeyboardIme.Ime
         /// </summary>
         private static ITfLangBarItemButton PickButton(IEnumTfLangBarItems items)
         {
-            ITfLangBarItemButton first = null;
             for (int index = 0; index < MaxItems; index++)
             {
                 ITfLangBarItem item;
                 uint fetched;
                 if (items.Next(1, out item, out fetched) < 0 || fetched == 0 || item == null)
                 {
-                    return first;
+                    return null;
                 }
 
                 var button = item as ITfLangBarItemButton;
                 bool draws = button != null && Draws(button);
-                HostLog.Info("language bar item " + index + (draws ? " draws an icon" : " draws nothing"));
+                HostLog.Info("language bar item " + index + (draws ? " has a usable icon" : " has no usable icon"));
 
                 if (button != null && draws)
                 {
                     // The item is the button, so it stays alive for the caller.
-                    Release(first);
                     return button;
                 }
 
-                if (button != null && first == null)
-                {
-                    first = button;
-                }
-                else
-                {
-                    Release(item);
-                }
+                Release(item);
             }
 
-            return first;
+            return null;
         }
 
         private static bool Draws(ITfLangBarItemButton button)
         {
             IntPtr icon;
-            if (button.GetIcon(out icon) < 0 || icon == IntPtr.Zero)
+            int hr = button.GetIcon(out icon);
+            if (hr < 0)
+            {
+                HostLog.Warn("the language bar icon could not be read, hr=0x" + hr.ToString("x"));
+                return false;
+            }
+
+            if (icon == IntPtr.Zero)
             {
                 return false;
             }

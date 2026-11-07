@@ -6,7 +6,7 @@
 XSOverlayKeyboardIme/              BepInEx 5 插件
   KeyboardImePlugin.cs             入口；绑定配置、给 XSOverlay 打补丁、把宿主接到页面上
   MainThreadDispatcher.cs          任意线程 → Unity 主线程
-  Game/                            一切碰 XSOverlay 的东西；Patches/ 里是那四个 Harmony 补丁
+  Game/                            一切碰 XSOverlay 的东西；Patches/ 里是 Harmony 补丁
   Takeover/                        判定键盘页的按键归谁；纯数据，不含 XSOverlay 类型
   Ime/                             组字宿主：STA 线程、隐藏窗口、输入法上下文、喂键、输入法的语言栏按钮
   Page/                            注入页面脚本、写回已提交的文本、显示组字串与切换图标

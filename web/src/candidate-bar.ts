@@ -11,11 +11,6 @@ const SelectedClass = 'ime-selected'
 const OverflowStartClass = 'ime-overflow-start'
 const OverflowEndClass = 'ime-overflow-end'
 const CurrentProfileClass = 'ime-profile-current'
-const BusyClass = 'ime-chip-busy'
-
-/** How long the chip stays busy when the plugin sends no answer at all. */
-const BusySettleMilliseconds = 2000
-
 /** The page's ray only hits these classes, so the clickable parts borrow them. */
 const RayButtonClass = 'dropdown-button'
 const RayItemClass = 'dropdown-item'
@@ -87,7 +82,6 @@ export function createCandidateBar(): CandidateBar {
   let profiles: ProfileView[] = []
   let activeProfile = -1
   let profileSignature = ''
-  let busyTimer: number | null = null
   let menuOpen = false
 
   function render(view: CompositionView | null): void {
@@ -100,29 +94,7 @@ export function createCandidateBar(): CandidateBar {
     updateEdges()
   }
 
-  /** A pick takes a round trip, so the chip shows it is working until the state arrives. */
-  function markBusy(): void {
-    chip.classList.add(BusyClass)
-    chip.setAttribute('aria-busy', 'true')
-    if (busyTimer != null) {
-      window.clearTimeout(busyTimer)
-    }
-
-    busyTimer = window.setTimeout(clearBusy, BusySettleMilliseconds)
-  }
-
-  function clearBusy(): void {
-    if (busyTimer != null) {
-      window.clearTimeout(busyTimer)
-      busyTimer = null
-    }
-
-    chip.classList.remove(BusyClass)
-    chip.removeAttribute('aria-busy')
-  }
-
   function showState(view: ComposerStateView): void {
-    clearBusy()
     ime = view.ime
     profiles = view.profiles
     activeProfile = view.activeProfile
@@ -191,7 +163,6 @@ export function createCandidateBar(): CandidateBar {
       event.preventDefault()
       event.stopPropagation()
       closeMenu()
-      markBusy()
       requestProfile(index)
     })
 

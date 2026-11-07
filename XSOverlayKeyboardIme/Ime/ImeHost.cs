@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using XSOverlayKeyboardIme.Diagnostics;
@@ -16,15 +15,10 @@ namespace XSOverlayKeyboardIme.Ime
     /// </summary>
     internal sealed class ImeHost
     {
-        /// <summary>XSOverlay finishes starting after the plugin, and steals the foreground while it does.</summary>
-        private const int StartupSettleMilliseconds = 8000;
-
-        /// <summary>How long a language switch needs before the new IME can be read.</summary>
-        private const uint SwitchSettleMilliseconds = 400;
-
         private static ImeHost _current;
 
-        private readonly ConcurrentQueue<KeyStroke> _strokes = new ConcurrentQueue<KeyStroke>();
+        private readonly Queue<KeyStroke> _strokes = new Queue<KeyStroke>();
+        private readonly object _strokeLock = new object();
 
         private readonly Action<string> _onCommitted;
         private readonly Action<CompositionView> _onView;
@@ -35,14 +29,14 @@ namespace XSOverlayKeyboardIme.Ime
         private volatile CompositionSession _session;
         private LanguageBarButton _languageBar;
         private ForegroundLease _lease;
-        private KeyFeeder _feeder;
         private ImeContext _ime;
         private ImeProfiles _profiles;
         private string _switchIconKey;
+        private LanguageProfile? _switchProfile;
         private string _imeName = string.Empty;
-        private bool _iconMissing;
         private volatile bool _composerActive;
         private volatile bool _drainingStrokes;
+        private int _pendingCompositionKeys;
         private volatile int _profileIndex;
         private int _finished;
 
@@ -64,6 +58,20 @@ namespace XSOverlayKeyboardIme.Ime
             get { return _current; }
         }
 
+        internal bool Ready => _session != null && _window != null;
+
+        internal bool TryPostModifier(KeyStroke stroke)
+        {
+            if (!Ready)
+                return false;
+            lock (_strokeLock)
+            {
+                Enqueue(stroke);
+            }
+            _window.Post(HostWindow.StrokeMessage);
+            return true;
+        }
+
         internal static void Start(
             Action<string> onCommitted,
             Action<CompositionView> onView,
@@ -83,7 +91,7 @@ namespace XSOverlayKeyboardIme.Ime
         /// Takes a page key when this plugin owns it. Called on Unity's main thread; a
         /// true answer suppresses the page's own handling.
         /// </summary>
-        internal bool TryAcceptKey(PageKey key)
+        internal bool TryAcceptKey(PageKey key, Action consumeSticky)
         {
             CompositionSession session = _session;
             HostWindow window = _window;
@@ -92,21 +100,26 @@ namespace XSOverlayKeyboardIme.Ime
                 return false;
             }
 
-            // The gate reads a state the host thread owns, so a key that arrives before the
-            // queue drains would see a stale answer: a space would go to the page instead of
-            // committing. Every key still in flight therefore counts as composing. See ADR 0026.
-            bool inFlight = _drainingStrokes || !_strokes.IsEmpty;
+            // A queued ordinary key may start composition. Modifier edges do not. See ADR 0040.
+            bool inFlight = Volatile.Read(ref _pendingCompositionKeys) > 0;
             TakeoverGate gate = session.Composing || inFlight ? TakeoverGate.Composing : TakeoverGate.Idle;
 
             var strokes = new List<KeyStroke>(4);
             if (KeyStrokeReader.Read(key, gate, strokes) == KeyOwnership.Page)
             {
+                window.Post(HostWindow.ComposerMessage);
                 return false;
             }
 
-            foreach (KeyStroke stroke in strokes)
+            lock (_strokeLock)
             {
-                _strokes.Enqueue(stroke);
+                foreach (KeyStroke stroke in strokes)
+                {
+                    Enqueue(stroke);
+                }
+
+                // The drain cannot see the ordinary key until its sticky releases are queued.
+                consumeSticky();
             }
 
             window.Post(HostWindow.StrokeMessage);
@@ -183,7 +196,10 @@ namespace XSOverlayKeyboardIme.Ime
                 return;
             }
 
-            _strokes.Enqueue(KeyStroke.FromKey(VirtualKey.Escape, false));
+            lock (_strokeLock)
+            {
+                Enqueue(KeyStroke.FromKey(VirtualKey.Escape, false));
+            }
             window.Post(HostWindow.StrokeMessage);
         }
 
@@ -199,7 +215,6 @@ namespace XSOverlayKeyboardIme.Ime
                     return;
                 }
 
-                Thread.Sleep(StartupSettleMilliseconds);
                 HostLog.Info(
                     "foreground before the lease: " + ForegroundLease.Describe(Win32Native.GetForegroundWindow())
                 );
@@ -219,8 +234,8 @@ namespace XSOverlayKeyboardIme.Ime
 
                 _profiles = ImeProfiles.Open();
 
-                _feeder = new KeyFeeder(_window, _lease);
-                var session = new CompositionSession(_ime, _window, _lease, _feeder, _onCommitted, _onView);
+                var feeder = new KeyFeeder(_window);
+                var session = new CompositionSession(_ime, _window, _lease, feeder, _onCommitted, _onView);
                 session.Start();
                 _session = session;
 
@@ -259,9 +274,6 @@ namespace XSOverlayKeyboardIme.Ime
                 case HostWindow.SwitchMessage:
                     PressSwitch();
                     break;
-                case HostWindow.SwitchSettledMessage:
-                    OnSwitchSettled();
-                    break;
                 case HostWindow.ProfileMessage:
                     OnProfileRequested();
                     break;
@@ -271,15 +283,9 @@ namespace XSOverlayKeyboardIme.Ime
         /// <summary>Reads the IME name again while the composer holds the focus. See ADR 0035.</summary>
         private void RefreshComposer()
         {
-            if (!_composerActive)
-            {
-                // Nothing may stay held once the composer lets go: the game would get every
-                // key with a modifier on it. Caps follows the system. See ADR 0038.
-                _feeder?.ReleaseLatchedModifiers();
-            }
-
             string name = _composerActive ? ReadImeName() : string.Empty;
-            if (name != _imeName)
+            bool nameChanged = name != _imeName;
+            if (nameChanged)
             {
                 _imeName = name;
                 if (_composerActive)
@@ -290,8 +296,6 @@ namespace XSOverlayKeyboardIme.Ime
 
             if (_composerActive)
             {
-                PublishSwitchIcon();
-
                 // The reader's list is refilled by its next read, so the page gets a copy.
                 IReadOnlyList<ImeChoice> listed =
                     _profiles == null ? Array.Empty<ImeChoice>() : _profiles.ListChoices();
@@ -306,6 +310,14 @@ namespace XSOverlayKeyboardIme.Ime
                     }
                 }
 
+                LanguageProfile? profile = activeProfile < 0 ? null : choices[activeProfile].Profile;
+                if (nameChanged || !Nullable.Equals(profile, _switchProfile))
+                {
+                    _switchProfile = profile;
+                    ReopenLanguageBar();
+                }
+
+                PublishSwitchIcon();
                 _onComposerState(new ComposerState(true, name, choices, activeProfile));
                 return;
             }
@@ -328,7 +340,6 @@ namespace XSOverlayKeyboardIme.Ime
             HostLog.Info("the page switched to profile " + index);
             ReopenLanguageBar();
             RefreshComposer();
-            ScheduleSwitchSettled();
         }
 
         /// <summary>This thread's language changed, so the IME and its bar item are new.</summary>
@@ -341,40 +352,6 @@ namespace XSOverlayKeyboardIme.Ime
 
             ReopenLanguageBar();
             RefreshComposer();
-        }
-
-        /// <summary>Reads the new IME once the switch we asked for has settled. See ADR 0036.</summary>
-        private void ScheduleSwitchSettled()
-        {
-            if (!ArmSwitchTimer(HostWindow.SwitchSettleTimerId, SwitchSettleMilliseconds))
-            {
-                // Without a timer the settle is queued rather than run inside the stroke
-                // drain, where the IME is still answering. See ADR 0038.
-                _window?.Post(HostWindow.SwitchSettledMessage);
-            }
-        }
-
-        /// <summary>Arms one of the switch timers; false when the window cannot give one.</summary>
-        private bool ArmSwitchTimer(IntPtr id, uint milliseconds)
-        {
-            HostWindow window = _window;
-            return window != null && Win32Native.SetTimer(window.Handle, id, milliseconds, IntPtr.Zero) != IntPtr.Zero;
-        }
-
-        private void OnSwitchSettled()
-        {
-            HostWindow window = _window;
-            if (window == null)
-            {
-                return;
-            }
-
-            Win32Native.KillTimer(window.Handle, HostWindow.SwitchSettleTimerId);
-            LanguageChanged();
-
-            // A switch can end the composition without a callback, which would leave the page
-            // drawing codes the IME no longer holds. Re-read it here. See ADR 0038.
-            _session?.RefreshAfterSwitch();
         }
 
         /// <summary>A request for another IME. See ADR 0039.</summary>
@@ -392,11 +369,7 @@ namespace XSOverlayKeyboardIme.Ime
 
             if (_languageBar != null && _languageBar.Click())
             {
-                PublishSwitchIcon();
-
-                // The IME may end its composition on this press without a callback; the
-                // settle re-reads the name, the icon and the composition. See ADR 0038.
-                ScheduleSwitchSettled();
+                RefreshComposer();
             }
         }
 
@@ -409,9 +382,9 @@ namespace XSOverlayKeyboardIme.Ime
                 _languageBar = null;
             }
 
-            _languageBar = LanguageBarButton.Open();
             _switchIconKey = null;
-            _iconMissing = false;
+            _onLanguageBarIcon(null);
+            _languageBar = LanguageBarButton.Open();
         }
 
         /// <summary>The IME name this thread would report, or empty when unreadable.</summary>
@@ -432,28 +405,21 @@ namespace XSOverlayKeyboardIme.Ime
             if (_languageBar == null)
             {
                 ReopenLanguageBar();
-                if (_languageBar == null)
-                {
-                    return;
-                }
             }
 
-            LanguageBarIcon icon = _languageBar.ReadIcon();
+            LanguageBarIcon icon = _languageBar?.ReadIcon();
             if (icon == null)
             {
-                // The new IME has no bar item, so the page must stop drawing the old one.
-                if (!_iconMissing)
+                // An unavailable icon must not leave the previous picture on the page.
+                if (_switchIconKey != null)
                 {
-                    _iconMissing = true;
                     _switchIconKey = null;
-                    HostLog.Info("the language bar item draws no icon; the switch shows its fallback");
                     _onLanguageBarIcon(null);
                 }
 
                 return;
             }
 
-            _iconMissing = false;
             if (icon.Key == _switchIconKey)
             {
                 return;
@@ -483,31 +449,41 @@ namespace XSOverlayKeyboardIme.Ime
                     return;
                 }
 
-                while (_strokes.TryDequeue(out KeyStroke stroke))
+                session.BeginBatch();
+                while (TryDequeue(out KeyStroke stroke))
                 {
-                    // A latched modifier never belongs to a composition: it is a held key
-                    // the IME reads, not a stroke it consumes. See ADR 0038.
-                    if (stroke.Kind == KeyStrokeKind.Modifier)
+                    try
                     {
-                        HostLog.Info("feed " + stroke.Describe());
-                        _feeder.Send(stroke);
-                        continue;
+                        session.Send(stroke);
                     }
-
-                    session.Send(stroke);
-
-                    if (stroke.Kind == KeyStrokeKind.System)
+                    finally
                     {
-                        ScheduleSwitchSettled();
+                        if (stroke.CountsAsComposition)
+                            Interlocked.Decrement(ref _pendingCompositionKeys);
                     }
                 }
 
-                // A fed Shift is the IME's own switch key, so the icon is read again here.
-                PublishSwitchIcon();
+                RefreshComposer();
             }
             finally
             {
                 _drainingStrokes = false;
+                _session?.CompleteBatch();
+            }
+        }
+
+        private void Enqueue(KeyStroke stroke)
+        {
+            if (stroke.CountsAsComposition)
+                Interlocked.Increment(ref _pendingCompositionKeys);
+            _strokes.Enqueue(stroke);
+        }
+
+        private bool TryDequeue(out KeyStroke stroke)
+        {
+            lock (_strokeLock)
+            {
+                return _strokes.TryDequeue(out stroke);
             }
         }
 
@@ -517,9 +493,6 @@ namespace XSOverlayKeyboardIme.Ime
             {
                 return;
             }
-
-            // The host is going away, so nothing it holds down may outlive it. See ADR 0038.
-            _feeder?.ReleaseLatchedModifiers();
 
             if (_languageBar != null)
             {
@@ -542,7 +515,6 @@ namespace XSOverlayKeyboardIme.Ime
             if (_lease != null)
             {
                 _lease.Restore();
-                _lease.EndAttach();
             }
 
             if (_window != null)

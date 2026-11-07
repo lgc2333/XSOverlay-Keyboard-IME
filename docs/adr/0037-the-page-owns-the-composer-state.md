@@ -1,6 +1,7 @@
 ---
 status: accepted
 amends: ['0028', '0035']
+amended_by: ['0042']
 ---
 
 # composer 的状态归页面，组字期间的值与光标归输入法

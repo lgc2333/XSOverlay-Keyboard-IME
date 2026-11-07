@@ -141,10 +141,6 @@
 }
 
 /* The page's dropdown class only makes the name a ray target; the look stays here. */
-#bar-id .ime-chip.ime-chip-busy {
-  opacity: 0.6;
-}
-
 #bar-id .ime-chip.dropdown-button {
   width: auto;
   padding: 0 12px;

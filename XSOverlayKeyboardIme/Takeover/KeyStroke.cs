@@ -14,8 +14,10 @@ namespace XSOverlayKeyboardIme.Takeover
         /// <summary>The system's own language switch, Win+Space.</summary>
         System,
 
-        /// <summary>A modifier the page latched: the host presses it down or lifts it. See ADR 0038.</summary>
-        Modifier,
+        /// <summary>An explicit modifier transition decided by XSOverlay. See ADR 0040.</summary>
+        ModifierDown,
+        ModifierUp,
+        ModifierPress,
     }
 
     /// <summary>One key the composition host receives: a typed character or a named key.</summary>
@@ -37,9 +39,9 @@ namespace XSOverlayKeyboardIme.Takeover
 
         internal bool Shift { get; }
 
-        internal static KeyStroke FromText(char text)
+        internal static KeyStroke FromText(char text, VirtualKey key, bool shift)
         {
-            return new KeyStroke(text, default, false, KeyStrokeKind.Text);
+            return new KeyStroke(text, key, shift, KeyStrokeKind.Text);
         }
 
         internal static KeyStroke FromKey(VirtualKey key, bool shift)
@@ -53,11 +55,16 @@ namespace XSOverlayKeyboardIme.Takeover
             return new KeyStroke(default, default, false, KeyStrokeKind.System);
         }
 
-        /// <summary>The page latched this modifier; the host holds it down or lifts it.</summary>
-        internal static KeyStroke FromModifier(VirtualKey key)
+        /// <summary>XSOverlay already decided which transition this modifier needs.</summary>
+        internal static KeyStroke FromModifier(VirtualKey key, KeyStrokeKind kind)
         {
-            return new KeyStroke(default, key, false, KeyStrokeKind.Modifier);
+            return new KeyStroke(default, key, false, kind);
         }
+
+        internal bool IsModifier =>
+            Kind is KeyStrokeKind.ModifierDown or KeyStrokeKind.ModifierUp or KeyStrokeKind.ModifierPress;
+
+        internal bool CountsAsComposition => Kind is KeyStrokeKind.Text or KeyStrokeKind.Key;
 
         internal string Describe()
         {
@@ -67,8 +74,12 @@ namespace XSOverlayKeyboardIme.Takeover
                     return "'" + Text + "'";
                 case KeyStrokeKind.System:
                     return "Win+Space";
-                case KeyStrokeKind.Modifier:
-                    return "latch " + Key;
+                case KeyStrokeKind.ModifierDown:
+                    return Key + " down";
+                case KeyStrokeKind.ModifierUp:
+                    return Key + " up";
+                case KeyStrokeKind.ModifierPress:
+                    return Key + " press";
                 default:
                     return Key + (Shift ? " shift" : string.Empty);
             }

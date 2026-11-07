@@ -1,4 +1,5 @@
 using System;
+using XSOverlayKeyboardIme.Input;
 
 namespace XSOverlayKeyboardIme.Takeover
 {
@@ -10,12 +11,13 @@ namespace XSOverlayKeyboardIme.Takeover
     {
         private static readonly string[] NoNames = Array.Empty<string>();
 
-        internal PageKey(PageKeyStyle style, string[] names, string text, PageModifiers modifiers)
+        internal PageKey(PageKeyStyle style, string[] names, string text, PageModifiers modifiers, VirtualKey nativeKey)
         {
             Style = style;
             Names = names ?? NoNames;
             Text = text ?? string.Empty;
             Modifiers = modifiers;
+            NativeKey = nativeKey;
         }
 
         /// <summary>How the page delivered the press. See ADR 0036.</summary>
@@ -29,5 +31,8 @@ namespace XSOverlayKeyboardIme.Takeover
 
         /// <summary>The modifiers held when the press happened.</summary>
         internal PageModifiers Modifiers { get; }
+
+        /// <summary>The key XSOverlay resolved, before the page applies Shift or Caps.</summary>
+        internal VirtualKey NativeKey { get; }
     }
 }

@@ -1,6 +1,7 @@
 ---
 status: proposed
 amends: ['0036']
+amended_by: ['0040', '0041']
 ---
 
 # 修饰键的粘滞跟随宿主，失焦时全部复位

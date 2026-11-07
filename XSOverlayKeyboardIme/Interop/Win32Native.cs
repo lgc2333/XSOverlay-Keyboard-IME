@@ -12,7 +12,6 @@ namespace XSOverlayKeyboardIme.Interop
         internal const uint WmChar = 0x0102;
         internal const uint WmApp = 0x8000;
         internal const uint WmInputLangChange = 0x0051;
-        internal const uint WmTimer = 0x0113;
         internal const uint WmKeyFirst = 0x0100;
         internal const uint WmKeyLast = 0x0109;
 
@@ -24,7 +23,8 @@ namespace XSOverlayKeyboardIme.Interop
 
         internal const uint InputKeyboard = 1;
         internal const uint KeyEventKeyUp = 0x0002;
-        internal const uint MapVirtualKeyToScan = 0;
+        internal const uint KeyEventExtendedKey = 0x0001;
+        internal const uint MapVirtualKeyToExtendedScan = 4;
 
         internal const uint CoInitApartmentThreaded = 0x2;
 
@@ -39,9 +39,6 @@ namespace XSOverlayKeyboardIme.Interop
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
         internal static extern IntPtr GetModuleHandleW(string name);
-
-        [DllImport("kernel32.dll")]
-        internal static extern uint GetCurrentThreadId();
 
         [DllImport("kernel32.dll")]
         internal static extern uint SetErrorMode(uint mode);
@@ -96,19 +93,10 @@ namespace XSOverlayKeyboardIme.Interop
         internal static extern bool PostMessageW(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
 
         [DllImport("user32.dll")]
-        internal static extern IntPtr SetTimer(IntPtr hwnd, IntPtr id, uint elapse, IntPtr procedure);
-
-        [DllImport("user32.dll")]
-        internal static extern bool KillTimer(IntPtr hwnd, IntPtr id);
-
-        [DllImport("user32.dll")]
         internal static extern void PostQuitMessage(int code);
 
         [DllImport("user32.dll")]
         internal static extern bool SetForegroundWindow(IntPtr hwnd);
-
-        [DllImport("user32.dll")]
-        internal static extern void SwitchToThisWindow(IntPtr hwnd, bool altTab);
 
         [DllImport("user32.dll")]
         internal static extern IntPtr GetFocus();
@@ -122,17 +110,8 @@ namespace XSOverlayKeyboardIme.Interop
         [DllImport("user32.dll")]
         internal static extern IntPtr GetForegroundWindow();
 
-        [DllImport("user32.dll")]
-        internal static extern uint GetWindowThreadProcessId(IntPtr hwnd, IntPtr processId);
-
-        [DllImport("user32.dll")]
-        internal static extern bool AttachThreadInput(uint attach, uint attachTo, bool attachState);
-
         [DllImport("user32.dll", SetLastError = true)]
         internal static extern uint SendInput(uint count, NativeInput[] inputs, int size);
-
-        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-        internal static extern short VkKeyScanW(char character);
 
         [DllImport("user32.dll")]
         internal static extern uint MapVirtualKeyW(uint code, uint mapType);
