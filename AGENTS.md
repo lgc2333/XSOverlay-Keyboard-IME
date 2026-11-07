@@ -1,120 +1,126 @@
 # XSOverlay-Keyboard-IME AGENTS.md
 
-## Project Structure
+## 项目结构
 
 ```text
-XSOverlayKeyboardIme/              BepInEx 5 plugin
-  KeyboardImePlugin.cs             entry point; binds config, patches the game, wires the host to the page
-  MainThreadDispatcher.cs          any thread to Unity's main thread
-  Game/                            everything that touches the game; Patches/ holds the four Harmony patches
-  Takeover/                        decides which page keys the plugin owns; pure data, no game types
-  Ime/                             composition host: STA thread, hidden window, IME context, feeding, the IME's language bar button
-  Page/                            injects the page script, writes committed text back, shows the composition and the switch icon
-  Input/                           virtual-key codes
-  Interop/                         raw declarations: Win32, GDI, the TSF interfaces (IME name, language bar), the shim's P/Invoke
-  Diagnostics/                     logging
-XSOverlayKeyboardIme.Tests/        unit tests; compile the dependency-free sources directly
-native/                            CMake build for IngameIME.dll
-  IngameIME_Win32/                 submodule; the upstream TSF implementation
-  IngameIME-Common/                submodule; the upstream public header
-  shim/shim.cpp                    the C ABI the plugin calls; LGPL, built into that library
-web/                               keyboard page script; TypeScript and one stylesheet, bundled for injection
-Directory.Build.props              shared compile settings
-Directory.Build.targets            optional deploy target
-docs/                              folder for public docs
-  adr/                             one file per decision, numbered
-  handoffs/                        archived dated session handoffs, one file per session
-  ROADMAP.md                       temp roadmap note, will delete when v1 complete
-CONTEXT.md                         domain glossary
-temp/                              local scratch and probe projects; git-ignored
+XSOverlayKeyboardIme/              BepInEx 5 插件
+  KeyboardImePlugin.cs             入口；绑定配置、给游戏打补丁、把宿主接到页面上
+  MainThreadDispatcher.cs          任意线程 → Unity 主线程
+  Game/                            一切碰游戏的东西；Patches/ 里是那四个 Harmony 补丁
+  Takeover/                        判定键盘页的按键归谁；纯数据，不含游戏类型
+  Ime/                             组字宿主：STA 线程、隐藏窗口、输入法上下文、喂键、输入法的语言栏按钮
+  Page/                            注入页面脚本、写回已提交的文本、显示组字串与切换图标
+  Input/                           虚拟键码
+  Interop/                         原始声明：Win32、GDI、TSF 接口（输入法名字、语言栏）、shim 的 P/Invoke
+  Diagnostics/                     日志
+XSOverlayKeyboardIme.Tests/        单元测试；直接编译那些没有依赖的源码
+native/                            IngameIME.dll 的 CMake 构建
+  IngameIME_Win32/                 子模块；上游的 TSF 实现
+  IngameIME-Common/                子模块；上游的公共头文件
+  shim/shim.cpp                    插件调用的 C ABI；LGPL，编进那个库
+web/                               键盘页脚本；TypeScript 加一份样式表，打包后注入
+Directory.Build.props              共享编译设置
+Directory.Build.targets            可选的部署目标
+docs/                              公开文档目录
+  adr/                             一个决定一个文件，按编号
+  handoffs/                        归档的带日期的会话交接，一次会话一个文件
+  ROADMAP.md                       临时的路线图笔记，v1 完成后删除
+CONTEXT.md                         领域词汇表
+temp/                              本地草稿与探针工程；已被 git 忽略
 ```
 
-## Commands
+## 命令
 
 ```bash
-# fetch the upstream sources once, then build the native library
+# 取一次上游源码，然后构建原生库
 git submodule update --init
 pwsh native/build.ps1
 
-# build only
+# 只构建
 dotnet build -c Release
 
-# build and copy the plugin and the native library into the game
+# 构建，并把插件与原生库复制进游戏
 dotnet build -c Release -p:DeployToGame=true
 
-# run unit tests
+# 跑单元测试
 dotnet test XSOverlayKeyboardIme.Tests
 
-# format C# and msbuild XML
+# 格式化 C# 与 msbuild XML
 dotnet csharpier format .
 
-# verify C# and msbuild XML formatting without writing
+# 校验 C# 与 msbuild XML 的格式，不写文件
 dotnet csharpier check .
 
-# verify markdown and structured data formatting without writing
+# 校验 markdown 与结构化数据的格式，不写文件
 node web/node_modules/prettier/bin/prettier.cjs --check "**/*.{md,json,yaml,yml,toml,css}"
 
-# run the C# analyzers over the solution without writing
+# 对解决方案跑 C# 分析器，不写文件
 dotnet format analyzers --verify-no-changes --severity info
 
-# Page script check, lint, build
+# 页面脚本的类型检查、lint、打包
 pnpm --dir web typecheck
 pnpm --dir web lint
 pnpm --dir web build
 ```
 
-- Build the page script before the plugin: `pnpm --dir web build` writes `web/dist/keyboard-ime.js`, which the plugin embeds and refuses to build without.
-- Build the native library before deploying: the plugin loads `IngameIME.dll` from its own directory and does not patch the game when it is missing.
-- Do not recurse into the submodules: `IngameIME_Win32` reaches its own copy of `IngameIME-Common` through an SSH URL, and `native/CMakeLists.txt` uses the sibling submodule instead.
-- CSharpier is a pinned local tool. Run `dotnet tool restore` once after cloning, and after any change to `.config/dotnet-tools.json`.
-- The game path defaults to `D:\SteamLibrary\steamapps\common\XSOverlay_Beta`. Override it with `-p:GameDir=<path>`.
-- Logs land in the game folder at `BepInEx\LogOutput.log`.
-- CI runs the unit tests, CSharpier, Prettier, the analyzers over the test project, the page script checks and the native build.
-  It never builds the plugin: that needs the game's Managed assemblies, which stay on this machine.
+- 先构建页面脚本，再构建插件：`pnpm --dir web build` 写出 `web/dist/keyboard-ime.js`，插件把它嵌进去，缺了它插件拒绝构建。
+- 先构建原生库，再部署：插件从自己所在目录加载 `IngameIME.dll`，缺了它就不给游戏打补丁。
+- 不要递归子模块：`IngameIME_Win32` 经 SSH 地址取它自己那份 `IngameIME-Common`，而 `native/CMakeLists.txt` 用的是同级子模块。
+- CSharpier 是锁版本的本地工具。克隆后跑一次 `dotnet tool restore`，改动 `.config/dotnet-tools.json` 之后也要再跑一次。
+- 游戏路径默认是 `D:\SteamLibrary\steamapps\common\XSOverlay_Beta`，用 `-p:GameDir=<path>` 覆盖。
+- 日志落到游戏目录下的 `BepInEx\LogOutput.log`。
+- CI 跑单元测试、CSharpier、Prettier、测试工程上的分析器、页面脚本检查与原生构建。它从不构建插件：那需要游戏的 Managed 程序集，而它们只留在这台机器上。
 
-## Runtime constraints
+## 运行时约束
 
-These come from probing the live game process. Breaking one costs a crash or a wasted day.
+这些来自对真实游戏进程的探测。破掉一条的代价是一次崩溃，或者白扔一天。
 
-- The game runs Unity 2022.3.62 on Mono x64. Keep `TargetFramework` at `netstandard2.1` or higher; Unity assemblies fail `CS1705` below it.
-- Reference the game's own `Managed/*.dll`. Stub packages from other Unity versions do not match the real API surface.
-- Do not edit the game's `StreamingAssets` without a backup and a documented restore path.
-- The IME's Chinese/English state belongs to the user: never switch it from code, and never read a mode. Route keys by whether the IME composes. See ADR 0026.
-- XSOverlay runs elevated even though Steam does not, so a normal shell cannot stop it and deploying over a running game fails on the locked `IngameIME.dll`. Stop it from the Steam client's library page instead: the Steam Client Service runs as `LocalSystem` and terminates the game for Steam.
-- Restart the game through Steam: `steam.exe -applaunch 1173510`. After the processes die, Steam keeps reporting the app as running, and an early launch fails with "the game is already running". Wait until `HKCU\Software\Valve\Steam\Apps\1173510` reports `Running` as 0, then launch.
+- 游戏是 Mono x64 上的 Unity 2022.3.62。`TargetFramework` 保持在 `netstandard2.1` 或更高；低于它 Unity 程序集会报 `CS1705`。
+- 引用游戏自己的 `Managed/*.dll`。别的 Unity 版本的 stub 包对不上真实的 API 面。
+- 没有备份和写明的恢复路径，不要改游戏的 `StreamingAssets`。
+- 输入法的中英状态归用户：绝不从代码切它，也绝不读模式。按输入法是否组字来分流按键。见 ADR 0026。
+- XSOverlay 即便 Steam 没有提权也是提权运行，所以普通 shell 停不掉它，往运行中的游戏上部署会撞上被锁住的 `IngameIME.dll`。改为从 Steam 客户端的库页面停游戏：Steam 客户端服务以 `LocalSystem` 运行，会替 Steam 结束游戏。
+- 经 Steam 重启游戏：`steam.exe -applaunch 1173510`。进程死掉之后 Steam 仍会报应用在运行，这时候早启动会失败并提示 “the game is already running”。等 `HKCU\Software\Valve\Steam\Apps\1173510` 的 `Running` 报成 0，再启动。
 
-## Rules
+## 规则
 
-### Recommend Skills
+### 推荐 Skill
 
-The Rules section introduced some skills. If some skill is missing, please ask user to install it from Github repo `mattpocock/skills`. Recommend using `skills` tool from npm.
+「规则」一节引入了几个 Skill。缺哪个，就请用户从 GitHub 仓库 `mattpocock/skills` 安装。推荐用 npm 上的 `skills` 工具。
 
-### Docs Rules
+### 文档规则
 
-- `CONTEXT.md` is the domain glossary: canonical terms and one-line definitions, nothing else.
-- `docs/adr/` holds one file per decision, numbered; add one when a decision is hard to reverse and would look arbitrary without the reason.
-- Weigh every decision for whether it deserves an ADR, and ask the user before taking it: state the choice, the alternatives, and your ADR verdict, then wait for the answer. Nothing gets decided silently.
-- Follow the `domain-modeling` skill for both.
+- `CONTEXT.md` 是领域词汇表：规范术语加一句话定义，别的都不放。
+- `docs/adr/` 一个决定一个文件，按编号；决定难反转、缺了理由会显得随意时，就添一个。
+- 每个决定都掂量一下值不值得写 ADR，并且动手前问用户：说清选择、备选方案和你的 ADR 判断，然后等回答。没有东西可以悄悄定下。
+- 两者都遵循 `domain-modeling` Skill。
 
-- `AGENTS.md` carries constraints and pointers only; reasoning an ADR already records stays in the ADR.
-- `docs/handoffs/` records what one session discussed at that time. It is archived history, not current truth: a handoff may be out of date, and a later ADR or a later document overrides it.
+- `AGENTS.md` 只承载约束与指针；ADR 已经记下的论证留在 ADR 里。
+- `docs/handoffs/` 记录一次会话当时谈了什么。它是归档的历史，不是当前事实：交接可能过时，后来的 ADR 或后来的文档会盖过它。
 
-- Do not modify old ADRs (excluding their front-matter) unless user explicitly asks.
-- Every ADR opens with YAML front-matter at the very top, above the title: `status` (e.g. `accepted` | `proposed` | `deprecated` | `superseded`), then the optional relation keys `supersedes` / `superseded_by` and `amends` / `amended_by`, each holding quoted ids (`['0001']`, never a bare `0001`, which YAML reads as octal).
-- Relations are bidirectional: a relation is a mirrored pair of keys. A plain mention of another ADR earns no key, and an ADR records a relation only when its own file is the one making it.
+- 除非用户明确要求，不要改旧的 ADR（front-matter 除外）。
+- 每个 ADR 最顶上、标题之上先写 YAML front-matter：`status`（例如 `accepted` | `proposed` | `deprecated` | `superseded`），再加可选的关系键 `supersedes` / `superseded_by` 与 `amends` / `amended_by`，每个键都放带引号的 id（`['0001']`，绝不裸写 `0001`，YAML 会把它读成八进制）。
+- 关系是双向的：一条关系是一对互相镜像的键。只是提到另一个 ADR 不配拥有键；只有文件自己就是建立关系的那一方时，ADR 才记这个键。
 
-### Code Flavor Rules
+### 代码风格规则
 
-- One formatter per file type. `CSharpier` formats C# and msbuild XML (`*.cs`, `*.csproj`, `*.props`, `*.targets`, `*.slnx`); `prettier` formats markdown, structured data and the page stylesheet (`*.{md,json,yaml,toml,css}`).
-- Never run `dotnet format` barely, it would revert CSharpier's change. Its only role here is `dotnet format analyzers`.
-- If Prettier conflicts with an ESLint rule, turn off that rule, keep Prettier's change.
+- 一种文件类型只配一个格式化器。`CSharpier` 管 C# 与 msbuild XML（`*.cs`、`*.csproj`、`*.props`、`*.targets`、`*.slnx`）；`prettier` 管 markdown、结构化数据与页面样式表（`*.{md,json,yaml,toml,css}`）。
+- 绝不裸跑 `dotnet format`，它会回退 CSharpier 的改动。它在这里的唯一角色是 `dotnet format analyzers`。
+- Prettier 与某条 ESLint 规则冲突时，关掉那条规则，保留 Prettier 的改动。
 
-- Docstrings stay short: the key point, nothing else. What an ADR already reasons through is not repeated in code — link the ADR instead.
-- Keep `Takeover/` free of game types: the test project compiles it directly, so one XSOverlay or Unity type breaks the whole test build.
+- 文档字符串保持简短：只讲要点，别的没有。ADR 已经论证过的东西不在代码里重复——改为链接 ADR。
+- `Takeover/` 保持不含游戏类型：测试工程直接编译它，混进一个 XSOverlay 或 Unity 类型就毁掉整个测试构建。
 
-### Function Design Rules
+### 放行规则
 
-- The plugin aims to work with any IME through public APIs (e.g. TSF) only, and does not add per-IME special cases for now. Do not over-engineer, and do not focus excessively on adapting to specific IMEs.
+输入法说了算。键盘做它没有插件时也会做的事：键进去，输入法拿它怎么处理，就是用户看到的答案。只用公开 API（例如 TSF），不做按输入法的特例。
+
+- 先按来源给缺陷分类：插件、游戏、输入法，还是系统。说出来源，以及把它归到那里的证据。
+- 由输入法或系统产生的结果是预期行为：切换时被丢下的组字、组字结束后才到的提交、布局打不出的字符、把编码当原文提交。记为基线，别去动它。
+- 只改插件自己造成的缺陷。先确认来源；没有来源的报告还只是个问题。
+- 兜底只覆盖插件自己造成的失败，而且注释里要点名那个失败。说不出名字的兜底就是缺陷本身。
+- 只有在直路被证明走不通之后，才动用等待、重试、定时器或合成按键；要求它的 ADR 记录那份证明。
+- 删掉机制，而不是给它加条件：为了一个情况而添的第二个分支，就是删掉这个机制的信号。
 
 ## Commit
 
