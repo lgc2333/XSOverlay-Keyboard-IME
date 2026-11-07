@@ -9,6 +9,9 @@ const SendButtonId = 'keyboard-voice-send'
 const UnderlineId = 'keyboard-ime-preedit-underline'
 const UnderlineColor = '#5cfbe9'
 
+/** How long a rebuild has to put the focus back before a blur counts as the user leaving. */
+const BlurSettleMilliseconds = 60
+
 export type WritebackOutcome = 'inserted' | 'empty' | 'focus-lost' | 'rejected'
 
 /** The value and caret the composer held before the composing string was added. */
@@ -109,7 +112,9 @@ export function keepComposerFocus(onActiveChange: (active: boolean) => void): vo
  */
 function reclaimFocus(): void {
   const active = document.activeElement
-  const replaced = focused != null && !focused.isConnected
+  const replaced =
+    (focused != null && !focused.isConnected) ||
+    (composingComposer != null && !composingComposer.isConnected)
   if (!replaced && active != null) {
     return
   }
@@ -121,6 +126,42 @@ function reclaimFocus(): void {
 
   focused = composer
   composer.focus()
+
+  // The page replaced the input the codes were in. A rebuilt composer is not a blur:
+  // the codes move across, or the new input already carries them. See ADR 0034.
+  adoptRebuiltComposer(composer)
+}
+
+/**
+ * Decides what the codes do when the page swapped the input under them. The page either
+ * copies the value across or starts the new input empty; anything else means the
+ * composition no longer fits what is there.
+ */
+function adoptRebuiltComposer(composer: HTMLInputElement): void {
+  if (!composing || lastPreedit == null) {
+    return
+  }
+
+  const codes = lastPreedit
+  const composed =
+    baseValue.slice(0, baseStart) + codes.text + baseValue.slice(baseEnd)
+  if (composer.value === composed) {
+    composingComposer = composer
+    expectedValue = composed
+    const start = baseStart + Math.max(0, Math.min(codes.text.length, codes.start))
+    const end = baseStart + Math.max(0, Math.min(codes.text.length, codes.end))
+    expectedSelectionStart = start
+    expectedSelectionEnd = end
+    composer.setSelectionRange(start, end)
+    return
+  }
+
+  if (composer.value === baseValue) {
+    showPreedit(codes.text, codes.start, codes.end)
+    return
+  }
+
+  cancel()
 }
 
 /**
@@ -255,6 +296,7 @@ export function showPreedit(text: string, selectionStart: number, selectionEnd: 
   const after = baseValue.slice(baseEnd)
   composer.value = before + text + after
   expectedValue = composer.value
+  lastPreedit = { text, start: selectionStart, end: selectionEnd }
 
   // The IME owns the caret inside its codes; draw it where the IME says it is.
   const start = Math.max(0, Math.min(text.length, selectionStart))
@@ -273,6 +315,8 @@ export function clearPreedit(): void {
   }
 
   composing = false
+  lastPreedit = null
+  composingComposer = null
   hideUnderline()
   observer?.disconnect()
   observer = null
@@ -320,13 +364,13 @@ function reassert(): void {
 function watchCaret(): void {
   document.addEventListener('selectionchange', checkCaret, true)
   document.addEventListener('pointerup', checkCaretLater, true)
-  document.addEventListener('focusout', checkFocus, true)
+  document.addEventListener('focusout', checkFocusLater, true)
 }
 
 function unwatchCaret(): void {
   document.removeEventListener('selectionchange', checkCaret, true)
   document.removeEventListener('pointerup', checkCaretLater, true)
-  document.removeEventListener('focusout', checkFocus, true)
+  document.removeEventListener('focusout', checkFocusLater, true)
 }
 
 /**
@@ -351,21 +395,20 @@ function afterComposition(delayMilliseconds: number, check: () => void): void {
   }, delayMilliseconds)
 }
 
-function checkFocus(event: FocusEvent): void {
+function checkFocus(): void {
   if (!imeComposing) {
     return
   }
 
   const composer = findComposer()
   if (composer == null) {
-    cancel()
+    cancelIfGone()
     return
   }
 
-  // A rebuilt toolbar replaces the input, and keepComposerFocus refocuses the new one,
-  // so a blur from an element that is no longer the composer is page mechanics.
-  const lost = event.target
-  if (lost instanceof Node && lost !== composer) {
+  // The codes were written into another input, so the page rebuilt its toolbar: that is
+  // not the user leaving. See ADR 0034.
+  if (composingComposer != null && composer !== composingComposer) {
     return
   }
 
@@ -395,7 +438,7 @@ function checkCaret(): void {
 
   const composer = findComposer()
   if (composer == null) {
-    cancel()
+    cancelIfGone()
     return
   }
 
@@ -434,6 +477,8 @@ function cancel(): void {
 /** Drops the page's composition state without touching what the page now holds. */
 function forgetPreedit(): void {
   composing = false
+  lastPreedit = null
+  composingComposer = null
   hideUnderline()
   observer?.disconnect()
   observer = null

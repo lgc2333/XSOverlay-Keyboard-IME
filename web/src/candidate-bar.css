@@ -14,6 +14,9 @@
     'Noto Sans',
     sans-serif;
   color: var(--theme-contrasting);
+  /* The candidates scroll inside the bar, so they must not widen the keyboard
+     container, which sizes itself to its content. */
+  contain: inline-size;
   z-index: 120;
 }
 

@@ -295,6 +295,63 @@ namespace XSOverlayKeyboardIme.Ime
             _onComposerState(ComposerState.Hidden);
         }
 
+        /// <summary>The IMEs this language offers, for the page's dropdown. See ADR 0039.</summary>
+        private IReadOnlyList<string> ReadProfileNames()
+        {
+            ImeProfiles profiles = _profiles;
+            if (profiles == null)
+            {
+                return Array.Empty<string>();
+            }
+
+            IReadOnlyList<ImeChoice> choices = profiles.ListChoices();
+            var names = new string[choices.Count];
+            for (int index = 0; index < choices.Count; index++)
+            {
+                names[index] = choices[index].Name;
+            }
+
+            return names;
+        }
+
+        /// <summary>The position of the active IME, or -1. See ADR 0039.</summary>
+        private int ReadActiveProfile(IReadOnlyList<string> profiles)
+        {
+            ImeProfiles source = _profiles;
+            if (source == null || profiles.Count == 0)
+            {
+                return -1;
+            }
+
+            IReadOnlyList<ImeChoice> choices = source.ListChoices();
+            for (int index = 0; index < choices.Count && index < profiles.Count; index++)
+            {
+                if (choices[index].Profile.Active)
+                {
+                    return index;
+                }
+            }
+
+            return -1;
+        }
+
+        /// <summary>Switches this thread's IME. Called on the host thread. See ADR 0039.</summary>
+        private void SwitchProfile(int index)
+        {
+            ImeProfiles profiles = _profiles;
+            if (!_composerActive || profiles == null || !profiles.Activate(index))
+            {
+                // Push the state back, so the page does not keep a checkmark that lies.
+                HostLog.Warn("the profile " + index + " was not activated");
+                RefreshComposer();
+                return;
+            }
+
+            HostLog.Info("the page switched to profile " + index);
+            ReopenLanguageBar();
+            RefreshComposer();
+        }
+
         /// <summary>This thread's language changed, so the IME and its bar item are new.</summary>
         private void LanguageChanged()
         {

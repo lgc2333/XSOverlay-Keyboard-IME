@@ -85,16 +85,19 @@ export function createCandidateBar(): CandidateBar {
     }
 
     // Layout coordinates, so a scaled page does not skew the amount scrolled. A candidate
-    // already inside the list stays put; one outside is scrolled in, clear of the fades.
+    // clear of the fades stays put; one the fades or the edge cut into is scrolled in by the
+    // shortest amount that shows all of it.
     const itemStart = active.offsetLeft
     const itemEnd = itemStart + active.offsetWidth
     const visibleStart = candidates.scrollLeft
     const visibleEnd = visibleStart + candidates.clientWidth
-    if (itemEnd <= visibleStart || itemStart >= visibleEnd) {
-      const start = itemStart - EdgeFadeWidth
-      const end = itemEnd + EdgeFadeWidth
-      candidates.scrollLeft =
-        itemStart < visibleStart ? start : end - candidates.clientWidth
+    const start = itemStart - EdgeFadeWidth
+    const end = itemEnd + EdgeFadeWidth
+    if (start < visibleStart) {
+      candidates.scrollLeft = start
+    } else if (end > visibleEnd) {
+      // A candidate wider than the list keeps its start in view.
+      candidates.scrollLeft = Math.max(start, end - candidates.clientWidth)
     }
   }
 
