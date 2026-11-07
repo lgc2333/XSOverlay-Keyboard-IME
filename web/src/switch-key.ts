@@ -1,4 +1,5 @@
 import type { SwitchIconView } from './ime-view'
+import { animateKey } from './key-animation'
 import { requestSwitch } from './native-bridge'
 import { ensurePageStyle } from './page-style'
 
@@ -8,10 +9,7 @@ const SpaceId = 'key-SPACE'
 /** The key whose look the switch copies, because both are modifier-like keys. */
 const ModelKeyId = 'key-LALT'
 const ContainerId = 'keyboard-container'
-
-/** The page takes its key animation length from this property; the fallback matches. */
-const AnimationProperty = '--animation-time'
-const AnimationFallbackMilliseconds = 150
+const VisualTransitions = 'background-color, color, box-shadow, scale'
 
 /** The settings file the page loads beside each sound; it carries volume and pitch. */
 const SoundEntryPattern =
@@ -28,26 +26,29 @@ const SwitchStyle = `
   outline: none; -webkit-tap-highlight-color: transparent;
 }
 #${ContainerId} .${SwitchClass} canvas {
-  width: 32px; height: 32px; image-rendering: pixelated; pointer-events: none;
+  width: 32px; height: auto; object-fit: contain; image-rendering: auto; pointer-events: none;
 }
 `
 
 export interface SwitchKey {
   /** Draws the IME's icon on the key, and keeps it after the page rebuilds. */
   show: (view: SwitchIconView | null) => void
-  /** Draws the key over the space bar, or takes it away. */
+  /** Gives the switch space beside left Alt, or restores the space bar. */
   setActive: (active: boolean) => void
 }
 
 /**
- * The switch as a key of the keyboard itself, covering the left end of the space bar.
- * It stays out of the row's layout, so the row keeps its length whatever the theme does.
- * It belongs to the composer, so it is drawn only while the composer holds the focus, and
- * put back whenever the page rebuilds the tree. See ADR 0028, ADR 0035 and ADR 0037.
+ * A native 1u key after left Alt, paid for by shortening the space bar. See ADR 0046.
  */
 export function createSwitchKey(): SwitchKey {
   let icon: SwitchIconView | null = null
   let active = false
+  let mounted: {
+    key: HTMLElement
+    space: HTMLElement
+    width: string
+    transition: string
+  } | null = null
 
   function show(view: SwitchIconView | null): void {
     icon = view != null && view.width > 0 && view.height > 0 ? view : null
@@ -66,10 +67,6 @@ export function createSwitchKey(): SwitchKey {
     }
 
     mount()
-    const key = document.querySelector<HTMLElement>(`.${SwitchClass}`)
-    if (key != null) {
-      draw(key, icon)
-    }
   }
 
   ensurePageStyle(SwitchStyleId, SwitchStyle)
@@ -82,35 +79,44 @@ export function createSwitchKey(): SwitchKey {
     }
 
     const space = document.getElementById(SpaceId)
-    const row = space?.parentElement
-    if (space == null || row == null || row.querySelector(`.${SwitchClass}`) != null) {
+    const model = document.getElementById(ModelKeyId)
+    if (space == null || model == null || space.parentElement !== model.parentElement) {
       return
     }
 
-    const unit = Number.parseFloat(space.style.height)
-    if (!(unit > 0)) {
+    if (mounted?.space === space && mounted.key.isConnected) {
+      draw(mounted.key, icon)
       return
     }
 
-    // The key covers the space bar's left end without joining the row's layout, so the
-    // row keeps exactly its length and nothing can overflow. See ADR 0037.
-    if (getComputedStyle(row).position === 'static') {
-      row.style.position = 'relative'
-    }
-
-    const key = createKey(space, unit)
+    unmount()
+    const unit = document.getElementById('key-F1')
+    if (unit == null) return
+    const key = createKey(model, unit)
     draw(key, icon)
-    key.style.position = 'absolute'
-    key.style.left = `${space.offsetLeft}px`
-    key.style.top = `${space.offsetTop}px`
-    // Positioned by its own corner, so a copied margin would shift it off the space.
-    key.style.margin = '0'
-    row.appendChild(key)
+    mounted = {
+      key,
+      space,
+      width: space.style.width,
+      transition: space.style.transitionProperty,
+    }
+    // CSS width excludes hover scale; the geometry must change without a transition.
+    const spaceWidth = Number.parseFloat(getComputedStyle(space).width)
+    space.style.transitionProperty = VisualTransitions
+    model.insertAdjacentElement('afterend', key)
+    const style = getComputedStyle(key)
+    space.style.width = `${spaceWidth - Number.parseFloat(style.width) - Number.parseFloat(style.marginLeft) - Number.parseFloat(style.marginRight)}px`
   }
 
-  /** Takes the key out; the space bar never changed, so nothing is given back. */
+  /** Restores geometry before restoring transitions, so hiding cannot widen a frame. */
   function unmount(): void {
-    document.querySelector<HTMLElement>(`.${SwitchClass}`)?.remove()
+    if (mounted == null) return
+    const { key, space, width, transition } = mounted
+    key.remove()
+    space.style.width = width
+    void space.offsetWidth
+    space.style.transitionProperty = transition
+    mounted = null
   }
 
   function observeRebuilds(): void {
@@ -123,23 +129,22 @@ export function createSwitchKey(): SwitchKey {
  * Takes the look of the key beside it: same size, margins, and the classes that decide
  * the colours, so a theme change reaches this key too.
  */
-function createKey(space: HTMLElement, unit: number): HTMLElement {
+function createKey(model: HTMLElement, unit: HTMLElement): HTMLElement {
   // A div rather than a button: the page's focus and active styles would flash a colour.
   const key = document.createElement('div')
-  const model = document.getElementById(ModelKeyId) ?? space
   for (const name of model.classList) {
-    if (name !== 'active') {
+    if (name !== 'active' && name !== 'pointer-hover') {
       key.classList.add(name)
     }
   }
 
   key.classList.add(SwitchClass)
+  key.style.cssText = model.style.cssText
   Object.assign(key.style, {
-    width: `${unit}px`,
-    height: space.style.height,
-    margin: space.style.margin,
-    marginTop: space.style.marginTop,
-    backgroundColor: model.style.backgroundColor,
+    width: unit.style.width,
+    height: unit.style.height,
+    flex: '0 0 auto',
+    transitionProperty: VisualTransitions,
     pointerEvents: 'auto',
   })
 
@@ -148,41 +153,12 @@ function createKey(space: HTMLElement, unit: number): HTMLElement {
 
   key.addEventListener('pointerdown', (event) => {
     event.preventDefault()
-    animate(key)
+    animateKey(key)
     playTap()
     requestSwitch()
   })
 
   return key
-}
-
-/**
- * Repeats the press animation the page plays on its own keys, so this key moves alike.
- */
-function animate(key: HTMLElement): void {
-  if (typeof key.animate !== 'function') {
-    return
-  }
-
-  key.animate([{ scale: '1.05' }, { scale: '0.95' }, { scale: '1.05' }], {
-    duration: animationDuration(),
-    easing: 'linear',
-    fill: 'none',
-  })
-}
-
-/** Reads the same property the page's own keys read, so the length cannot drift. */
-function animationDuration(): number {
-  const value = getComputedStyle(document.documentElement)
-    .getPropertyValue(AnimationProperty)
-    .trim()
-  const match = /^([\d.]+)\s*(ms|s)?$/i.exec(value)
-  const number = match == null ? Number.NaN : Number(match[1])
-  if (!Number.isFinite(number)) {
-    return AnimationFallbackMilliseconds
-  }
-
-  return match?.[2]?.toLowerCase() === 's' ? number * 1000 : number
 }
 
 interface SoundPack {

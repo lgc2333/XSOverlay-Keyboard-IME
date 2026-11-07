@@ -86,7 +86,7 @@ Once the input box loses the focus, the IME information has no stable source. Th
 
 The name identifies the IME that receives your next key. It appears while the input box has focus. The 中/英 switch also requires a displayable IME icon. Without an icon, the switch stays hidden.
 
-The bar shows the name and dropdown on the right. The switch covers the left end of Space without changing the row width. When hidden, this area remains part of Space.
+The bar shows the name and dropdown on the right. The switch sits to the right of left Alt. Space becomes narrower while the switch is visible. Hiding the switch restores Space's full width. The keyboard row keeps the same width.
 
 The dropdown lists enabled IMEs and ordinary keyboard layouts across all languages. Select an entry to switch, or use Win+Space. Windows shared input settings can also change the IME in desktop windows. An unreadable current IME shows a dimmed “未知输入法” label, with no old icon or selection mark. You can still open the dropdown when its list is available.
 
