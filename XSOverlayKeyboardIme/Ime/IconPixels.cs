@@ -31,64 +31,18 @@ namespace XSOverlayKeyboardIme.Ime
                     return null;
                 }
 
-                var header = new GdiNative.BitmapInfo();
-                header.Header.Size = (uint)Marshal.SizeOf<GdiNative.BitmapInfoHeader>();
-                header.Header.Width = width;
-                // A negative height asks for the rows top down, as a canvas wants them.
-                header.Header.Height = -height;
-                header.Header.Planes = 1;
-                header.Header.BitCount = GdiNative.BitCount32;
-
-                var pixels = new byte[width * height * 4];
-                IntPtr dc = GdiNative.CreateCompatibleDC(IntPtr.Zero);
-                try
-                {
-                    if (
-                        GdiNative.GetDIBits(
-                            dc,
-                            monochrome ? info.Mask : info.Color,
-                            0,
-                            (uint)height,
-                            pixels,
-                            ref header,
-                            GdiNative.DipRgbColors
-                        ) != height
-                    )
-                    {
-                        return null;
-                    }
-                }
-                finally
-                {
-                    GdiNative.DeleteDC(dc);
-                }
+                byte[] pixels = ReadBgra(monochrome ? info.Mask : info.Color, width, height);
+                if (pixels == null)
+                    return null;
 
                 if (monochrome)
                     return height % 2 == 0 ? LanguageBarIcon.FromMonochrome(width, height / 2, pixels) : null;
                 byte[] mask = null;
                 if (info.Mask != IntPtr.Zero)
                 {
-                    mask = new byte[pixels.Length];
-                    IntPtr maskDc = GdiNative.CreateCompatibleDC(IntPtr.Zero);
-                    try
-                    {
-                        if (
-                            GdiNative.GetDIBits(
-                                maskDc,
-                                info.Mask,
-                                0,
-                                (uint)height,
-                                mask,
-                                ref header,
-                                GdiNative.DipRgbColors
-                            ) != height
-                        )
-                            return null;
-                    }
-                    finally
-                    {
-                        GdiNative.DeleteDC(maskDc);
-                    }
+                    mask = ReadBgra(info.Mask, width, height);
+                    if (mask == null)
+                        return null;
                 }
                 return LanguageBarIcon.FromBgra(width, height, pixels, mask, tint, premultiplied: true);
             }
@@ -96,6 +50,31 @@ namespace XSOverlayKeyboardIme.Ime
             {
                 DeleteBitmap(info.Color);
                 DeleteBitmap(info.Mask);
+            }
+        }
+
+        private static byte[] ReadBgra(IntPtr bitmap, int width, int height)
+        {
+            var header = new GdiNative.BitmapInfo();
+            header.Header.Size = (uint)Marshal.SizeOf<GdiNative.BitmapInfoHeader>();
+            header.Header.Width = width;
+            // A negative height asks for the rows top down, as a canvas wants them.
+            header.Header.Height = -height;
+            header.Header.Planes = 1;
+            header.Header.BitCount = GdiNative.BitCount32;
+            var pixels = new byte[width * height * 4];
+            IntPtr dc = GdiNative.CreateCompatibleDC(IntPtr.Zero);
+            try
+            {
+                return
+                    GdiNative.GetDIBits(dc, bitmap, 0, (uint)height, pixels, ref header, GdiNative.DipRgbColors)
+                    == height
+                    ? pixels
+                    : null;
+            }
+            finally
+            {
+                GdiNative.DeleteDC(dc);
             }
         }
 
