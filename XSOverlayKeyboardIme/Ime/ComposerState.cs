@@ -10,7 +10,7 @@ namespace XSOverlayKeyboardIme.Ime
     /// </summary>
     internal sealed class ComposerState
     {
-        private static readonly string[] NoProfiles = Array.Empty<string>();
+        private static readonly ImeChoice[] NoProfiles = Array.Empty<ImeChoice>();
 
         /// <summary>Nothing is shown, because the composer has no focus.</summary>
         internal static readonly ComposerState Hidden = new ComposerState(false, string.Empty);
@@ -18,7 +18,7 @@ namespace XSOverlayKeyboardIme.Ime
         internal ComposerState(bool active, string ime)
             : this(active, ime, NoProfiles, -1) { }
 
-        internal ComposerState(bool active, string ime, IReadOnlyList<string> profiles, int activeProfile)
+        internal ComposerState(bool active, string ime, IReadOnlyList<ImeChoice> profiles, int activeProfile)
         {
             Active = active;
             Ime = ime;
@@ -32,8 +32,8 @@ namespace XSOverlayKeyboardIme.Ime
         /// <summary>The IME this thread composes with, or empty when unreadable.</summary>
         internal string Ime { get; }
 
-        /// <summary>The IMEs this language offers, in the order the page may ask for them.</summary>
-        internal IReadOnlyList<string> Profiles { get; }
+        /// <summary>The IMEs this machine offers, in the order the page may ask for them.</summary>
+        internal IReadOnlyList<ImeChoice> Profiles { get; }
 
         /// <summary>The position of the active IME in Profiles, or -1 when unknown.</summary>
         internal int ActiveProfile { get; }

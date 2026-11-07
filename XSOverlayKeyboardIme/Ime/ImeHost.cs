@@ -35,6 +35,7 @@ namespace XSOverlayKeyboardIme.Ime
         private volatile CompositionSession _session;
         private LanguageBarButton _languageBar;
         private ForegroundLease _lease;
+        private KeyFeeder _feeder;
         private ImeContext _ime;
         private ImeProfiles _profiles;
         private string _switchIconKey;
@@ -218,8 +219,8 @@ namespace XSOverlayKeyboardIme.Ime
 
                 _profiles = ImeProfiles.Open();
 
-                var feeder = new KeyFeeder(_window, _lease);
-                var session = new CompositionSession(_ime, _window, _lease, feeder, _onCommitted, _onView);
+                _feeder = new KeyFeeder(_window, _lease);
+                var session = new CompositionSession(_ime, _window, _lease, _feeder, _onCommitted, _onView);
                 session.Start();
                 _session = session;
 
@@ -270,6 +271,13 @@ namespace XSOverlayKeyboardIme.Ime
         /// <summary>Reads the IME name again while the composer holds the focus. See ADR 0035.</summary>
         private void RefreshComposer()
         {
+            if (!_composerActive)
+            {
+                // Nothing may stay held once the composer lets go: the game would get every
+                // key with a modifier on it. Caps follows the system. See ADR 0038.
+                _feeder?.ReleaseLatchedModifiers();
+            }
+
             string name = _composerActive ? ReadImeName() : string.Empty;
             if (name != _imeName)
             {
@@ -283,7 +291,7 @@ namespace XSOverlayKeyboardIme.Ime
             if (_composerActive)
             {
                 PublishSwitchIcon();
-                IReadOnlyList<string> profiles;
+                IReadOnlyList<ImeChoice> profiles;
                 int activeProfile;
                 ReadProfiles(out profiles, out activeProfile);
                 _onComposerState(new ComposerState(true, name, profiles, activeProfile));
@@ -294,12 +302,12 @@ namespace XSOverlayKeyboardIme.Ime
         }
 
         /// <summary>
-        /// The IMEs this language offers and the active one's position, from one read of the
+        /// Every IME this machine offers and the active one's position, from one read of the
         /// list. See ADR 0039.
         /// </summary>
-        private void ReadProfiles(out IReadOnlyList<string> names, out int activeProfile)
+        private void ReadProfiles(out IReadOnlyList<ImeChoice> choices, out int activeProfile)
         {
-            names = Array.Empty<string>();
+            choices = Array.Empty<ImeChoice>();
             activeProfile = -1;
             ImeProfiles source = _profiles;
             if (source == null)
@@ -307,18 +315,17 @@ namespace XSOverlayKeyboardIme.Ime
                 return;
             }
 
-            IReadOnlyList<ImeChoice> choices = source.ListChoices();
-            var listed = new string[choices.Count];
-            for (int index = 0; index < choices.Count; index++)
+            IReadOnlyList<ImeChoice> listed = source.ListChoices();
+            for (int index = 0; index < listed.Count; index++)
             {
-                listed[index] = choices[index].Name;
-                if (activeProfile < 0 && choices[index].Profile.Active)
+                if (listed[index].Profile.Active)
                 {
                     activeProfile = index;
+                    break;
                 }
             }
 
-            names = listed;
+            choices = listed;
         }
 
         /// <summary>Switches this thread's IME. Called on the host thread. See ADR 0039.</summary>
@@ -489,6 +496,15 @@ namespace XSOverlayKeyboardIme.Ime
 
                 while (_strokes.TryDequeue(out KeyStroke stroke))
                 {
+                    // A latched modifier never belongs to a composition: it is a held key
+                    // the IME reads, not a stroke it consumes. See ADR 0038.
+                    if (stroke.Kind == KeyStrokeKind.Modifier)
+                    {
+                        HostLog.Info("feed " + stroke.Describe());
+                        _feeder.Send(stroke);
+                        continue;
+                    }
+
                     session.Send(stroke);
 
                     if (stroke.Kind == KeyStrokeKind.System)
@@ -512,6 +528,9 @@ namespace XSOverlayKeyboardIme.Ime
             {
                 return;
             }
+
+            // The host is going away, so nothing it holds down may outlive it. See ADR 0038.
+            _feeder?.ReleaseLatchedModifiers();
 
             if (_languageBar != null)
             {

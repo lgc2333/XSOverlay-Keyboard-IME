@@ -111,28 +111,84 @@ namespace XSOverlayKeyboardIme.Ime
             }
         }
 
-        /// <summary>The IMEs this language offers, in the order TSF lists them. See ADR 0039.</summary>
+        /// <summary>
+        /// Every IME this machine registers, the current language first, in the order TSF
+        /// lists them. See ADR 0039.
+        /// </summary>
         internal IReadOnlyList<ImeChoice> ListChoices()
         {
-            // A list only covers the language it was read for, so a failed read leaves
-            // none behind. See ADR 0039.
+            // A failed read leaves no half list behind. See ADR 0039.
             _choices.Clear();
-            ushort language;
-            if (_disposed || _profiles == null || _profiles.GetCurrentLanguage(out language) < 0)
+            if (_disposed || _profiles == null)
             {
-                HostLog.Warn("the current language could not be read; the dropdown is empty");
                 return _choices;
             }
 
-            IEnumTfLanguageProfiles items;
-            if (_profiles.EnumLanguageProfiles(language, out items) < 0 || items == null)
+            ushort current;
+            bool hasCurrent = _profiles.GetCurrentLanguage(out current) >= 0;
+            if (hasCurrent)
             {
-                HostLog.Warn("the profile list could not be read; the dropdown is empty");
-                return _choices;
+                ReadLanguageProfiles(current);
+            }
+
+            foreach (ushort language in ReadLanguages())
+            {
+                if (hasCurrent && language == current)
+                {
+                    continue;
+                }
+
+                ReadLanguageProfiles(language);
+            }
+
+            if (_choices.Count == 0)
+            {
+                HostLog.Warn("no language profile could be read; the dropdown is empty");
+            }
+
+            return _choices;
+        }
+
+        /// <summary>The languages this machine has installed, as TSF lists them.</summary>
+        private ushort[] ReadLanguages()
+        {
+            IntPtr list;
+            uint count;
+            if (_profiles.GetLanguageList(out list, out count) < 0 || list == IntPtr.Zero || count == 0)
+            {
+                HostLog.Warn("the language list could not be read");
+                return Array.Empty<ushort>();
             }
 
             try
             {
+                var languages = new ushort[count];
+                for (uint index = 0; index < count; index++)
+                {
+                    languages[index] = unchecked((ushort)Marshal.ReadInt16(list, (int)index * sizeof(ushort)));
+                }
+
+                return languages;
+            }
+            finally
+            {
+                Marshal.FreeCoTaskMem(list);
+            }
+        }
+
+        /// <summary>Adds the profiles one language registers, named and tagged with the language.</summary>
+        private void ReadLanguageProfiles(ushort language)
+        {
+            IEnumTfLanguageProfiles items;
+            if (_profiles.EnumLanguageProfiles(language, out items) < 0 || items == null)
+            {
+                HostLog.Warn("the profile list of language 0x" + language.ToString("x") + " could not be read");
+                return;
+            }
+
+            try
+            {
+                string languageName = LanguageName(language);
                 var batch = new TfLanguageProfile[ProfileBatch];
                 uint fetched;
                 while (items.Next((uint)batch.Length, batch, out fetched) >= 0 && fetched > 0)
@@ -144,7 +200,7 @@ namespace XSOverlayKeyboardIme.Ime
                         string name = Describe(profile);
                         if (name.Length > 0)
                         {
-                            _choices.Add(new ImeChoice(name, profile));
+                            _choices.Add(new ImeChoice(name, languageName, profile));
                         }
                     }
                 }
@@ -156,8 +212,6 @@ namespace XSOverlayKeyboardIme.Ime
                     Marshal.ReleaseComObject(items);
                 }
             }
-
-            return _choices;
         }
 
         /// <summary>Makes this thread compose with the choice at that index. See ADR 0039.</summary>

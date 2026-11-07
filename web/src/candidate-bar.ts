@@ -1,5 +1,5 @@
 import barStyles from './candidate-bar.css'
-import type { ComposerStateView, CompositionView } from './ime-view'
+import type { ComposerStateView, CompositionView, ProfileView } from './ime-view'
 import { requestProfile } from './native-bridge'
 import { ensurePageStyle } from './page-style'
 
@@ -35,8 +35,8 @@ export interface CandidateBar {
  * The candidate bar: one row between the toolbar and the keys, owned by this script.
  * It shows the candidates, and the IME this thread composes with while the composer
  * holds the focus. See ADR 0004, ADR 0018 and ADR 0035.
- * The name opens the language's profiles and picking one asks the plugin to activate it.
- * See ADR 0039.
+ * The name opens every IME this machine offers and picking one asks the plugin to
+ * activate it; the language is drawn only when the list spans more than one. See ADR 0039.
  * The active candidate is scrolled just far enough into view, never centred, and only
  * a side that still hides candidates fades.
  * The page rebuilds the whole keyboard tree on every layout update, so the bar is put
@@ -84,7 +84,7 @@ export function createCandidateBar(): CandidateBar {
 
   /** The IME name and the profiles the last state carried, in activation order. */
   let ime = ''
-  let profiles: string[] = []
+  let profiles: ProfileView[] = []
   let activeProfile = -1
   let profileSignature = ''
   let busyTimer: number | null = null
@@ -150,24 +150,34 @@ export function createCandidateBar(): CandidateBar {
 
   /** Rebuilds the items only when the list or the current position changed. */
   function refreshProfiles(): void {
-    const signature = `${activeProfile}\u0000${profiles.join('\u0000')}`
+    const signature = `${activeProfile}\u0000${profiles
+      .map((profile) => `${profile.name}\u0001${profile.language}`)
+      .join('\u0000')}`
     if (signature === profileSignature) {
       return
     }
 
     profileSignature = signature
-    menu.replaceChildren(...profiles.map(createProfile))
+    const showLanguage = new Set(profiles.map((profile) => profile.language)).size > 1
+    menu.replaceChildren(...profiles.map((profile, index) => createProfile(profile, index, showLanguage)))
   }
 
-  function createProfile(name: string, index: number): HTMLElement {
+  function createProfile(profile: ProfileView, index: number, showLanguage: boolean): HTMLElement {
     const item = document.createElement('div')
     item.className = `ime-profile ${RayItemClass}`
     item.setAttribute('role', 'menuitem')
 
     const label = document.createElement('span')
     label.className = 'ime-profile-name'
-    label.textContent = name
+    label.textContent = profile.name
     item.append(label)
+
+    if (showLanguage && profile.language.length > 0) {
+      const language = document.createElement('span')
+      language.className = 'ime-profile-language'
+      language.textContent = profile.language
+      item.append(language)
+    }
 
     // The position the plugin sent decides, so two IMEs with one name stay distinct.
     if (index === activeProfile) {

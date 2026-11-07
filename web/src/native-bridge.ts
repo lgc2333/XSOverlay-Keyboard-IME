@@ -38,8 +38,8 @@ export function reportComposerActive(active: boolean): boolean {
 }
 
 /**
- * Asks the plugin to activate one profile of the current language, by its index in the
- * list the last composer state carried. See ADR 0039.
+ * Asks the plugin to activate one of the listed IMEs, by its index in the list the last
+ * composer state carried. See ADR 0039.
  */
 export function requestProfile(index: number): boolean {
   return post(`${Profile}${index}`)

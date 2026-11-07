@@ -19,6 +19,7 @@
        Takeover must stay free of game types for this to keep working. -->
   <ItemGroup>
     <Compile Include="..\XSOverlayKeyboardIme\Ime\ComposerState.cs" LinkBase="Linked\Ime" />
+    <Compile Include="..\XSOverlayKeyboardIme\Ime\ImeChoice.cs" LinkBase="Linked\Ime" />
     <Compile Include="..\XSOverlayKeyboardIme\Ime\CompositionSelection.cs" LinkBase="Linked\Ime" />
     <Compile Include="..\XSOverlayKeyboardIme\Ime\CompositionView.cs" LinkBase="Linked\Ime" />
     <Compile Include="..\XSOverlayKeyboardIme\Ime\InlinePreeditWatch.cs" LinkBase="Linked\Ime" />

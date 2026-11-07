@@ -228,6 +228,14 @@
   text-overflow: ellipsis;
 }
 
+#bar-id .ime-profile-language {
+  color: var(--theme-contrasting);
+  font-size: 0.85em;
+  opacity: 0.6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 #bar-id .ime-profile-check {
   color: var(--theme-accent);
   font-weight: 700;

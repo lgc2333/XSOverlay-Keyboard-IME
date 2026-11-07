@@ -13,6 +13,9 @@ namespace XSOverlayKeyboardIme.Takeover
 
         /// <summary>The system's own language switch, Win+Space.</summary>
         System,
+
+        /// <summary>A modifier the page latched: the host presses it down or lifts it. See ADR 0038.</summary>
+        Modifier,
     }
 
     /// <summary>One key the composition host receives: a typed character or a named key.</summary>
@@ -50,6 +53,12 @@ namespace XSOverlayKeyboardIme.Takeover
             return new KeyStroke(default, default, false, KeyStrokeKind.System);
         }
 
+        /// <summary>The page latched this modifier; the host holds it down or lifts it.</summary>
+        internal static KeyStroke FromModifier(VirtualKey key)
+        {
+            return new KeyStroke(default, key, false, KeyStrokeKind.Modifier);
+        }
+
         internal string Describe()
         {
             switch (Kind)
@@ -58,6 +67,8 @@ namespace XSOverlayKeyboardIme.Takeover
                     return "'" + Text + "'";
                 case KeyStrokeKind.System:
                     return "Win+Space";
+                case KeyStrokeKind.Modifier:
+                    return "latch " + Key;
                 default:
                     return Key + (Shift ? " shift" : string.Empty);
             }

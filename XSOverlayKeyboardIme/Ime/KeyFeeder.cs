@@ -16,10 +16,24 @@ namespace XSOverlayKeyboardIme.Ime
         private readonly HostWindow _window;
         private readonly ForegroundLease _lease;
 
+        // The modifiers the page latched and the host holds down. See ADR 0038.
+        private readonly HashSet<VirtualKey> _latched = new HashSet<VirtualKey>();
+
         internal KeyFeeder(HostWindow window, ForegroundLease lease)
         {
             _window = window;
             _lease = lease;
+        }
+
+        /// <summary>True while the host holds a shift down, so a stroke must not lift it.</summary>
+        private bool ShiftHeld
+        {
+            get
+            {
+                return _latched.Contains(VirtualKey.Shift)
+                    || _latched.Contains(VirtualKey.LeftShift)
+                    || _latched.Contains(VirtualKey.RightShift);
+            }
         }
 
         internal bool Send(KeyStroke stroke)
@@ -30,6 +44,8 @@ namespace XSOverlayKeyboardIme.Ime
                     return SendText(stroke.Text);
                 case KeyStrokeKind.System:
                     return SendSystemSwitch();
+                case KeyStrokeKind.Modifier:
+                    return ToggleModifier(stroke.Key);
                 default:
                     return Send(stroke.Key, stroke.Shift);
             }
@@ -49,9 +65,51 @@ namespace XSOverlayKeyboardIme.Ime
             );
         }
 
+        /// <summary>
+        /// Presses a latched modifier and keeps it down, or lifts it when the page latches it
+        /// again. The IME then sees the modifier as genuinely held. See ADR 0038.
+        /// </summary>
+        private bool ToggleModifier(VirtualKey key)
+        {
+            var strokes = new List<NativeInput>(1);
+            if (_latched.Remove(key))
+            {
+                HostLog.Info("latch " + key + " up");
+                strokes.Add(KeyInput.Create(key, Win32Native.KeyEventKeyUp));
+            }
+            else
+            {
+                HostLog.Info("latch " + key + " down");
+                _latched.Add(key);
+                strokes.Add(KeyInput.Create(key, 0));
+            }
+
+            return SendBatch(strokes);
+        }
+
+        /// <summary>Lifts every modifier the page latched, for a composer that lost the focus.</summary>
+        internal void ReleaseLatchedModifiers()
+        {
+            if (_latched.Count == 0)
+            {
+                return;
+            }
+
+            var strokes = new List<NativeInput>(_latched.Count);
+            foreach (VirtualKey key in _latched)
+            {
+                HostLog.Info("latch " + key + " up, the composer lost the focus");
+                strokes.Add(KeyInput.Create(key, Win32Native.KeyEventKeyUp));
+            }
+
+            _latched.Clear();
+            SendBatch(strokes);
+        }
+
         private bool Send(VirtualKey key, bool shift)
         {
-            return SendBatch(BuildStroke(key, shift));
+            // A held shift already applies; sending another would lift the latch on its way out.
+            return SendBatch(BuildStroke(key, shift && !ShiftHeld));
         }
 
         /// <summary>Types one character through the layout, for the keys the page resolved.</summary>

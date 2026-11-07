@@ -20,7 +20,12 @@ namespace XSOverlayKeyboardIme.Page
                     payload.Append(',');
                 }
 
-                payload.Append(JavaScriptString.Literal(state.Profiles[index]));
+                payload
+                    .Append("{\"name\":")
+                    .Append(JavaScriptString.Literal(state.Profiles[index].Name))
+                    .Append(",\"language\":")
+                    .Append(JavaScriptString.Literal(state.Profiles[index].Language))
+                    .Append('}');
             }
 
             payload.Append("]}");

@@ -6,7 +6,11 @@ namespace XSOverlayKeyboardIme.Tests
 {
     public sealed class ComposerStatePayloadTests
     {
-        private static readonly string[] TwoImes = { "小狼毫", "微软拼音" };
+        private static readonly ImeChoice[] TwoImes =
+        {
+            new ImeChoice("小狼毫", "中文(简体)", default(LanguageProfile)),
+            new ImeChoice("微软拼音", "中文(简体)", default(LanguageProfile)),
+        };
 
         [Fact]
         public void A_composer_without_focus_asks_the_page_to_show_nothing()
@@ -45,7 +49,7 @@ namespace XSOverlayKeyboardIme.Tests
             var state = new ComposerState(true, "小狼毫", TwoImes, 0);
 
             Assert.Equal(
-                "{\"active\":true,\"ime\":\"小狼毫\",\"activeProfile\":0,\"profiles\":[\"小狼毫\",\"微软拼音\"]}",
+                "{\"active\":true,\"ime\":\"小狼毫\",\"activeProfile\":0,\"profiles\":[{\"name\":\"小狼毫\",\"language\":\"中文(简体)\"},{\"name\":\"微软拼音\",\"language\":\"中文(简体)\"}]}",
                 ComposerStatePayload.Build(state)
             );
         }

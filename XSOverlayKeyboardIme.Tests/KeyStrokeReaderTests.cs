@@ -119,15 +119,16 @@ namespace XSOverlayKeyboardIme.Tests
         }
 
         [Fact]
-        public void Composing_leaves_a_latched_shift_with_the_page()
+        public void Composing_presses_a_latched_shift_on_the_host()
         {
-            // The page keeps the latch, so every letter after it carries the shift state.
-            // See ADR 0038.
+            // The host holds the real key down, so the IME sees a held shift. See ADR 0038.
             Assert.Equal(
-                KeyOwnership.Page,
+                KeyOwnership.Ime,
                 ReadLatched(PageKeyStyle.Sticky, ShiftName, TakeoverGate.Composing, out List<KeyStroke> strokes)
             );
-            Assert.Empty(strokes);
+            KeyStroke stroke = Assert.Single(strokes);
+            Assert.Equal(KeyStrokeKind.Modifier, stroke.Kind);
+            Assert.Equal(VirtualKey.LeftShift, stroke.Key);
         }
 
         [Fact]
@@ -141,14 +142,13 @@ namespace XSOverlayKeyboardIme.Tests
         }
 
         [Fact]
-        public void Idle_leaves_a_latched_shift_with_the_page()
+        public void Idle_presses_a_latched_shift_on_the_host()
         {
-            // The game records the latch, so the combination that follows still works.
             Assert.Equal(
-                KeyOwnership.Page,
+                KeyOwnership.Ime,
                 ReadLatched(PageKeyStyle.Sticky, ShiftName, TakeoverGate.Idle, out List<KeyStroke> strokes)
             );
-            Assert.Empty(strokes);
+            Assert.Equal(KeyStrokeKind.Modifier, Assert.Single(strokes).Kind);
         }
 
         [Fact]
@@ -162,13 +162,13 @@ namespace XSOverlayKeyboardIme.Tests
         }
 
         [Fact]
-        public void Composing_leaves_a_latched_control_with_the_page()
+        public void Composing_presses_a_latched_control_on_the_host()
         {
             Assert.Equal(
-                KeyOwnership.Page,
+                KeyOwnership.Ime,
                 ReadLatched(PageKeyStyle.Sticky, ControlName, TakeoverGate.Composing, out List<KeyStroke> strokes)
             );
-            Assert.Empty(strokes);
+            Assert.Equal(VirtualKey.LeftControl, Assert.Single(strokes).Key);
         }
 
         [Fact]
@@ -282,14 +282,14 @@ namespace XSOverlayKeyboardIme.Tests
         }
 
         [Fact]
-        public void A_latched_win_stays_with_the_page()
+        public void A_latched_win_is_pressed_on_the_host()
         {
-            // The page latches the Win key, and the game has to record it.
+            // Win is a modifier like the others, so it is held for real. See ADR 0038.
             Assert.Equal(
-                KeyOwnership.Page,
+                KeyOwnership.Ime,
                 ReadLatched(PageKeyStyle.Sticky, WinName, TakeoverGate.Idle, out List<KeyStroke> strokes)
             );
-            Assert.Empty(strokes);
+            Assert.Equal(VirtualKey.LeftWin, Assert.Single(strokes).Key);
         }
 
         [Fact]

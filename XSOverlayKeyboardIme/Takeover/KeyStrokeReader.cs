@@ -26,8 +26,15 @@ namespace XSOverlayKeyboardIme.Takeover
         {
             strokes.Clear();
 
-            // The page latches modifiers and lock keys, and keeps them: the letters that
-            // follow carry the shift and caps state the IME needs. See ADR 0038.
+            // A latched modifier is pressed on the host for real and kept down, so the host,
+            // the IME and the page all see one state. Caps stays with the page: it is the
+            // system's lock. See ADR 0038.
+            if (key.Style == PageKeyStyle.Sticky && TryReadLatchModifier(key, out VirtualKey modifier))
+            {
+                strokes.Add(KeyStroke.FromModifier(modifier));
+                return KeyOwnership.Ime;
+            }
+
             if (key.Style != PageKeyStyle.Standard)
             {
                 return KeyOwnership.Page;
@@ -130,6 +137,70 @@ namespace XSOverlayKeyboardIme.Takeover
             }
 
             return key.Text == " " || HasAnyMarker(key.Names, SpaceMarkers);
+        }
+
+        /// <summary>
+        /// A press of nothing but modifiers the host can hold: Shift, Ctrl or Win. Caps is
+        /// left out, because the page and the system own its lock. See ADR 0038.
+        /// </summary>
+        private static bool TryReadLatchModifier(PageKey key, out VirtualKey modifier)
+        {
+            modifier = default;
+            if (key.Names.Length == 0)
+            {
+                return false;
+            }
+
+            foreach (string name in key.Names)
+            {
+                if (!TryMapLatchModifier(name, out VirtualKey mapped) || (modifier != default && modifier != mapped))
+                {
+                    return false;
+                }
+
+                modifier = mapped;
+            }
+
+            return modifier != default;
+        }
+
+        private static bool TryMapLatchModifier(string name, out VirtualKey modifier)
+        {
+            // The page reports the Win keys by scan code, not by name.
+            if (string.Equals(name, "E05B", StringComparison.OrdinalIgnoreCase))
+            {
+                modifier = VirtualKey.LeftWin;
+                return true;
+            }
+
+            if (string.Equals(name, "E05C", StringComparison.OrdinalIgnoreCase))
+            {
+                modifier = VirtualKey.RightWin;
+                return true;
+            }
+
+            bool right = name != null && name.IndexOf("RIGHT", StringComparison.OrdinalIgnoreCase) >= 0;
+
+            if (HasMarker(name, ShiftMarkers))
+            {
+                modifier = right ? VirtualKey.RightShift : VirtualKey.LeftShift;
+                return true;
+            }
+
+            if (HasMarker(name, ControlMarkers))
+            {
+                modifier = right ? VirtualKey.RightControl : VirtualKey.LeftControl;
+                return true;
+            }
+
+            if (HasMarker(name, MetaMarkers))
+            {
+                modifier = right ? VirtualKey.RightWin : VirtualKey.LeftWin;
+                return true;
+            }
+
+            modifier = default;
+            return false;
         }
 
         private static bool HoldsMeta(PageKey key)
