@@ -1,5 +1,6 @@
 ---
-status: accepted
+status: superseded
+superseded_by: ['0035']
 amends: ['0009']
 ---
 

@@ -10,12 +10,12 @@ namespace XSOverlayKeyboardIme.Tests
         private static readonly string[] LiveCandidates = { "你好" };
 
         [Fact]
-        public void An_idle_view_keeps_the_ime_name_and_an_empty_page()
+        public void An_idle_view_carries_no_codes_and_no_candidates()
         {
-            string payload = CompositionPayload.Build(CompositionView.Idle("小狼毫"));
+            string payload = CompositionPayload.Build(CompositionView.Idle());
 
             Assert.Equal(
-                "{\"preedit\":\"\",\"selected\":-1,\"selectionStart\":0,\"selectionEnd\":0,\"ime\":\"小狼毫\",\"composing\":false,\"candidates\":[]}",
+                "{\"preedit\":\"\",\"selected\":-1,\"selectionStart\":0,\"selectionEnd\":0,\"composing\":false,\"candidates\":[]}",
                 payload
             );
         }
@@ -25,7 +25,7 @@ namespace XSOverlayKeyboardIme.Tests
         {
             // The IME may report no codes inline, so the page cannot infer this from them.
             // See ADR 0027.
-            var view = new CompositionView(string.Empty, CompositionSelection.None, LiveCandidates, 0, "小狼毫", true);
+            var view = new CompositionView(string.Empty, CompositionSelection.None, LiveCandidates, 0, true);
 
             Assert.Contains("\"composing\":true", CompositionPayload.Build(view));
         }
@@ -35,7 +35,7 @@ namespace XSOverlayKeyboardIme.Tests
         {
             // The composer draws this caret, which is how a cursor key shows its effect.
             // See ADR 0031.
-            var view = new CompositionView("nihc", new CompositionSelection(3, 3), LiveCandidates, 0, "小狼毫", true);
+            var view = new CompositionView("nihc", new CompositionSelection(3, 3), LiveCandidates, 0, true);
 
             Assert.Contains("\"selectionStart\":3,\"selectionEnd\":3", CompositionPayload.Build(view));
         }
@@ -43,11 +43,11 @@ namespace XSOverlayKeyboardIme.Tests
         [Fact]
         public void Quotes_and_newlines_survive_the_bridge()
         {
-            var view = new CompositionView("a\"b\n", CompositionSelection.None, QuotedCandidates, 1, "x", false);
+            var view = new CompositionView("a\"b\n", CompositionSelection.None, QuotedCandidates, 1, false);
             string payload = CompositionPayload.Build(view);
 
             Assert.Equal(
-                "{\"preedit\":\"a\\\"b\\n\",\"selected\":1,\"selectionStart\":0,\"selectionEnd\":0,\"ime\":\"x\",\"composing\":false,\"candidates\":[\"你\\\"好\",\"a\\\\b\"]}",
+                "{\"preedit\":\"a\\\"b\\n\",\"selected\":1,\"selectionStart\":0,\"selectionEnd\":0,\"composing\":false,\"candidates\":[\"你\\\"好\",\"a\\\\b\"]}",
                 payload
             );
         }

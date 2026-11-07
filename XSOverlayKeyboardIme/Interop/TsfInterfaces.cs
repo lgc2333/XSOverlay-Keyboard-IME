@@ -7,6 +7,9 @@ namespace XSOverlayKeyboardIme.Interop
     /// The TSF interfaces the plugin consumes, read for the IME name and its input-mode
     /// button. The plugin implements none of them: the input context belongs to
     /// IngameIME. See ADR 0009 and ADR 0028.
+    ///
+    /// Every method stays in header order, including the ones the plugin never calls: a
+    /// COM vtable is positional, so dropping one would shift every call after it.
     /// </summary>
     [ComImport, Guid("1F02B6C5-7842-4EE6-8A0B-9A24183A95CA"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     internal interface ITfInputProcessorProfiles
@@ -52,6 +55,57 @@ namespace XSOverlayKeyboardIme.Interop
 
         [PreserveSig]
         int GetCurrentLanguage(out ushort langid);
+
+        [PreserveSig]
+        int ChangeCurrentLanguage(ushort langid);
+
+        [PreserveSig]
+        int GetLanguageList(out IntPtr languages, out uint count);
+
+        [PreserveSig]
+        int EnumLanguageProfiles(ushort langid, out IEnumTfLanguageProfiles enumerator);
+    }
+
+    /// <summary>One row of a language's profiles, as TSF lists them.</summary>
+    [StructLayout(LayoutKind.Explicit)]
+    internal struct TfLanguageProfile
+    {
+        [FieldOffset(0)]
+        internal Guid Service;
+
+        [FieldOffset(16)]
+        internal ushort Language;
+
+        [FieldOffset(20)]
+        internal Guid Category;
+
+        /// <summary>A BOOL that is true when this thread has the profile active.</summary>
+        [FieldOffset(36)]
+        internal int Active;
+
+        [FieldOffset(40)]
+        internal Guid Profile;
+    }
+
+    /// <summary>The profiles TSF lists for one language. See ADR 0035.</summary>
+    [ComImport, Guid("3D61BF11-AC5F-42C8-A4CB-931BCC28C744"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    internal interface IEnumTfLanguageProfiles
+    {
+        [PreserveSig]
+        int Clone(out IEnumTfLanguageProfiles enumerator);
+
+        [PreserveSig]
+        int Next(
+            uint count,
+            [Out, MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 0)] TfLanguageProfile[] profiles,
+            out uint fetched
+        );
+
+        [PreserveSig]
+        int Reset();
+
+        [PreserveSig]
+        int Skip(uint count);
     }
 
     /// <summary>

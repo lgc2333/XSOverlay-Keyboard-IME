@@ -5,9 +5,6 @@
 > [!NOTE]
 > This document was translated by an LLM. It may contain mistranslations, or tones that differ from the original.
 
-> [!WARNING]
-> This repository is still under development. There is no usable build yet, and the implementation is still changing. Please wait.
-
 This plugin adds a system IME to the VR keyboard of XSOverlay. Compose text in the input box on the keyboard page. The composing string and the candidates show on the keyboard. Pick a candidate with the keyboard keys. The committed text goes back into the input box.
 
 ## Why this plugin
@@ -68,7 +65,19 @@ Clicking a candidate would make the plugin press keys for you. The same keys do 
 
 Page numbers are the same. The numbers an IME reports are unreliable, so the bar shows none rather than a wrong one.
 
-The bar is also only so wide. Candidates that do not fit stay hidden, so page to see them.
+### Why the bar stays when it is empty
+
+The bar does not go away when it shows no candidates. The keyboard window keeps its height, so the keyboard does not jump while you type.
+
+A composition starts and ends as you type. A bar that came and went with the content would change the height again and again, which is unpleasant in VR.
+
+### When the IME name and the 中/英 switch appear
+
+When the input box on the keyboard page takes the focus, the bar shows the name of the current IME and the switch key appears left of Space. Both go away when the input box loses the focus, and Space takes the width back.
+
+The plugin uses the IME of the game's own input chain only. It does not read or change other windows. Pressing Win+Space in the game therefore does not change the IME of the VR keyboard.
+
+To change the IME, pick it before you start the game. In VR, only 中 and 英 switch. The dropdown on the bar is not built yet.
 
 ### Why it only works in the input box on the keyboard page
 

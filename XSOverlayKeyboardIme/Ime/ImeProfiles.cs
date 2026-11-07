@@ -1,17 +1,21 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Text;
 using XSOverlayKeyboardIme.Diagnostics;
 using XSOverlayKeyboardIme.Interop;
 
 namespace XSOverlayKeyboardIme.Ime
 {
     /// <summary>
-    /// The keyboard profiles TSF keeps for this thread: the name of the profile this
-    /// thread uses, and the way to move the thread onto another language's default
-    /// profile. See ADR 0009 and ADR 0030.
+    /// The keyboard profile TSF keeps for this thread: the IME it composes with and the
+    /// name that IME shows. Nothing here switches the profile. See ADR 0009 and ADR 0035.
     /// </summary>
     internal sealed class ImeProfiles : IDisposable
     {
+        /// <summary>Rows asked for at a time; a language lists a handful of profiles.</summary>
+        private const int ProfileBatch = 8;
+
         private static readonly Guid InputProcessorProfiles = new Guid("33C53A50-F456-4884-B049-85FD643ECFED");
         private static readonly Guid KeyboardCategory = new Guid("34745C63-B2F0-4784-8B67-5E12C8701A31");
 
@@ -54,8 +58,9 @@ namespace XSOverlayKeyboardIme.Ime
         }
 
         /// <summary>
-        /// The description of this thread's default profile, or the language's own name when
-        /// the language has no text service to describe, as a legacy layout does.
+        /// The name of the IME this thread composes with: the description of the profile
+        /// TSF marks active. Falls back to the language's default profile, then to the
+        /// language's own name for a legacy layout with no text service.
         /// </summary>
         internal string ReadName()
         {
@@ -65,22 +70,29 @@ namespace XSOverlayKeyboardIme.Ime
                 return string.Empty;
             }
 
-            string description = Describe(language);
-            return description.Length > 0 ? description : LanguageName(language);
+            string active = Describe(ReadActive(language));
+            if (active.Length > 0)
+            {
+                return active;
+            }
+
+            string fallback = Describe(ReadDefault(language));
+            return fallback.Length > 0 ? fallback : LanguageName(language);
         }
 
-        private string Describe(ushort language)
+        private string Describe(LanguageProfile? profile)
         {
-            Guid clsid;
-            Guid profile;
-            if (!TryDefaultProfile(language, out clsid, out profile))
+            if (profile == null)
             {
                 return string.Empty;
             }
 
+            Guid clsid = profile.Value.Service;
+            Guid guid = profile.Value.Profile;
             IntPtr description;
             if (
-                _profiles.GetLanguageProfileDescription(ref clsid, language, ref profile, out description) < 0
+                _profiles.GetLanguageProfileDescription(ref clsid, profile.Value.Language, ref guid, out description)
+                    < 0
                 || description == IntPtr.Zero
             )
             {
@@ -97,49 +109,61 @@ namespace XSOverlayKeyboardIme.Ime
             }
         }
 
-        private static string LanguageName(ushort language)
+        /// <summary>The profile this thread has active, or null when TSF cannot say.</summary>
+        private LanguageProfile? ReadActive(ushort language)
         {
-            var buffer = new System.Text.StringBuilder(64);
-            int length = Win32Native.GetLocaleInfoW(language, Win32Native.LocaleDisplayName, buffer, buffer.Capacity);
-            return length <= 1 ? string.Empty : buffer.ToString(0, length - 1);
+            IEnumTfLanguageProfiles items;
+            if (_profiles.EnumLanguageProfiles(language, out items) < 0 || items == null)
+            {
+                return null;
+            }
+
+            try
+            {
+                var listed = new List<LanguageProfile>(ProfileBatch);
+                var batch = new TfLanguageProfile[ProfileBatch];
+                uint fetched;
+                while (items.Next((uint)batch.Length, batch, out fetched) >= 0 && fetched > 0)
+                {
+                    for (int index = 0; index < fetched; index++)
+                    {
+                        TfLanguageProfile row = batch[index];
+                        listed.Add(new LanguageProfile(row.Service, row.Language, row.Profile, row.Active != 0));
+                    }
+                }
+
+                return LanguageProfile.TryFindActive(listed, out LanguageProfile active)
+                    ? active
+                    : (LanguageProfile?)null;
+            }
+            finally
+            {
+                if (Marshal.IsComObject(items))
+                {
+                    Marshal.ReleaseComObject(items);
+                }
+            }
         }
 
-        /// <summary>Moves this thread onto the language's default keyboard profile.</summary>
-        internal void Activate(ushort language)
+        /// <summary>The language's default profile, or null when unreadable.</summary>
+        private LanguageProfile? ReadDefault(ushort language)
         {
+            Guid category = KeyboardCategory;
             Guid clsid;
             Guid profile;
-            if (!TryDefaultProfile(language, out clsid, out profile))
+            if (_profiles.GetDefaultLanguageProfile(language, ref category, out clsid, out profile) < 0)
             {
-                return;
+                return null;
             }
 
-            int hr = _profiles.ActivateLanguageProfile(ref clsid, language, ref profile);
-            if (hr < 0)
-            {
-                HostLog.Warn("the language profile did not activate, hr=0x" + hr.ToString("x"));
-            }
+            return new LanguageProfile(clsid, language, profile, false);
         }
 
-        /// <summary>The default keyboard profile of a language, or false when unreadable.</summary>
-        private bool TryDefaultProfile(ushort language, out Guid clsid, out Guid profile)
+        private static string LanguageName(ushort language)
         {
-            clsid = Guid.Empty;
-            profile = Guid.Empty;
-            if (_disposed || _profiles == null)
-            {
-                return false;
-            }
-
-            Guid category = KeyboardCategory;
-            int hr = _profiles.GetDefaultLanguageProfile(language, ref category, out clsid, out profile);
-            if (hr >= 0)
-            {
-                return true;
-            }
-
-            HostLog.Warn("no default profile for language 0x" + language.ToString("x4") + ", hr=0x" + hr.ToString("x"));
-            return false;
+            var buffer = new StringBuilder(64);
+            int length = Win32Native.GetLocaleInfoW(language, Win32Native.LocaleDisplayName, buffer, buffer.Capacity);
+            return length <= 1 ? string.Empty : buffer.ToString(0, length - 1);
         }
 
         public void Dispose()

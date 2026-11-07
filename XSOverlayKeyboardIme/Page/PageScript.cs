@@ -17,6 +17,12 @@ namespace XSOverlayKeyboardIme.Page
         /// <summary>The page asks the plugin to cancel the composition the IME holds.</summary>
         internal const string CancelMessage = "xso-keyboard-ime cancel";
 
+        /// <summary>The composer took the focus, so the IME name and the switch are shown.</summary>
+        internal const string ComposerActiveMessage = "xso-keyboard-ime composer-active";
+
+        /// <summary>The composer dropped the focus, so the IME name and the switch are hidden.</summary>
+        internal const string ComposerInactiveMessage = "xso-keyboard-ime composer-inactive";
+
         private const string ResourceName = "keyboard-ime.js";
 
         private static string _source;

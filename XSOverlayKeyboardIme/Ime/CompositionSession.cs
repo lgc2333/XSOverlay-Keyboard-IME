@@ -27,7 +27,6 @@ namespace XSOverlayKeyboardIme.Ime
             HostWindow window,
             ForegroundLease lease,
             KeyFeeder feeder,
-            string imeName,
             Action<string> onCommitted,
             Action<CompositionView> onView
         )
@@ -38,7 +37,7 @@ namespace XSOverlayKeyboardIme.Ime
             _feeder = feeder;
             _onCommitted = onCommitted;
             _onView = onView;
-            _view = CompositionView.Idle(imeName);
+            _view = CompositionView.Idle();
 
             _ime.PreEditChanged += HandlePreEdit;
             _ime.CandidatesChanged += HandleCandidates;
@@ -113,13 +112,6 @@ namespace XSOverlayKeyboardIme.Ime
             return true;
         }
 
-        /// <summary>Keeps the bar's chip on the IME the host now uses. See ADR 0030.</summary>
-        internal void RenameIme(string name)
-        {
-            _view = _view.WithIme(name);
-            Publish();
-        }
-
         /// <summary>Ends the session and hands the foreground back.</summary>
         private void End()
         {
@@ -129,7 +121,7 @@ namespace XSOverlayKeyboardIme.Ime
             }
 
             _open = false;
-            _view = CompositionView.Idle(_view.Ime);
+            _view = CompositionView.Idle();
             _lease.Restore();
             Publish();
         }

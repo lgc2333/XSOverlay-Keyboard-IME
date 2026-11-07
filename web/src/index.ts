@@ -7,7 +7,11 @@ import {
   setImeComposing,
   showPreedit,
 } from './composer'
-import type { CompositionView, SwitchIconView } from './ime-view'
+import type {
+  ComposerStateView,
+  CompositionView,
+  SwitchIconView,
+} from './ime-view'
 import { announceReady, requestCancel } from './native-bridge'
 import { createSwitchKey } from './switch-key'
 
@@ -36,6 +40,10 @@ function install(): void {
     },
     showSwitchIcon: (view: SwitchIconView | null) => {
       switchKey.show(view)
+    },
+    showComposerState: (view: ComposerStateView) => {
+      switchKey.setActive(view.active)
+      bar.showState(view)
     },
   }
 

@@ -1,5 +1,5 @@
 import type { insertText } from './composer'
-import type { CompositionView, SwitchIconView } from './ime-view'
+import type { ComposerStateView, CompositionView, SwitchIconView } from './ime-view'
 
 declare global {
   interface Window {
@@ -18,6 +18,7 @@ interface KeyboardPageApi {
   insertText: typeof insertText
   showComposition: (view: CompositionView) => void
   showSwitchIcon: (view: SwitchIconView | null) => void
+  showComposerState: (view: ComposerStateView) => void
 }
 
 export {}

@@ -24,6 +24,7 @@ namespace XSOverlayKeyboardIme.Game.Patches
                 if (!__0)
                 {
                     ImeHost.CancelCurrent();
+                    ImeHost.DeactivateComposer();
                     return;
                 }
 

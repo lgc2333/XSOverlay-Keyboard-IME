@@ -64,6 +64,11 @@
   font-weight: 600;
 }
 
+/* The page's own display rule would keep an empty chip visible while it is hidden. */
+#bar-id .ime-chip[hidden] {
+  display: none;
+}
+
 #bar-id .ime-chip {
   display: flex;
   align-items: center;

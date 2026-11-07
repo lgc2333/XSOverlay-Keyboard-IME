@@ -1,5 +1,5 @@
 import barStyles from './candidate-bar.css'
-import type { CompositionView } from './ime-view'
+import type { ComposerStateView, CompositionView } from './ime-view'
 import { ensurePageStyle } from './page-style'
 
 const BarId = 'keyboard-ime-bar'
@@ -12,11 +12,13 @@ const BarStyle = barStyles.replaceAll('#bar-id', `#${BarId}`)
 
 export interface CandidateBar {
   render: (view: CompositionView | null) => void
+  showState: (view: ComposerStateView) => void
 }
 
 /**
  * The candidate bar: one row between the toolbar and the keys, owned by this script.
- * It shows the candidates and the IME name. See ADR 0004 and ADR 0018.
+ * It shows the candidates, and the IME this thread composes with while the composer
+ * holds the focus. See ADR 0004, ADR 0018 and ADR 0035.
  * The page rebuilds the whole keyboard tree on every layout update, so the bar is put
  * back whenever it is not a child of the current container. See ADR 0004.
  */
@@ -28,6 +30,7 @@ export function createCandidateBar(): CandidateBar {
   candidates.className = 'ime-candidates'
   const chip = document.createElement('div')
   chip.className = 'ime-chip'
+  chip.hidden = true
   bar.append(candidates, chip)
 
   function render(view: CompositionView | null): void {
@@ -35,8 +38,11 @@ export function createCandidateBar(): CandidateBar {
     candidates.replaceChildren(
       ...shown.map((text, index) => createCandidate(text, index, view)),
     )
-    chip.hidden = view == null || view.ime.length === 0
-    chip.textContent = view?.ime ?? ''
+  }
+
+  function showState(view: ComposerStateView): void {
+    chip.hidden = !view.active || view.ime.length === 0
+    chip.textContent = view.ime
   }
 
   function createCandidate(
@@ -64,7 +70,7 @@ export function createCandidateBar(): CandidateBar {
   render(null)
   mount()
   observeRebuilds()
-  return { render }
+  return { render, showState }
 
   function mount(): void {
     const container = document.getElementById(ContainerId)

@@ -25,8 +25,14 @@ namespace XSOverlayKeyboardIme.Page
         /// <summary>Raised when the page reports that the composition no longer fits. Set by the root.</summary>
         internal static Action CancelRequested;
 
+        /// <summary>Raised with true when the composer takes the focus and false when it drops it.</summary>
+        internal static Action<bool> ComposerActivationChanged;
+
         /// <summary>What the bar shows right now, replayed onto a page that appears later.</summary>
-        private static CompositionView _view = CompositionView.Idle(string.Empty);
+        private static CompositionView _view = CompositionView.Idle();
+
+        /// <summary>Whether the composer holds the focus, and which IME it composes with. See ADR 0035.</summary>
+        private static ComposerState _composerState = ComposerState.Hidden;
 
         /// <summary>The IME's input-mode icon, replayed onto a page that appears later.</summary>
         private static LanguageBarIcon _switchIcon;
@@ -46,8 +52,19 @@ namespace XSOverlayKeyboardIme.Page
         }
 
         /// <summary>
-        /// Puts the bundle and the current bar on the keyboard page. Called when the
-        /// keyboard opens and once at start-up, for a page that already exists.
+        /// Shows the IME name and the switch beside the composer, or nothing when it has no
+        /// focus, and remembers it for a later page. See ADR 0035.
+        /// </summary>
+        internal static void ShowComposerState(ComposerState state)
+        {
+            _composerState = state;
+            Attach();
+        }
+
+        /// <summary>
+        /// Puts the bundle and everything the page shows on it: the composition, the
+        /// switch icon and the composer's state. Replays after every change and onto a
+        /// page that appears later.
         /// </summary>
         internal static void Attach()
         {
@@ -59,6 +76,7 @@ namespace XSOverlayKeyboardIme.Page
 
             ShowBar(page, _view);
             PushSwitchIcon(page);
+            PushComposerState(page);
         }
 
         /// <summary>Writes committed text into the composer. See ADR 0008.</summary>
@@ -185,6 +203,22 @@ namespace XSOverlayKeyboardIme.Page
             );
         }
 
+        private static void PushComposerState(IWebView page)
+        {
+            Call(
+                page,
+                "composer state",
+                CallVoid("showComposerState", ComposerStatePayload.Build(_composerState)),
+                outcome =>
+                {
+                    if (outcome != "ok")
+                    {
+                        HostLog.Warn("the composer state did not reach the page: " + outcome);
+                    }
+                }
+            );
+        }
+
         private static void ShowBar(IWebView page, CompositionView view)
         {
             Call(
@@ -272,6 +306,18 @@ namespace XSOverlayKeyboardIme.Page
                 return;
             }
 
+            if (message == PageScript.ComposerActiveMessage)
+            {
+                OnComposerActivationChanged(true);
+                return;
+            }
+
+            if (message == PageScript.ComposerInactiveMessage)
+            {
+                OnComposerActivationChanged(false);
+                return;
+            }
+
             _confirmed = true;
             HostLog.Info("page message: " + message);
         }
@@ -283,6 +329,16 @@ namespace XSOverlayKeyboardIme.Page
             if (switchRequested != null)
             {
                 switchRequested();
+            }
+        }
+
+        /// <summary>The composer took or dropped the focus; the root shows or hides its state.</summary>
+        private static void OnComposerActivationChanged(bool active)
+        {
+            Action<bool> changed = ComposerActivationChanged;
+            if (changed != null)
+            {
+                changed(active);
             }
         }
 

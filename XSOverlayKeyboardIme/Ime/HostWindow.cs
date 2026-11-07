@@ -14,10 +14,8 @@ namespace XSOverlayKeyboardIme.Ime
     {
         internal const uint StrokeMessage = Win32Native.WmApp + 1;
         internal const uint SwitchMessage = Win32Native.WmApp + 2;
-        internal const uint PollMessage = Win32Native.WmApp + 3;
-        internal const uint LanguageMessage = Win32Native.WmApp + 4;
-
-        private static readonly IntPtr TimerId = (IntPtr)1;
+        internal const uint LanguageMessage = Win32Native.WmApp + 3;
+        internal const uint ComposerMessage = Win32Native.WmApp + 4;
 
         private const string WindowClassName = "XSOverlayKeyboardImeHost";
         private const string WindowTitle = "XSOverlay Keyboard IME host";
@@ -57,12 +55,6 @@ namespace XSOverlayKeyboardIme.Ime
             Win32Native.PostMessageW(_handle, message, IntPtr.Zero, IntPtr.Zero);
         }
 
-        /// <summary>Asks for a host message every interval, for work that has to poll.</summary>
-        internal void StartTimer(uint interval)
-        {
-            Win32Native.SetTimer(_handle, TimerId, interval, IntPtr.Zero);
-        }
-
         internal int PumpMessages()
         {
             int result;
@@ -96,7 +88,6 @@ namespace XSOverlayKeyboardIme.Ime
             _current = null;
             if (_handle != IntPtr.Zero)
             {
-                Win32Native.KillTimer(_handle, TimerId);
                 Win32Native.DestroyWindow(_handle);
                 _handle = IntPtr.Zero;
             }
@@ -196,12 +187,6 @@ namespace XSOverlayKeyboardIme.Ime
                     if (message >= Win32Native.WmApp)
                     {
                         window._onHostMessage(message);
-                        return IntPtr.Zero;
-                    }
-
-                    if (message == Win32Native.WmTimer)
-                    {
-                        window._onHostMessage(PollMessage);
                         return IntPtr.Zero;
                     }
 

@@ -1,6 +1,8 @@
 const Ready = 'xso-keyboard-ime ready'
 const Switch = 'xso-keyboard-ime switch'
 const Cancel = 'xso-keyboard-ime cancel'
+const ComposerActive = 'xso-keyboard-ime composer-active'
+const ComposerInactive = 'xso-keyboard-ime composer-inactive'
 
 /**
  * Tells the plugin that the page runs the injected script. Vuplex hands the message to
@@ -24,6 +26,14 @@ export function requestSwitch(): boolean {
  */
 export function requestCancel(): boolean {
   return post(Cancel)
+}
+
+/**
+ * Reports that the composer took or gave up the focus, which is the only thing that
+ * shows or hides the IME name and the switch. See ADR 0035.
+ */
+export function reportComposerActive(active: boolean): boolean {
+  return post(active ? ComposerActive : ComposerInactive)
 }
 
 function post(message: string): boolean {

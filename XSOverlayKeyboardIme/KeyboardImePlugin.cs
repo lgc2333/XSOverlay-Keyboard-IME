@@ -102,10 +102,20 @@ namespace XSOverlayKeyboardIme
 
             KeyboardPage.CancelRequested = ImeHost.CancelCurrent;
 
+            KeyboardPage.ComposerActivationChanged = active =>
+            {
+                ImeHost host = ImeHost.Current;
+                if (host != null)
+                {
+                    host.SetComposerActive(active);
+                }
+            };
+
             ImeHost.Start(
                 text => MainThreadDispatcher.Post(() => KeyboardPage.WriteBack(text)),
                 view => MainThreadDispatcher.Post(() => KeyboardPage.Show(view)),
-                icon => MainThreadDispatcher.Post(() => KeyboardPage.ShowSwitchIcon(icon))
+                icon => MainThreadDispatcher.Post(() => KeyboardPage.ShowSwitchIcon(icon)),
+                state => MainThreadDispatcher.Post(() => KeyboardPage.ShowComposerState(state))
             );
             MainThreadDispatcher.Post(KeyboardPage.Attach);
         }

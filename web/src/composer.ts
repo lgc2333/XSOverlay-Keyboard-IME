@@ -1,3 +1,5 @@
+import { reportComposerActive } from './native-bridge'
+
 /**
  * The keyboard toolbar's text composer, which is the only writeback target and the
  * only input the composition takes over. See ADR 0007, ADR 0008 and ADR 0019.
@@ -26,6 +28,9 @@ let underline: HTMLDivElement | null = null
 /** The composer the user last put the caret into. */
 let focused: HTMLInputElement | null = null
 
+/** Whether the plugin was last told the composer holds the focus. See ADR 0035. */
+let reportedActive = false
+
 /** True while the plugin reports a composition, which needs no visible codes. */
 let imeComposing = false
 
@@ -49,9 +54,13 @@ export function keepComposerFocus(): void {
       if (composer != null && event.target === composer) {
         focused = composer
       }
+
+      reportActiveLater()
     },
     true,
   )
+
+  document.addEventListener('focusout', reportActiveLater, true)
 
   const observer = new MutationObserver(() => {
     if (focused == null || focused.isConnected) {
@@ -68,6 +77,26 @@ export function keepComposerFocus(): void {
     composer.focus()
   })
   observer.observe(document.documentElement, { childList: true, subtree: true })
+  reportActive()
+}
+
+/**
+ * Tells the plugin whether the composer holds the focus, once per change. A focus move
+ * settles after the event, and a rebuild refocuses the new input, so the check waits for
+ * the next task instead of trusting the event. See ADR 0035.
+ */
+function reportActiveLater(): void {
+  setTimeout(reportActive, 0)
+}
+
+function reportActive(): void {
+  const active = document.activeElement === findComposer()
+  if (active === reportedActive) {
+    return
+  }
+
+  reportedActive = active
+  reportComposerActive(active)
 }
 
 /** Arms the composition watch while the plugin reports a composition. See ADR 0027. */

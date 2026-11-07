@@ -38,15 +38,20 @@ const SwitchStyle = `
 export interface SwitchKey {
   /** Draws the IME's icon on the key, and keeps it after the page rebuilds. */
   show: (view: SwitchIconView | null) => void
+  /** Puts the key in the layout, or takes it out and gives its width back. */
+  setActive: (active: boolean) => void
 }
 
 /**
  * The switch as a key of the keyboard itself, left of the space bar, with the space bar
- * giving up one key of width. The page rebuilds the whole tree on every layout update,
- * so the key is put back whenever it disappears. See ADR 0012 and ADR 0028.
+ * giving up one key of width. The key belongs to the composer, so it is in the layout
+ * only while the composer holds the focus. The page rebuilds the whole tree on every
+ * layout update, so the key is put back whenever it disappears. See ADR 0012, ADR 0028
+ * and ADR 0035.
  */
 export function createSwitchKey(): SwitchKey {
   let icon: SwitchIconView | null = null
+  let active = false
 
   function show(view: SwitchIconView | null): void {
     icon = view
@@ -56,12 +61,24 @@ export function createSwitchKey(): SwitchKey {
     }
   }
 
+  function setActive(value: boolean): void {
+    active = value
+    if (active) {
+      mount()
+    } else {
+      unmount()
+    }
+  }
+
   ensurePageStyle(SwitchStyleId, SwitchStyle)
-  mount()
   observeRebuilds()
-  return { show }
+  return { show, setActive }
 
   function mount(): void {
+    if (!active) {
+      return
+    }
+
     const space = document.getElementById(SpaceId)
     const row = space?.parentElement
     if (
@@ -83,6 +100,23 @@ export function createSwitchKey(): SwitchKey {
     draw(key, icon)
     row.insertBefore(key, space)
     space.style.width = `${width - unit}px`
+  }
+
+  /** Takes the key out and gives its width back, so the space bar is whole again. */
+  function unmount(): void {
+    const key = document.querySelector<HTMLElement>(`.${SwitchClass}`)
+    if (key == null) {
+      return
+    }
+
+    const unit = Number.parseFloat(key.style.width)
+    key.remove()
+
+    const space = document.getElementById(SpaceId)
+    const width = Number.parseFloat(space?.style.width ?? '')
+    if (space != null && unit > 0 && Number.isFinite(width)) {
+      space.style.width = `${width + unit}px`
+    }
   }
 
   function observeRebuilds(): void {

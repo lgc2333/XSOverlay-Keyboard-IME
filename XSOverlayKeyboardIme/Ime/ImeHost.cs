@@ -11,15 +11,12 @@ namespace XSOverlayKeyboardIme.Ime
 {
     /// <summary>
     /// Owns the STA thread, the hidden window and the IME context, and hands page keys to
-    /// the composition session. See ADR 0005, ADR 0014 and ADR 0022.
+    /// the composition session. See ADR 0005, ADR 0014, ADR 0022 and ADR 0035.
     /// </summary>
     internal sealed class ImeHost
     {
         /// <summary>XSOverlay finishes starting after the plugin, and steals the foreground while it does.</summary>
         private const int StartupSettleMilliseconds = 8000;
-
-        /// <summary>How often the language bar icon is read, so a change reaches the page.</summary>
-        private const uint SwitchIconPollMilliseconds = 400;
 
         private static ImeHost _current;
 
@@ -27,6 +24,7 @@ namespace XSOverlayKeyboardIme.Ime
         private readonly Action<string> _onCommitted;
         private readonly Action<CompositionView> _onView;
         private readonly Action<LanguageBarIcon> _onLanguageBarIcon;
+        private readonly Action<ComposerState> _onComposerState;
 
         private volatile HostWindow _window;
         private volatile CompositionSession _session;
@@ -34,21 +32,24 @@ namespace XSOverlayKeyboardIme.Ime
         private ForegroundLease _lease;
         private ImeContext _ime;
         private ImeProfiles _profiles;
-        private string _imeName;
         private string _switchIconKey;
+        private string _imeName = string.Empty;
         private bool _iconMissing;
+        private volatile bool _composerActive;
         private volatile bool _drainingStrokes;
         private int _finished;
 
         private ImeHost(
             Action<string> onCommitted,
             Action<CompositionView> onView,
-            Action<LanguageBarIcon> onLanguageBarIcon
+            Action<LanguageBarIcon> onLanguageBarIcon,
+            Action<ComposerState> onComposerState
         )
         {
             _onCommitted = onCommitted;
             _onView = onView;
             _onLanguageBarIcon = onLanguageBarIcon;
+            _onComposerState = onComposerState;
         }
 
         internal static ImeHost Current
@@ -59,10 +60,11 @@ namespace XSOverlayKeyboardIme.Ime
         internal static void Start(
             Action<string> onCommitted,
             Action<CompositionView> onView,
-            Action<LanguageBarIcon> onLanguageBarIcon
+            Action<LanguageBarIcon> onLanguageBarIcon,
+            Action<ComposerState> onComposerState
         )
         {
-            var host = new ImeHost(onCommitted, onView, onLanguageBarIcon);
+            var host = new ImeHost(onCommitted, onView, onLanguageBarIcon, onComposerState);
             _current = host;
 
             var thread = new Thread(host.Run) { IsBackground = true, Name = "XSOverlayKeyboardIme" };
@@ -117,6 +119,17 @@ namespace XSOverlayKeyboardIme.Ime
             }
         }
 
+        /// <summary>Called on Unity's main thread; the page reads it through the host. See ADR 0035.</summary>
+        internal void SetComposerActive(bool active)
+        {
+            _composerActive = active;
+            HostWindow window = _window;
+            if (window != null)
+            {
+                window.Post(HostWindow.ComposerMessage);
+            }
+        }
+
         /// <summary>Cancels the composition the current host holds, if there is one. See ADR 0027.</summary>
         internal static void CancelCurrent()
         {
@@ -124,6 +137,16 @@ namespace XSOverlayKeyboardIme.Ime
             if (host != null)
             {
                 host.RequestCancel();
+            }
+        }
+
+        /// <summary>Hides what belongs to the composer, for a keyboard that went away. See ADR 0035.</summary>
+        internal static void DeactivateComposer()
+        {
+            ImeHost host = _current;
+            if (host != null)
+            {
+                host.SetComposerActive(false);
             }
         }
 
@@ -175,24 +198,16 @@ namespace XSOverlayKeyboardIme.Ime
                 }
 
                 _profiles = ImeProfiles.Open();
-                _imeName = ReadImeName();
-                HostLog.Info(
-                    "ime name: "
-                        + (_imeName.Length == 0 ? "unreadable" : _imeName)
-                        + ", language 0x"
-                        + ImeLanguage.Language(ImeLanguage.CurrentLayout()).ToString("x4")
-                );
 
                 var feeder = new KeyFeeder(_window, _lease);
-                var session = new CompositionSession(_ime, _window, _lease, feeder, _imeName, _onCommitted, _onView);
+                var session = new CompositionSession(_ime, _window, _lease, feeder, _onCommitted, _onView);
                 session.Start();
                 _session = session;
 
-                // The IME adds its language bar item when it first activates, which happens
-                // after the host starts, so the button is looked up again on every poll.
-                _languageBar = LanguageBarButton.Open();
-                PublishSwitchIcon();
-                _window.StartTimer(SwitchIconPollMilliseconds);
+                if (_composerActive)
+                {
+                    RefreshComposer();
+                }
 
                 HostLog.Info("take-over ready; keys are taken from the keyboard composer");
                 _window.PumpMessages();
@@ -216,81 +231,73 @@ namespace XSOverlayKeyboardIme.Ime
                 return;
             }
 
-            if (message == HostWindow.PollMessage)
+            if (message == HostWindow.ComposerMessage)
             {
-                if (_languageBar == null)
-                {
-                    _languageBar = LanguageBarButton.Open();
-                }
-
-                PublishSwitchIcon();
-                RefreshIme();
+                RefreshComposer();
                 return;
             }
 
             if (message == HostWindow.LanguageMessage)
             {
-                RefreshIme();
+                LanguageChanged();
                 return;
             }
 
             if (message == HostWindow.SwitchMessage)
             {
-                if (_languageBar != null && _languageBar.Click())
-                {
-                    PublishSwitchIcon();
-                }
+                PressSwitch();
             }
         }
 
-        /// <summary>
-        /// Keeps this thread on the IME the user picked, whichever window they picked it in,
-        /// and shows the page that IME. The language comes from the foreground window's
-        /// layout, and the profile name catches a switch between two IMEs of one language,
-        /// which a layout cannot tell apart. See ADR 0030.
-        /// </summary>
-        private void RefreshIme()
+        /// <summary>Reads the IME name again while the composer holds the focus. See ADR 0035.</summary>
+        private void RefreshComposer()
         {
-            CompositionSession session = _session;
-            if (session != null && session.Composing)
+            string name = _composerActive ? ReadImeName() : string.Empty;
+            if (name != _imeName)
             {
-                // Moving the profile would lose the composition the IME holds.
+                _imeName = name;
+                if (_composerActive)
+                {
+                    HostLog.Info("the IME is now '" + (name.Length == 0 ? "unreadable" : name) + "'");
+                }
+            }
+
+            if (_composerActive)
+            {
+                PublishSwitchIcon();
+                _onComposerState(new ComposerState(true, name));
                 return;
             }
 
-            IntPtr layout = ImeLanguage.ForegroundLayout();
-            if (
-                layout != IntPtr.Zero
-                && ImeLanguage.Language(layout) != ImeLanguage.Language(ImeLanguage.CurrentLayout())
-            )
-            {
-                ImeLanguage.ActivateLayout(layout);
-            }
+            _onComposerState(ComposerState.Hidden);
+        }
 
-            string name = ReadImeName();
-            if (name.Length == 0 || name == _imeName)
+        /// <summary>This thread's language changed, so the IME and its bar item are new.</summary>
+        private void LanguageChanged()
+        {
+            if (!_composerActive)
             {
                 return;
-            }
-
-            _imeName = name;
-            HostLog.Info("the IME is now '" + name + "'");
-
-            // A switch between two IMEs of one language leaves the layout alone, so this
-            // thread has to be moved onto the profile the name describes.
-            if (_profiles != null)
-            {
-                _profiles.Activate(ImeLanguage.Language(ImeLanguage.CurrentLayout()));
             }
 
             ReopenLanguageBar();
-            if (session != null)
+            RefreshComposer();
+        }
+
+        private void PressSwitch()
+        {
+            if (_languageBar == null)
             {
-                session.RenameIme(name);
+                ReopenLanguageBar();
+            }
+
+            if (_languageBar != null && _languageBar.Click())
+            {
+                PublishSwitchIcon();
             }
         }
 
-        /// <summary>Looks the language bar item up again after a profile switch. See ADR 0028 and ADR 0030.</summary>
+        /// <summary>Looks the language bar item up again, after the IME may have replaced it. See ADR 0028.</summary>
         private void ReopenLanguageBar()
         {
             if (_languageBar != null)
@@ -311,16 +318,24 @@ namespace XSOverlayKeyboardIme.Ime
             return profiles == null ? string.Empty : profiles.ReadName();
         }
 
-        /// <summary>Shows the page the current icon, and only when the picture changed.</summary>
+        /// <summary>Shows the page the current icon, and only when the picture changed. See ADR 0028.</summary>
         private void PublishSwitchIcon()
         {
-            LanguageBarButton languageBar = _languageBar;
-            if (languageBar == null)
+            if (!_composerActive)
             {
                 return;
             }
 
-            LanguageBarIcon icon = languageBar.ReadIcon();
+            if (_languageBar == null)
+            {
+                ReopenLanguageBar();
+                if (_languageBar == null)
+                {
+                    return;
+                }
+            }
+
+            LanguageBarIcon icon = _languageBar.ReadIcon();
             if (icon == null)
             {
                 if (!_iconMissing)
@@ -365,6 +380,9 @@ namespace XSOverlayKeyboardIme.Ime
                 {
                     session.Send(stroke);
                 }
+
+                // A fed Shift is the IME's own switch key, so the icon is read again here.
+                PublishSwitchIcon();
             }
             finally
             {

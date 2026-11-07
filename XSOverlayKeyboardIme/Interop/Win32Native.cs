@@ -11,7 +11,6 @@ namespace XSOverlayKeyboardIme.Interop
         internal const uint WmClose = 0x0010;
         internal const uint WmChar = 0x0102;
         internal const uint WmApp = 0x8000;
-        internal const uint WmTimer = 0x0113;
         internal const uint WmInputLangChange = 0x0051;
         internal const uint WmKeyFirst = 0x0100;
         internal const uint WmKeyLast = 0x0109;
@@ -96,12 +95,6 @@ namespace XSOverlayKeyboardIme.Interop
         internal static extern bool PostMessageW(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
 
         [DllImport("user32.dll")]
-        internal static extern IntPtr SetTimer(IntPtr hwnd, IntPtr id, uint interval, IntPtr procedure);
-
-        [DllImport("user32.dll")]
-        internal static extern bool KillTimer(IntPtr hwnd, IntPtr id);
-
-        [DllImport("user32.dll")]
         internal static extern void PostQuitMessage(int code);
 
         [DllImport("user32.dll")]
@@ -143,14 +136,6 @@ namespace XSOverlayKeyboardIme.Interop
         /// </summary>
         [DllImport("user32.dll")]
         internal static extern short GetAsyncKeyState(int key);
-
-        /// <summary>The keyboard layout a thread uses; zero asks for the calling thread.</summary>
-        [DllImport("user32.dll")]
-        internal static extern IntPtr GetKeyboardLayout(uint thread);
-
-        /// <summary>Makes this thread use the layout; zero flags activate it for this thread only.</summary>
-        [DllImport("user32.dll")]
-        internal static extern IntPtr ActivateKeyboardLayout(IntPtr layout, uint flags);
 
         /// <summary>The name of a language in the user's own words, for a layout with no profile.</summary>
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
