@@ -2,9 +2,9 @@
 status: accepted
 ---
 
-# 帧泵挂在游戏的 InputManager.Update 上
+# 帧泵挂在 XSOverlay 的 InputManager.Update 上
 
-插件自己的 MonoBehaviour 活不过启动：游戏在 `Awake` 之后立即禁用并销毁 BepInEx 的加载器对象，插件的 `Start`、`Update`、`OnApplicationFocus` 都不再被调用，`OnDisable` 与 `OnDestroy` 照常触发。写回又必须回到 Unity 主线程。因此另加一个 Harmony 后缀补丁挂在 `XSOverlay.InputManager.Update` 上，每帧把主线程队列排空；补丁生命周期跟随进程，不随加载器对象销毁而撤销。
+插件自己的 MonoBehaviour 活不过启动：XSOverlay 在 `Awake` 之后立即禁用并销毁 BepInEx 的加载器对象，插件的 `Start`、`Update`、`OnApplicationFocus` 都不再被调用，`OnDisable` 与 `OnDestroy` 照常触发。写回又必须回到 Unity 主线程。因此另加一个 Harmony 后缀补丁挂在 `XSOverlay.InputManager.Update` 上，每帧把主线程队列排空；补丁生命周期跟随进程，不随加载器对象销毁而撤销。
 
 ## Considered Options
 
@@ -16,5 +16,5 @@ status: accepted
 ## Consequences
 
 - 补丁点从一个变成两个。启动时必须确认两个补丁都属于本插件（按补丁 owner 校验，不能只看补丁数量），否则报错并保持空转。
-- 主线程队列只在游戏每帧调用 `InputManager.Update` 时排空，写回的最坏延迟是一帧。
+- 主线程队列只在 XSOverlay 每帧调用 `InputManager.Update` 时排空，写回的最坏延迟是一帧。
 - 撤销只在 `OnApplicationQuit` 发生：加载器对象被销毁时不能撤销补丁。

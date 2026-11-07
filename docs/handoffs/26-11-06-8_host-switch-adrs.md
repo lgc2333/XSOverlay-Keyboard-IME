@@ -41,7 +41,7 @@
 XSOverlayKeyboardIme/
   KeyboardImePlugin.cs       入口：配置、补丁校验、启动宿主
   MainThreadDispatcher.cs    任意线程到 Unity 主线程的队列
-  Game/                      与游戏打交道的全部，含 Patches/
+  Game/                      与 XSOverlay 打交道的全部，含 Patches/
   Takeover/                  接管判定；纯数据，可单测
   Ime/                       组字宿主；不接触 Vuplex
   Page/                      组字显示与写回；只在 Unity 主线程跑

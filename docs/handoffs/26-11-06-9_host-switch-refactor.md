@@ -5,7 +5,7 @@
 ## 结论
 
 - 原生侧合并为单个 `IngameIME.dll`：两个上游仓库加自有 C 薄壳编进同一个库，整份按 LGPL 2.1 发布。[0023](../adr/0023-dynamic-link-shim.md) 原地改写，未新增 ADR。
-- 托管侧按「游戏接入 / 接管判定 / 组字宿主 / 页面」重排；自检、组字会话状态机、COM sink、候选读取、IMM 读取全部删除。
+- 托管侧按「XSOverlay 接入 / 接管判定 / 组字宿主 / 页面」重排；自检、组字会话状态机、COM sink、候选读取、IMM 读取全部删除。
 - 本地校验全绿；**VR 里的组字、候选与写回尚未实测**。
 
 ## 原生层
@@ -13,12 +13,12 @@
 - 两个上游仓库作子模块，提交与许可证见 [THIRD-PARTY-NOTICES.md](../../THIRD-PARTY-NOTICES.md)。
 - `native/CMakeLists.txt` 按路径直接编上游源码，不走上游自己的 CMakeLists：那份把运行库写死为静态 `/MT`，命令行覆盖不掉，而且它经 SSH 拉取自己那份 Common，普通克隆取不到。
 - 合库之后不再需要 `CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS`：C++ 符号在模块内解析，导出表只剩薄壳的 7 个 C 函数。仍保留 `CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL`，免得多带一份 CRT 状态。
-- 加载路径：插件先按自身目录以 `LOAD_WITH_ALTERED_SEARCH_PATH` 预载，随后按名导入命中同一模块——插件目录不在加载器搜索路径上，游戏根目录却在。
+- 加载路径：插件先按自身目录以 `LOAD_WITH_ALTERED_SEARCH_PATH` 预载，随后按名导入命中同一模块——插件目录不在加载器搜索路径上，XSOverlay 根目录却在。
 
 ## 托管层
 
 ```text
-Game/                 与游戏打交道的全部，含 Patches/
+Game/                 与 XSOverlay 打交道的全部，含 Patches/
 Takeover/             接管判定；纯数据，可单测
 Ime/                  组字宿主：线程、窗口、上下文、模式、喂键、租约
 Page/                 组字显示与写回；只在 Unity 主线程跑

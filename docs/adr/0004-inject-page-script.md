@@ -5,7 +5,7 @@ amended_by: ['0020']
 
 # 候选栏由插件在运行时注入键盘页
 
-键盘页 WebView 关闭了远程调试，外部无法注入脚本；但插件运行在游戏进程内，直接持有键盘 overlay 的 `IWebView`，可以用 `ExecuteJavaScript` 把打包好的脚本送进页面。因此候选栏与写回都做成一个 TypeScript bundle，在接管第一次用到键盘页时注入，不改动游戏目录里的任何文件。
+键盘页 WebView 关闭了远程调试，外部无法注入脚本；但插件运行在 XSOverlay 进程内，直接持有键盘 overlay 的 `IWebView`，可以用 `ExecuteJavaScript` 把打包好的脚本送进页面。因此候选栏与写回都做成一个 TypeScript bundle，在接管第一次用到键盘页时注入，不改动 XSOverlay 目录里的任何文件。
 
 本 ADR 早先的结论是补丁 StreamingAssets，理由是"外部无法注入"。该理由对进程内插件不成立：`IWebView` 同时提供 `ExecuteJavaScript` 与 `PostMessage`，页面也能用 `window.vuplex.postMessage` 回消息。
 

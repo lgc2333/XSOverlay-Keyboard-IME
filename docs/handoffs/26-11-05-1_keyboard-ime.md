@@ -80,14 +80,14 @@
 
 ## 7. 复现界面示意的方法
 
-真实键盘页是 API 驱动的，静态打开不渲染。可起一个本地静态服务托管键盘页副本，同时在同端口减一的位置起一个假 WebSocket 服务；页面连接后依次推送主题、设置、键盘配置、覆盖层状态与布局五条消息即可渲染。布局消息里的 `mainKeys` 直接取游戏安装目录布局文件的对应行，其余键区取 `rows` 字段。
+真实键盘页是 API 驱动的，静态打开不渲染。可起一个本地静态服务托管键盘页副本，同时在同端口减一的位置起一个假 WebSocket 服务；页面连接后依次推送主题、设置、键盘配置、覆盖层状态与布局五条消息即可渲染。布局消息里的 `mainKeys` 直接取 XSOverlay 安装目录布局文件的对应行，其余键区取 `rows` 字段。
 
 ## 8. 环境
 
 - .NET SDK 10.0.400；出网需代理
-- 游戏在 `D:\SteamLibrary\steamapps\common\XSOverlay_Beta`，无 VR 也能启动
+- XSOverlay 在 `D:\SteamLibrary\steamapps\common\XSOverlay_Beta`，无 VR 也能启动
 - 构建：`dotnet build -c Release`；部署加 `-p:DeployToGame=true`
-- 探针工程、启动脚本、界面副本与游戏备份都在仓库内的 temp/，已被 git 忽略；temp/tools/ 有部署、启动探针与快照脚本，可直接复用
+- 探针工程、启动脚本、界面副本与 XSOverlay 备份都在仓库内的 temp/，已被 git 忽略；temp/tools/ 有部署、启动探针与快照脚本，可直接复用
 - 小狼毫的配置位于 %APPDATA%\Rime，属于本机环境，相关改动与备份都不入库
 
 ## 9. 下一步

@@ -4,16 +4,16 @@
 
 ```text
 XSOverlayKeyboardIme/              BepInEx 5 插件
-  KeyboardImePlugin.cs             入口；绑定配置、给游戏打补丁、把宿主接到页面上
+  KeyboardImePlugin.cs             入口；绑定配置、给 XSOverlay 打补丁、把宿主接到页面上
   MainThreadDispatcher.cs          任意线程 → Unity 主线程
-  Game/                            一切碰游戏的东西；Patches/ 里是那四个 Harmony 补丁
-  Takeover/                        判定键盘页的按键归谁；纯数据，不含游戏类型
+  Game/                            一切碰 XSOverlay 的东西；Patches/ 里是那四个 Harmony 补丁
+  Takeover/                        判定键盘页的按键归谁；纯数据，不含 XSOverlay 类型
   Ime/                             组字宿主：STA 线程、隐藏窗口、输入法上下文、喂键、输入法的语言栏按钮
   Page/                            注入页面脚本、写回已提交的文本、显示组字串与切换图标
   Input/                           虚拟键码
   Interop/                         原始声明：Win32、GDI、TSF 接口（输入法名字、语言栏）、shim 的 P/Invoke
   Diagnostics/                     日志
-XSOverlayKeyboardIme.Tests/        单元测试；直接编译不依赖游戏的源码
+XSOverlayKeyboardIme.Tests/        单元测试；直接编译不依赖 XSOverlay 的源码
 native/                            IngameIME.dll 的 CMake 构建
   IngameIME_Win32/                 子模块；上游的 TSF 实现
   IngameIME-Common/                子模块；上游的公共头文件
@@ -39,7 +39,7 @@ pwsh native/build.ps1
 # 只构建
 dotnet build -c Release
 
-# 构建，并把插件与原生库复制进游戏
+# 构建，并把插件与原生库复制进 XSOverlay
 dotnet build -c Release -p:DeployToGame=true
 
 # 跑单元测试
@@ -64,23 +64,23 @@ pnpm --dir web build
 ```
 
 - 先构建页面脚本，再构建插件：`pnpm --dir web build` 写出 `web/dist/keyboard-ime.js`，插件把它嵌进去，缺了它插件拒绝构建。
-- 先构建原生库，再部署：插件从自己所在目录加载 `IngameIME.dll`，缺了它就不给游戏打补丁。
+- 先构建原生库，再部署：插件从自己所在目录加载 `IngameIME.dll`，缺了它就不给 XSOverlay 打补丁。
 - 不要递归子模块：`IngameIME_Win32` 经 SSH 地址取它自己那份 `IngameIME-Common`，而 `native/CMakeLists.txt` 用的是同级子模块。
 - CSharpier 是锁版本的本地工具。克隆后跑一次 `dotnet tool restore`，改动 `.config/dotnet-tools.json` 之后也要再跑一次。
-- 游戏路径默认是 `D:\SteamLibrary\steamapps\common\XSOverlay_Beta`，用 `-p:GameDir=<path>` 覆盖。
-- 日志落到游戏目录下的 `BepInEx\LogOutput.log`。
-- CI 跑单元测试、CSharpier、Prettier、测试工程上的分析器、页面脚本检查与原生构建。它从不构建插件：那需要游戏的 Managed 程序集，而它们只留在这台机器上。
+- XSOverlay 路径默认是 `D:\SteamLibrary\steamapps\common\XSOverlay_Beta`，用 `-p:GameDir=<path>` 覆盖。
+- 日志落到 XSOverlay 目录下的 `BepInEx\LogOutput.log`。
+- CI 跑单元测试、CSharpier、Prettier、测试工程上的分析器、页面脚本检查与原生构建。它从不构建插件：那需要 XSOverlay 的 Managed 程序集，而它们只留在这台机器上。
 
 ## 运行时约束
 
-这些来自对真实游戏进程的探测。破掉一条的代价是一次崩溃，或者白扔一天。
+这些来自对真实 XSOverlay 进程的探测。破掉一条的代价是一次崩溃，或者白扔一天。
 
-- 游戏是 Mono x64 上的 Unity 2022.3.62。`TargetFramework` 保持在 `netstandard2.1` 或更高；低于它 Unity 程序集会报 `CS1705`。
-- 引用游戏自己的 `Managed/*.dll`。别的 Unity 版本的 stub 包对不上真实的 API 面。
-- 没有备份和写明的恢复路径，不要改游戏的 `StreamingAssets`。
+- XSOverlay 是 Mono x64 上的 Unity 2022.3.62。`TargetFramework` 保持在 `netstandard2.1` 或更高；低于它 Unity 程序集会报 `CS1705`。
+- 引用 XSOverlay 自己的 `Managed/*.dll`。别的 Unity 版本的 stub 包对不上真实的 API 面。
+- 没有备份和写明的恢复路径，不要改 XSOverlay 的 `StreamingAssets`。
 - 输入法的中英状态归用户：绝不从代码切它，也绝不读模式。按输入法是否组字来分流按键。见 ADR 0026。
-- XSOverlay 即便 Steam 没有提权也是提权运行，所以普通 shell 停不掉它，往运行中的游戏上部署会撞上被锁住的 `IngameIME.dll`。改为从 Steam 客户端的库页面停游戏：Steam 客户端服务以 `LocalSystem` 运行，会替 Steam 结束游戏。
-- 经 Steam 重启游戏：`steam.exe -applaunch 1173510`。进程死掉之后 Steam 仍会报应用在运行，这时候早启动会失败并提示 “the game is already running”。等 `HKCU\Software\Valve\Steam\Apps\1173510` 的 `Running` 报成 0，再启动。
+- XSOverlay 即便 Steam 没有提权也是提权运行，所以普通 shell 停不掉它，往运行中的 XSOverlay 上部署会撞上被锁住的 `IngameIME.dll`。改为从 Steam 客户端的库页面停 XSOverlay：Steam 客户端服务以 `LocalSystem` 运行，会替 Steam 结束 XSOverlay。
+- 经 Steam 重启 XSOverlay：`steam.exe -applaunch 1173510`。进程死掉之后 Steam 仍会报应用在运行，这时候早启动会失败并提示 “the game is already running”。等 `HKCU\Software\Valve\Steam\Apps\1173510` 的 `Running` 报成 0，再启动。
 
 ## 规则
 
@@ -111,13 +111,13 @@ pnpm --dir web build
 - Prettier 与某条 ESLint 规则冲突时，关掉那条规则，保留 Prettier 的改动。
 
 - 文档字符串保持简短：只讲要点，别的没有。ADR 已经论证过的东西不在代码里重复——改为链接 ADR。
-- `Takeover/` 保持不含游戏类型：测试工程直接编译它，混进一个 XSOverlay 或 Unity 类型就毁掉整个测试构建。
+- `Takeover/` 保持不含 XSOverlay 类型：测试工程直接编译它，混进一个 XSOverlay 或 Unity 类型就毁掉整个测试构建。
 
 ### 放行规则
 
 输入法说了算。键盘做它没有插件时也会做的事：键进去，输入法拿它怎么处理，就是用户看到的答案。只用公开 API（例如 TSF），不做按输入法的特例。
 
-- 先按来源给缺陷分类：插件、游戏、输入法，还是系统。说出来源，以及把它归到那里的证据。
+- 先按来源给缺陷分类：插件、XSOverlay、输入法，还是系统。说出来源，以及把它归到那里的证据。
 - 由输入法或系统产生的结果是预期行为：切换时被丢下的组字、组字结束后才到的提交、布局打不出的字符、把编码当原文提交。记为基线，别去动它。
 - 只改插件自己造成的缺陷。先确认来源；没有来源的报告还只是个问题。
 - 兜底只覆盖插件自己造成的失败，而且注释里要点名那个失败。说不出名字的兜底就是缺陷本身。

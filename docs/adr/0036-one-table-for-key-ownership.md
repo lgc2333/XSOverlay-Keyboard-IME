@@ -18,7 +18,7 @@ amended_by: ['0038']
 2. Win+空格 → **系统**。插件合成 Win down → Space 下、上 → Win up，切换发生在系统那一侧。实测宿主随后就是新输入法：`小狼毫` → `微软拼音`。
 3. 其他任何带 Win 的按下 → **吞掉**：页面不能因为它打出字符，插件也不喂。
 4. 输入法正在组字 → **输入法**：单个字符、Sticky 的 Shift、Toggle 的 Caps（键名 CAPITAL）、能翻译的键名都进去；翻译不出的键名吞掉，页面不许在组字串底下改字。带 Ctrl、Alt 的组合仍归页面，[0029](./0029-modifiers-from-game-state.md) 在这一点上不变。
-5. 不在组字时，Sticky 的 Shift 与 Toggle 的 Caps 归页面：游戏要记下这一下，随后的组合才成立；插件只在组字期间从页面手里拿走它们。
+5. 不在组字时，Sticky 的 Shift 与 Toggle 的 Caps 归页面：XSOverlay 要记下这一下，随后的组合才成立；插件只在组字期间从页面手里拿走它们。
 6. 其余 → **页面**，只有能产出一个字符的按下键由插件接管，这一条是 [0026](./0026-faithful-callbacks.md) 原来的规则。
 
 ## Considered Options

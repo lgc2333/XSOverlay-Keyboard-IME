@@ -4,7 +4,7 @@
 
 ## 根因
 
-游戏在 `Awake` 之后立即禁用并销毁 BepInEx 的加载器对象。插件的 `Start`、`Update`、`OnApplicationFocus` 从不被调用，`OnDisable` 与 `OnDestroy` 照常触发；旧的 `OnDestroy` 调用 `UnpatchSelf()`，于是所有补丁在启动后被静默撤销。表现为按键毫无反应，连一行日志都不出。
+XSOverlay 在 `Awake` 之后立即禁用并销毁 BepInEx 的加载器对象。插件的 `Start`、`Update`、`OnApplicationFocus` 从不被调用，`OnDisable` 与 `OnDestroy` 照常触发；旧的 `OnDestroy` 调用 `UnpatchSelf()`，于是所有补丁在启动后被静默撤销。表现为按键毫无反应，连一行日志都不出。
 
 ## 做了什么
 

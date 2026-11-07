@@ -7,7 +7,7 @@ amends: ['0027']
 
 [0027](./0027-cancel-composition-on-caret-move.md) 让页面在组字期间盯着 composer 的失焦，失焦就取消组字。这条规则遇到一个不属于用户动作的情形：键盘页会重建自己的工具栏。
 
-重建不是偶发。游戏在输入语言变化时给页面推 `KeyboardLayout` 订阅更新，在修饰键或锁定键状态变化时推 `KeyboardState`（`ApiHandler` 订阅了 `OnKeyboardFormatChanged` 与 `OnKeyboardStateChanged`），页面收到就重渲染工具栏，输入框随之被换掉。也就是说：切输入语言、按 Shift、按 CapsLock，都可能触发一次重建。注入脚本本来就有 `keepComposerFocus`，专为这种重建之后把焦点还给新输入框。
+重建不是偶发。XSOverlay 在输入语言变化时给页面推 `KeyboardLayout` 订阅更新，在修饰键或锁定键状态变化时推 `KeyboardState`（`ApiHandler` 订阅了 `OnKeyboardFormatChanged` 与 `OnKeyboardStateChanged`），页面收到就重渲染工具栏，输入框随之被换掉。也就是说：切输入语言、按 Shift、按 CapsLock，都可能触发一次重建。注入脚本本来就有 `keepComposerFocus`，专为这种重建之后把焦点还给新输入框。
 
 所以本决定：**失焦要看是谁失焦。** 失焦的元素已经不是当前 composer（被重建换掉了），不算用户离开，不取消组字；当前 composer 自己失焦（用户点了别处、键盘页关闭），按 0027 取消。
 

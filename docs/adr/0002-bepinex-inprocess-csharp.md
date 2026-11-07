@@ -15,4 +15,4 @@ status: accepted
 ## Consequences
 
 - 受 Unity Mono 运行时限制，见 [0003](./0003-mono-classic-ccw.md)。
-- 构建时引用游戏自带程序集，不能使用版本不符的桩包。
+- 构建时引用 XSOverlay 自带程序集，不能使用版本不符的桩包。

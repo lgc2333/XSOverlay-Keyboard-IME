@@ -17,7 +17,7 @@
 | 编辑框文本始终为空         | 投递消息优先于输入队列，喂键后立刻读取读到的是旧状态 | 解挂后先派发本线程的键盘消息，再读（挂接期间会取走前台线程的消息） |
 | 首字符丢失                 | 前台已是我方，但焦点不在编辑框                       | `Ensure` 同时校验焦点                                              |
 | `nihc` 落成明文、无组字    | 输入法处于英文状态                                   | 用 TSF 隔间 `GUID_COMPARTMENT_KEYBOARD_OPENCLOSE` 置 1             |
-| 自检结束后游戏退出         | 释放时调用 `ITfThreadMgr::Deactivate`                | 去掉该调用（单变量对照：加上必崩，去掉必活）                       |
+| 自检结束后 XSOverlay 退出  | 释放时调用 `ITfThreadMgr::Deactivate`                | 去掉该调用（单变量对照：加上必崩，去掉必活）                       |
 | 强制打开后输入法被留在中文 | 只写不读回                                           | 释放时还原隔间原值                                                 |
 | 宿主窗口出现在桌面 (40,40) | 与设计的屏幕外宿主不符                               | `WS_POPUP` + (-32000,-32000) + `WS_EX_TOOLWINDOW`                  |
 
@@ -35,7 +35,7 @@ VR 会话、自检输入 `nihc`：
 ## 操作注意
 
 - Steam 认为应用仍在运行时会拒绝启动。残留的 `Vuplex WebView.vuplex` 子进程会让它一直认为在运行；等进程树真正退出、Steam 的 `Running` 归零（约 20 秒）后再启动。
-- 不要预先杀掉 `Vuplex WebView.vuplex` 子进程：`XSOverlay Process Manager` 启动清理时会抛 `Win32Exception` 并崩溃，连带结束游戏。
+- 不要预先杀掉 `Vuplex WebView.vuplex` 子进程：`XSOverlay Process Manager` 启动清理时会抛 `Win32Exception` 并崩溃，连带结束 XSOverlay。
 - BepInEx 的磁盘日志分块落盘，崩溃前最后若干行会丢失。定位启动期崩溃时不要只依赖它。
 
 ## 未做

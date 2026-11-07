@@ -18,11 +18,11 @@
 
 ## 离线渲染台
 
-游戏外验证界面靠一套最小的无头浏览器渲染台，不进仓库（页面副本是游戏资源）：
+XSOverlay 外验证界面靠一套最小的无头浏览器渲染台，不进仓库（页面副本是 XSOverlay 资源）：
 
-- 静态服务把游戏 `UserInterface/Default/Keyboard/Keyboard.html` 的副本当作网站根目录，必须按这个深路径打开；开 `/` 会让页内 `./js/...` 全部 404，页面全白且控制台不报错。
+- 静态服务把 XSOverlay `UserInterface/Default/Keyboard/Keyboard.html` 的副本当作网站根目录，必须按这个深路径打开；开 `/` 会让页内 `./js/...` 全部 404，页面全白且控制台不报错。
 - 假 WebSocket 服务（静态端口减一）连上后依次推送主题、设置、配置、状态、布局五条消息，两秒后再推一次布局，用来验证整树重建后候选栏自己回来。
-- 无头 Chrome 经 CDP 打开该页，用 `Runtime.evaluate` 把 `web/dist/keyboard-ime.js` 当普通脚本执行一次，与游戏里的 `ExecuteJavaScript` 同路；再注入一次不会多出第二条候选栏。
+- 无头 Chrome 经 CDP 打开该页，用 `Runtime.evaluate` 把 `web/dist/keyboard-ime.js` 当普通脚本执行一次，与 XSOverlay 里的 `ExecuteJavaScript` 同路；再注入一次不会多出第二条候选栏。
 - 断言靠读 DOM：`#keyboard-ime-bar` 条数、候选节点数、`placeholder` 与 `value` 的值；外观靠截图，截图前把 `body` 背景设深色，否则是白底。
 
 ## 已验证
@@ -34,7 +34,7 @@
 
 ## 未验证与已知限制
 
-- 输入法名读取还没在游戏里跑过；离线渲染台用固定数据代替插件推送。
+- 输入法名读取还没在 XSOverlay 里跑过；离线渲染台用固定数据代替插件推送。
 - 默认配置不等于线程活动配置：用户在同一语言下装了多个输入法且默认项不是正在用的那个时，chip 名字会不准。`ITfInputProcessorProfileMgr` 在本进程不可用，精确获取需要旁听 `ITfActiveLanguageProfileNotifySink`。
 - 候选栏不在键盘页的射线白名单里，拿不到悬停高亮；栏本身不可点，所以没有影响。
 - 用键盘数字键选候选没有单独的代码路径：靠接管把数字送进输入法，由输入法自己的键位配置决定；还没在 VR 里实测。

@@ -6,7 +6,7 @@ superseded_by: ['0026']
 
 # 尊重输入法自己的中英状态，不自动切换
 
-[0015](./0015-ime-open-compartment.md) 在组字前无条件写隔间；本条此前改为「读宿主报告的输入模式，只在读到直通时翻转一次」。该判据实测不成立：宿主报告的 `InputMode` 与中英无关，组字进行中仍报直通，游戏启动后的首键也被判成「已在组字」，字母被原样插成英文。
+[0015](./0015-ime-open-compartment.md) 在组字前无条件写隔间；本条此前改为「读宿主报告的输入模式，只在读到直通时翻转一次」。该判据实测不成立：宿主报告的 `InputMode` 与中英无关，组字进行中仍报直通，XSOverlay 启动后的首键也被判成「已在组字」，字母被原样插成英文。
 
 可用的状态源只剩一个：IMM32 的 `ImmGetConversionStatus`。它经 CUAS 层替 TSF 输入法作答，读 `IME_CMODE_NATIVE` 就是「这个键会不会组字」。探针在小狼毫上实测：英文态 `conversion=0xca0 native=False`，切到中文后 `0xca1 native=True`，此后七次采样一致。
 

@@ -85,17 +85,17 @@ The name means the IME the next key goes to. The switch key switches the IME tha
 
 With the focus, the bar shows the IME name and the dropdown on the right, and the 中/英 switch appears left of Space. The switch key covers the left end of Space and does not change the width of the row.
 
-The VR keyboard uses the system IME. The plugin reads only the IME on the game's own input chain, and neither reads nor changes other programs. Win+Space changes the IME, and the name and icon follow; it changes the IME of the whole desktop, so windows outside the game change too. The dropdown lists the IMEs of every installed language; picking one switches to it.
+The VR keyboard uses the system IME. The plugin reads only the IME on XSOverlay's own input chain, and neither reads nor changes other programs. Win+Space changes the IME, and the name and icon follow; it changes the IME of the whole desktop, so windows outside XSOverlay change too. The dropdown lists the IMEs of every installed language; picking one switches to it.
 
 ### Why it only works in the input box on the keyboard page
 
-Composing means taking the foreground and pressing keys for you. Widen the scope and it reaches into other windows, which costs more than it gains. So the plugin takes the keys of the keyboard page's own input box only. Other input boxes in the game, the desktop and other applications are out of scope, and will stay out of scope.
+Composing means taking the foreground and pressing keys for you. Widen the scope and it reaches into other windows, which costs more than it gains. So the plugin takes the keys of the keyboard page's own input box only. Other input boxes in XSOverlay, the desktop and other applications are out of scope, and will stay out of scope.
 
 ### Why composing briefly takes the foreground
 
 There is only one way to deliver keys to the IME: inject global key input. Injected keys reach the foreground window only.
 
-So a composition starts by bringing the plugin's hidden window to the foreground, and hands it back to your window when the keys are in. If another window takes it in the meantime, the plugin takes it again. You see the game lose focus for a moment, and the desktop focus jump away and back.
+So a composition starts by bringing the plugin's hidden window to the foreground, and hands it back to your window when the keys are in. If another window takes it in the meantime, the plugin takes it again. You see XSOverlay lose focus for a moment, and the desktop focus jump away and back.
 
 ### Why the bar stays when it is empty
 
@@ -124,13 +124,13 @@ Then build the plugin:
 dotnet build -c Release
 ```
 
-Install the plugin and the native library into the game:
+Install the plugin and the native library into XSOverlay:
 
 ```powershell
 dotnet build -c Release -p:DeployToGame=true
 ```
 
-The repository sets the game path to `D:\SteamLibrary\steamapps\common\XSOverlay_Beta`. If your game is elsewhere, set the path with the `GameDir` property:
+The repository sets the XSOverlay path to `D:\SteamLibrary\steamapps\common\XSOverlay_Beta`. If XSOverlay is elsewhere, set the path with the `GameDir` property:
 
 ```powershell
 dotnet build -c Release -p:DeployToGame=true -p:GameDir="D:\Steam\steamapps\common\XSOverlay_Beta"

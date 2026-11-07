@@ -28,21 +28,21 @@
 - 页面 e2e（无头 Chromium + 真实键盘页 + mock 宿主）连跑两次通过：切换键挂载/卸载、行宽零变化、光标与清空各取消一次、组字翻转不误取消、重建期组字存活、无行内预编辑不自我取消、写回交错、连点清空、下拉框开合与选项回传。
 - 聚焦时间线：逐帧采样，聚焦与失焦全程行宽恒为 1152.52、漂移 0，切换键在焦点事件的同一任务里挂上且始终只有一个。
 - 控制台探针 12 个场景回归：两次组字、数字选候选、翻页、回车原始编码、Esc 取消、退格、标点、左方向、Tab 分段、首键数字、零间隔快打，输出与既有预期一致。
-- 游戏内注入冒烟：插件加载、页面脚本注入、按键进闸门（英文直通态）；组字态无法在外部制造。
+- XSOverlay 内注入冒烟：插件加载、页面脚本注入、按键进闸门（英文直通态）；组字态无法在外部制造。
 
 ## 未定
 
 - 组字中切中英是否只是 Rime 自身行为。已按「先上屏再切」处理，真机复测后才能定论。
-- ChatBox 实时预览：实现并验证过页面侧发送（同一 API 模块、同一条连接），但游戏的 OSC 服务拒绝空白文本，预览收不回去，且与 0011「不复制发送职责」冲突；已撤回。
+- ChatBox 实时预览：实现并验证过页面侧发送（同一 API 模块、同一条连接），但 XSOverlay 的 OSC 服务拒绝空白文本，预览收不回去，且与 0011「不复制发送职责」冲突；已撤回。
 - 60 毫秒失焦结算在卡帧时仍可能误取消；更精确的判据需要真机观察页面重建的时序。
 - Win+空格 会让整个桌面的输入法跟着换；这是接受了的代价，但真机上「快速切换」的手感还没验。
-- VRChat ChatBox：发文本的接口已知，页面可以用动态 import 拿到游戏自己的 api 模块；「正在输入」没有公共入口。
+- VRChat ChatBox：发文本的接口已知，页面可以用动态 import 拿到 XSOverlay 自己的 api 模块；「正在输入」没有公共入口。
 
 ## 环境要点
 
-- 游戏内注入走 XSOverlay 自己的 websocket（42070）：`Keyboard` 开浮层、`RequestKeyboardInputFocus` 拿游戏侧焦点、`SendKeyboardEvent` 送键；页面 composer 的 DOM 焦点仍需 VR 里点一下。
+- XSOverlay 内注入走 XSOverlay 自己的 websocket（42070）：`Keyboard` 开浮层、`RequestKeyboardInputFocus` 拿 XSOverlay 侧焦点、`SendKeyboardEvent` 送键；页面 composer 的 DOM 焦点仍需 VR 里点一下。
 - 拒绝日志有 2 秒节流，连续注入时看不到每次拒绝。
-- 部署：先停游戏（脚本可直停），`dotnet build -c Release -p:DeployToGame=true`，再 `steam.exe -applaunch 1173510`。
+- 部署：先停 XSOverlay（脚本可直停），`dotnet build -c Release -p:DeployToGame=true`，再 `steam.exe -applaunch 1173510`。
 
 ## 待办
 
