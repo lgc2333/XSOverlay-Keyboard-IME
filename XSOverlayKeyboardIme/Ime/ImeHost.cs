@@ -11,7 +11,8 @@ namespace XSOverlayKeyboardIme.Ime
 {
     /// <summary>
     /// Owns the STA thread, the hidden window and the IME context, and hands page keys to
-    /// the composition session. See ADR 0005, ADR 0014, ADR 0022 and ADR 0035.
+    /// the composition session. See ADR 0005, ADR 0014, ADR 0022, ADR 0035, ADR 0038
+    /// and ADR 0039.
     /// </summary>
     internal sealed class ImeHost
     {
@@ -49,8 +50,18 @@ namespace XSOverlayKeyboardIme.Ime
         private volatile bool _drainingStrokes;
         private volatile bool _switchDue;
         private bool _switchHeld;
-        private bool _switchIsPress;
+        private SwitchAction _switchAction;
+        private volatile int _profileIndex;
         private int _finished;
+
+        /// <summary>What the deferred switch should do once the commit has settled. See ADR 0038.</summary>
+        private enum SwitchAction
+        {
+            None,
+            Language,
+            Press,
+            Profile,
+        }
 
         private ImeHost(
             Action<string> onCommitted,
@@ -163,6 +174,19 @@ namespace XSOverlayKeyboardIme.Ime
             }
         }
 
+        /// <summary>Asks for the IME at this index. Called on Unity's main thread. See ADR 0039.</summary>
+        internal void RequestProfile(int index)
+        {
+            HostWindow window = _window;
+            if (window == null)
+            {
+                return;
+            }
+
+            _profileIndex = index;
+            window.Post(HostWindow.ProfileMessage);
+        }
+
         /// <summary>
         /// Asks the IME to cancel the composition, the way Escape does. Called on Unity's
         /// main thread; the key is fed on the host thread. See ADR 0027.
@@ -238,37 +262,29 @@ namespace XSOverlayKeyboardIme.Ime
 
         private void OnHostMessage(uint message)
         {
-            if (message == HostWindow.StrokeMessage)
+            switch (message)
             {
-                DrainStrokes();
-                return;
-            }
-
-            if (message == HostWindow.ComposerMessage)
-            {
-                RefreshComposer();
-                return;
-            }
-
-            if (message == HostWindow.LanguageMessage)
-            {
-                LanguageChanged();
-                return;
-            }
-
-            if (message == HostWindow.SwitchMessage)
-            {
-                RequestPress();
-            }
-
-            if (message == HostWindow.SwitchSettledMessage)
-            {
-                OnSwitchSettled();
-            }
-
-            if (message == HostWindow.SwitchDueMessage)
-            {
-                OnSwitchDue();
+                case HostWindow.StrokeMessage:
+                    DrainStrokes();
+                    break;
+                case HostWindow.ComposerMessage:
+                    RefreshComposer();
+                    break;
+                case HostWindow.LanguageMessage:
+                    LanguageChanged();
+                    break;
+                case HostWindow.SwitchMessage:
+                    RequestPress();
+                    break;
+                case HostWindow.SwitchSettledMessage:
+                    OnSwitchSettled();
+                    break;
+                case HostWindow.SwitchDueMessage:
+                    OnSwitchDue();
+                    break;
+                case HostWindow.ProfileMessage:
+                    OnProfileRequested();
+                    break;
             }
         }
 
@@ -288,51 +304,42 @@ namespace XSOverlayKeyboardIme.Ime
             if (_composerActive)
             {
                 PublishSwitchIcon();
-                _onComposerState(new ComposerState(true, name));
+                IReadOnlyList<string> profiles;
+                int activeProfile;
+                ReadProfiles(out profiles, out activeProfile);
+                _onComposerState(new ComposerState(true, name, profiles, activeProfile));
                 return;
             }
 
             _onComposerState(ComposerState.Hidden);
         }
 
-        /// <summary>The IMEs this language offers, for the page's dropdown. See ADR 0039.</summary>
-        private IReadOnlyList<string> ReadProfileNames()
+        /// <summary>
+        /// The IMEs this language offers and the active one's position, from one read of the
+        /// list. See ADR 0039.
+        /// </summary>
+        private void ReadProfiles(out IReadOnlyList<string> names, out int activeProfile)
         {
-            ImeProfiles profiles = _profiles;
-            if (profiles == null)
-            {
-                return Array.Empty<string>();
-            }
-
-            IReadOnlyList<ImeChoice> choices = profiles.ListChoices();
-            var names = new string[choices.Count];
-            for (int index = 0; index < choices.Count; index++)
-            {
-                names[index] = choices[index].Name;
-            }
-
-            return names;
-        }
-
-        /// <summary>The position of the active IME, or -1. See ADR 0039.</summary>
-        private int ReadActiveProfile(IReadOnlyList<string> profiles)
-        {
+            names = Array.Empty<string>();
+            activeProfile = -1;
             ImeProfiles source = _profiles;
-            if (source == null || profiles.Count == 0)
+            if (source == null)
             {
-                return -1;
+                return;
             }
 
             IReadOnlyList<ImeChoice> choices = source.ListChoices();
-            for (int index = 0; index < choices.Count && index < profiles.Count; index++)
+            var listed = new string[choices.Count];
+            for (int index = 0; index < choices.Count; index++)
             {
-                if (choices[index].Profile.Active)
+                listed[index] = choices[index].Name;
+                if (activeProfile < 0 && choices[index].Profile.Active)
                 {
-                    return index;
+                    activeProfile = index;
                 }
             }
 
-            return -1;
+            names = listed;
         }
 
         /// <summary>Switches this thread's IME. Called on the host thread. See ADR 0039.</summary>
@@ -367,22 +374,25 @@ namespace XSOverlayKeyboardIme.Ime
         /// <summary>Reads the new IME once the switch we asked for has settled. See ADR 0036.</summary>
         private void ScheduleSwitchSettled()
         {
-            HostWindow window = _window;
-            if (window == null)
+            if (!ArmSwitchTimer(HostWindow.SwitchSettleTimerId, SwitchSettleMilliseconds))
             {
-                return;
+                // Without the timer the hold would never be released, so the settle is
+                // queued rather than run inside the stroke drain. See ADR 0038.
+                _window?.Post(HostWindow.SwitchSettledMessage);
             }
+        }
 
-            Win32Native.SetTimer(window.Handle, HostWindow.SwitchSettleTimerId, SwitchSettleMilliseconds, IntPtr.Zero);
+        /// <summary>Arms one of the switch timers; false when the window cannot give one.</summary>
+        private bool ArmSwitchTimer(IntPtr id, uint milliseconds)
+        {
+            HostWindow window = _window;
+            return window != null && Win32Native.SetTimer(window.Handle, id, milliseconds, IntPtr.Zero) != IntPtr.Zero;
         }
 
         /// <summary>Waits out the commit before the language changes. See ADR 0038.</summary>
         private bool ScheduleSwitchDue()
         {
-            HostWindow window = _window;
-            return window != null
-                && Win32Native.SetTimer(window.Handle, HostWindow.SwitchGapTimerId, SwitchGapMilliseconds, IntPtr.Zero)
-                    != IntPtr.Zero;
+            return ArmSwitchTimer(HostWindow.SwitchGapTimerId, SwitchGapMilliseconds);
         }
 
         /// <summary>Feeds the switch the commit was holding back. See ADR 0038.</summary>
@@ -408,7 +418,17 @@ namespace XSOverlayKeyboardIme.Ime
             }
 
             Win32Native.KillTimer(window.Handle, HostWindow.SwitchGapTimerId);
-            if (!_switchDue)
+            if (_switchDue)
+            {
+                RunDeferredSwitch();
+            }
+        }
+
+        private void RunDeferredSwitch()
+        {
+            SwitchAction action = _switchAction;
+            _switchAction = SwitchAction.None;
+            if (action == SwitchAction.None)
             {
                 return;
             }
@@ -420,16 +440,23 @@ namespace XSOverlayKeyboardIme.Ime
                 HostLog.Warn("the commit did not end the composition; switching anyway");
             }
 
-            if (_switchIsPress)
+            if (action == SwitchAction.Language)
             {
-                _switchIsPress = false;
-                _switchDue = false;
-                PressSwitch();
-                ScheduleSwitchSettled();
+                SendDeferredSwitch();
                 return;
             }
 
-            SendDeferredSwitch();
+            _switchDue = false;
+            if (action == SwitchAction.Press)
+            {
+                PressSwitch();
+            }
+            else
+            {
+                SwitchProfile(_profileIndex);
+            }
+
+            ScheduleSwitchSettled();
         }
 
         /// <summary>Feeds the keys the switch held back, in the order they arrived.</summary>
@@ -478,13 +505,6 @@ namespace XSOverlayKeyboardIme.Ime
             }
 
             Win32Native.KillTimer(window.Handle, HostWindow.SwitchSettleTimerId);
-
-            if (_switchHeld)
-            {
-                _switchHeld = false;
-                _lease?.Unhold();
-            }
-
             LanguageChanged();
 
             // A switch can end the composition without a callback, which would leave the page
@@ -497,8 +517,7 @@ namespace XSOverlayKeyboardIme.Ime
         private void RequestPress()
         {
             CompositionSession session = _session;
-            HostWindow window = _window;
-            if (session == null || window == null)
+            if (session == null)
             {
                 return;
             }
@@ -509,6 +528,36 @@ namespace XSOverlayKeyboardIme.Ime
                 return;
             }
 
+            DeferSwitch(SwitchAction.Press);
+        }
+
+        /// <summary>A request for another IME, committed first. See ADR 0039.</summary>
+        private void OnProfileRequested()
+        {
+            CompositionSession session = _session;
+            if (session == null)
+            {
+                return;
+            }
+
+            if (!session.Composing)
+            {
+                SwitchProfile(_profileIndex);
+                return;
+            }
+
+            DeferSwitch(SwitchAction.Profile);
+        }
+
+        /// <summary>Holds a switch until the composition it interrupts is committed.</summary>
+        private void DeferSwitch(SwitchAction action)
+        {
+            CompositionSession session = _session;
+            if (session == null)
+            {
+                return;
+            }
+
             _lease?.Hold();
             _switchHeld = true;
             _switchAction = action;
@@ -516,7 +565,7 @@ namespace XSOverlayKeyboardIme.Ime
             _switchDue = true;
             if (!ScheduleSwitchDue())
             {
-                SendDeferredSwitch();
+                RunDeferredSwitch();
             }
         }
 
@@ -629,15 +678,7 @@ namespace XSOverlayKeyboardIme.Ime
 
                     if (stroke.Kind == KeyStrokeKind.System && session.Composing)
                     {
-                        _lease?.Hold();
-                        _switchHeld = true;
-                        session.Send(KeyStroke.FromKey(VirtualKey.Return, false));
-                        _switchDue = true;
-                        if (!ScheduleSwitchDue())
-                        {
-                            SendDeferredSwitch();
-                        }
-
+                        DeferSwitch(SwitchAction.Language);
                         continue;
                     }
 

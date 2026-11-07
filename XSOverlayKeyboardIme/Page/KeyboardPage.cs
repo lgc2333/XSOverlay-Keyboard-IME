@@ -25,6 +25,9 @@ namespace XSOverlayKeyboardIme.Page
         /// <summary>Raised when the page reports that the composition no longer fits. Set by the root.</summary>
         internal static Action CancelRequested;
 
+        /// <summary>Raised with the index of the IME the page asked for. Set by the root.</summary>
+        internal static Action<int> ProfileRequested;
+
         /// <summary>Raised with true when the composer takes the focus and false when it drops it.</summary>
         internal static Action<bool> ComposerActivationChanged;
 
@@ -303,6 +306,13 @@ namespace XSOverlayKeyboardIme.Page
                 return;
             }
 
+            int profile;
+            if (PageMessages.TryReadProfileIndex(message, out profile))
+            {
+                OnProfileRequested(profile);
+                return;
+            }
+
             if (message == PageScript.ComposerActiveMessage)
             {
                 OnComposerActivationChanged(true);
@@ -336,6 +346,16 @@ namespace XSOverlayKeyboardIme.Page
             if (changed != null)
             {
                 changed(active);
+            }
+        }
+
+        /// <summary>The page asked for another IME; the root switches the thread's profile.</summary>
+        private static void OnProfileRequested(int index)
+        {
+            Action<int> profileRequested = ProfileRequested;
+            if (profileRequested != null)
+            {
+                profileRequested(index);
             }
         }
 

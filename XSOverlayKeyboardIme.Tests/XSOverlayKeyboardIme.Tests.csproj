@@ -26,6 +26,7 @@
     <Compile Include="..\XSOverlayKeyboardIme\Takeover\**\*.cs" LinkBase="Linked\Takeover" />
     <Compile Include="..\XSOverlayKeyboardIme\Input\**\*.cs" LinkBase="Linked\Input" />
     <Compile Include="..\XSOverlayKeyboardIme\Page\ComposerStatePayload.cs" LinkBase="Linked\Page" />
+    <Compile Include="..\XSOverlayKeyboardIme\Page\PageMessages.cs" LinkBase="Linked\Page" />
     <Compile Include="..\XSOverlayKeyboardIme\Page\CompositionPayload.cs" LinkBase="Linked\Page" />
     <Compile Include="..\XSOverlayKeyboardIme\Page\JavaScriptString.cs" LinkBase="Linked\Page" />
     <Compile Include="..\XSOverlayKeyboardIme\Interop\Win32Structs.cs" LinkBase="Linked\Interop" />

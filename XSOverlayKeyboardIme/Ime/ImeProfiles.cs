@@ -8,8 +8,9 @@ using XSOverlayKeyboardIme.Interop;
 namespace XSOverlayKeyboardIme.Ime
 {
     /// <summary>
-    /// The keyboard profile TSF keeps for this thread: the IME it composes with and the
-    /// name that IME shows. Nothing here switches the profile. See ADR 0009 and ADR 0035.
+    /// The keyboard profile TSF keeps for this thread: which IME it composes with, the
+    /// name that IME shows, and the list the page may switch to. See ADR 0009, ADR 0035
+    /// and ADR 0039.
     /// </summary>
     internal sealed class ImeProfiles : IDisposable
     {
@@ -20,6 +21,7 @@ namespace XSOverlayKeyboardIme.Ime
         private static readonly Guid KeyboardCategory = new Guid("34745C63-B2F0-4784-8B67-5E12C8701A31");
 
         private readonly ITfInputProcessorProfiles _profiles;
+        private readonly List<ImeChoice> _choices = new List<ImeChoice>();
         private bool _disposed;
 
         private ImeProfiles(ITfInputProcessorProfiles profiles)
@@ -107,6 +109,76 @@ namespace XSOverlayKeyboardIme.Ime
             {
                 Marshal.FreeBSTR(description);
             }
+        }
+
+        /// <summary>The IMEs this language offers, in the order TSF lists them. See ADR 0039.</summary>
+        internal IReadOnlyList<ImeChoice> ListChoices()
+        {
+            // A list only covers the language it was read for, so a failed read leaves
+            // none behind. See ADR 0039.
+            _choices.Clear();
+            ushort language;
+            if (_disposed || _profiles == null || _profiles.GetCurrentLanguage(out language) < 0)
+            {
+                HostLog.Warn("the current language could not be read; the dropdown is empty");
+                return _choices;
+            }
+
+            IEnumTfLanguageProfiles items;
+            if (_profiles.EnumLanguageProfiles(language, out items) < 0 || items == null)
+            {
+                HostLog.Warn("the profile list could not be read; the dropdown is empty");
+                return _choices;
+            }
+
+            try
+            {
+                var batch = new TfLanguageProfile[ProfileBatch];
+                uint fetched;
+                while (items.Next((uint)batch.Length, batch, out fetched) >= 0 && fetched > 0)
+                {
+                    for (int index = 0; index < fetched; index++)
+                    {
+                        TfLanguageProfile row = batch[index];
+                        var profile = new LanguageProfile(row.Service, row.Language, row.Profile, row.Active != 0);
+                        string name = Describe(profile);
+                        if (name.Length > 0)
+                        {
+                            _choices.Add(new ImeChoice(name, profile));
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                if (Marshal.IsComObject(items))
+                {
+                    Marshal.ReleaseComObject(items);
+                }
+            }
+
+            return _choices;
+        }
+
+        /// <summary>Makes this thread compose with the choice at that index. See ADR 0039.</summary>
+        internal bool Activate(int index)
+        {
+            if (_disposed || _profiles == null || index < 0 || index >= _choices.Count)
+            {
+                return false;
+            }
+
+            LanguageProfile profile = _choices[index].Profile;
+            Guid service = profile.Service;
+            Guid guid = profile.Profile;
+            int hr = _profiles.ActivateLanguageProfile(ref service, profile.Language, ref guid);
+            if (hr < 0)
+            {
+                HostLog.Warn("the profile could not be activated, hr=0x" + hr.ToString("x"));
+                return false;
+            }
+
+            return true;
         }
 
         /// <summary>The profile this thread has active, or null when TSF cannot say.</summary>

@@ -111,18 +111,124 @@
   opacity: 1;
 }
 
+#bar-id .ime-chip-wrap {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+}
+
 /* The page's own display rule would keep an empty chip visible while it is hidden. */
-#bar-id .ime-chip[hidden] {
+#bar-id .ime-chip[hidden],
+#bar-id .ime-profiles[hidden] {
   display: none;
 }
 
 #bar-id .ime-chip {
   display: flex;
   align-items: center;
-  flex: 0 0 auto;
+  gap: 8px;
   height: var(--keyboard-control-size);
+  padding: 0 12px;
+  box-sizing: border-box;
+  border-radius: var(--keyboard-control-radius);
+  background: var(--theme-mid);
+  color: var(--theme-contrasting);
+  font: inherit;
+  line-height: 1;
+  white-space: nowrap;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* The page's dropdown class only makes the name a ray target; the look stays here. */
+#bar-id .ime-chip.ime-chip-busy {
+  opacity: 0.6;
+}
+
+#bar-id .ime-chip.dropdown-button {
+  width: auto;
+  padding: 0 12px;
+  border: none;
+  font-size: inherit;
+  justify-content: center;
+  box-shadow: none;
+  cursor: pointer;
+  transition: background var(--keyboard-animation-time);
+}
+
+#bar-id .ime-chip.dropdown-button::after {
+  content: '▾';
+  font-size: 0.85em;
+  line-height: 1;
+  color: currentColor;
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+#bar-id .ime-chip.dropdown-button:hover,
+#bar-id .ime-chip.dropdown-button.pointer-hover {
+  background: var(--theme-hi);
+}
+
+#bar-id .ime-chip[aria-expanded='true']::after {
+  transform: rotate(180deg);
+}
+
+#bar-id .ime-profiles {
+  position: absolute;
+  /* Flush with the bar's lower edge, not halfway into its padding. */
+  top: calc(100% + var(--keyboard-toolbar-inset) + 2px);
+  right: 0;
+  z-index: 140;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: max-content;
+  min-width: 100%;
+  max-width: 320px;
+  max-height: 264px;
+  padding: 6px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  border-radius: var(--keyboard-panel-radius);
+  background: var(--theme-dark);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+}
+
+/* At least 40px tall, so a ray can land on it. */
+#bar-id .ime-profile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-sizing: border-box;
+  min-height: 44px;
   padding: 0 12px;
   border-radius: var(--keyboard-control-radius);
   background: var(--theme-mid);
+  color: var(--theme-contrasting);
   white-space: nowrap;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: background var(--keyboard-animation-time);
+}
+
+#bar-id .ime-profile:hover,
+#bar-id .ime-profile.pointer-hover {
+  background: var(--theme-hi);
+}
+
+#bar-id .ime-profile-current {
+  box-shadow: inset 0 0 0 2px var(--theme-accent);
+}
+
+#bar-id .ime-profile-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#bar-id .ime-profile-check {
+  color: var(--theme-accent);
+  font-weight: 700;
 }

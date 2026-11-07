@@ -1,3 +1,4 @@
+using System.Text;
 using XSOverlayKeyboardIme.Ime;
 
 namespace XSOverlayKeyboardIme.Page
@@ -7,11 +8,23 @@ namespace XSOverlayKeyboardIme.Page
     {
         internal static string Build(ComposerState state)
         {
-            return "{\"active\":"
-                + (state.Active ? "true" : "false")
-                + ",\"ime\":"
-                + JavaScriptString.Literal(state.Ime)
-                + "}";
+            var payload = new StringBuilder();
+            payload.Append("{\"active\":").Append(state.Active ? "true" : "false");
+            payload.Append(",\"ime\":").Append(JavaScriptString.Literal(state.Ime));
+            payload.Append(",\"activeProfile\":").Append(state.ActiveProfile);
+            payload.Append(",\"profiles\":[");
+            for (int index = 0; index < state.Profiles.Count; index++)
+            {
+                if (index > 0)
+                {
+                    payload.Append(',');
+                }
+
+                payload.Append(JavaScriptString.Literal(state.Profiles[index]));
+            }
+
+            payload.Append("]}");
+            return payload.ToString();
         }
     }
 }

@@ -102,6 +102,15 @@ namespace XSOverlayKeyboardIme
 
             KeyboardPage.CancelRequested = ImeHost.CancelCurrent;
 
+            KeyboardPage.ProfileRequested = index =>
+            {
+                ImeHost host = ImeHost.Current;
+                if (host != null)
+                {
+                    host.RequestProfile(index);
+                }
+            };
+
             KeyboardPage.ComposerActivationChanged = active =>
             {
                 ImeHost host = ImeHost.Current;

@@ -14,12 +14,17 @@ export interface CompositionView {
 }
 
 /**
- * The composer's own state: whether it holds the focus, and the IME the plugin composes
- * with while it does. Nothing about another program reaches this view. See ADR 0035.
+ * The composer's own state: whether it holds the focus, the IME the plugin composes
+ * with while it does, and the IMEs this language offers. Nothing about another program
+ * reaches this view. See ADR 0035 and ADR 0039.
  */
 export interface ComposerStateView {
   active: boolean
   ime: string
+  /** Names in the order the plugin activates them. */
+  profiles: string[]
+  /** The position of the active name, or -1 when the plugin cannot say. */
+  activeProfile: number
 }
 
 /**

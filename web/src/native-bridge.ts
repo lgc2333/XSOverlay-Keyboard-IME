@@ -3,6 +3,7 @@ const Switch = 'xso-keyboard-ime switch'
 const Cancel = 'xso-keyboard-ime cancel'
 const ComposerActive = 'xso-keyboard-ime composer-active'
 const ComposerInactive = 'xso-keyboard-ime composer-inactive'
+const Profile = 'xso-keyboard-ime profile '
 
 /**
  * Tells the plugin that the page runs the injected script. Vuplex hands the message to
@@ -34,6 +35,14 @@ export function requestCancel(): boolean {
  */
 export function reportComposerActive(active: boolean): boolean {
   return post(active ? ComposerActive : ComposerInactive)
+}
+
+/**
+ * Asks the plugin to activate one profile of the current language, by its index in the
+ * list the last composer state carried. See ADR 0039.
+ */
+export function requestProfile(index: number): boolean {
+  return post(`${Profile}${index}`)
 }
 
 function post(message: string): boolean {

@@ -18,6 +18,7 @@ namespace XSOverlayKeyboardIme.Ime
         internal const uint ComposerMessage = Win32Native.WmApp + 4;
         internal const uint SwitchSettledMessage = Win32Native.WmApp + 5;
         internal const uint SwitchDueMessage = Win32Native.WmApp + 6;
+        internal const uint ProfileMessage = Win32Native.WmApp + 7;
 
         /// <summary>The timers this window owns; a message for another id is not ours.</summary>
         internal static readonly IntPtr SwitchSettleTimerId = (IntPtr)1;
