@@ -108,6 +108,28 @@ namespace XSOverlayKeyboardIme.Ime
             _batchOpen = true;
         }
 
+        /// <summary>Activates with foreground held, without synthesizing composition input. See ADR 0045.</summary>
+        internal bool ActivateProfile(ImeProfiles profiles, LanguageProfile profile)
+        {
+            bool outerBatch = _batchOpen;
+            _batchOpen = true;
+            try
+            {
+                if (!(_open ? _lease.Ensure() : _lease.Acquire()))
+                    return false;
+                bool activated = profiles.Activate(profile);
+                if (!_ime.Composing)
+                    End();
+                return activated;
+            }
+            finally
+            {
+                _batchOpen = outerBatch;
+                if (!_open && !_batchOpen)
+                    _lease.Restore();
+            }
+        }
+
         /// <summary>Restore after queued sticky releases have followed the ordinary key.</summary>
         internal void CompleteBatch()
         {

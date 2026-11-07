@@ -50,7 +50,9 @@ configure_file("${INGAMEIME_WIN32}/src/version.cpp.in" "${CMAKE_CURRENT_BINARY_D
 file(GLOB INGAMEIME_SOURCES "${INGAMEIME_WIN32}/src/*.cpp")
 list(APPEND INGAMEIME_SOURCES
   "${CMAKE_CURRENT_BINARY_DIR}/version.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/shim/shim.cpp")
+  "${CMAKE_CURRENT_SOURCE_DIR}/shim/shim.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/shim/profile-notifications.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/shim/keyboard-layout-name.cpp")
 
 # One module, so the C++ symbols resolve internally. Only the shim's entry points are
 # exported, and it marks them itself.

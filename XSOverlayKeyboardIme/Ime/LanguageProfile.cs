@@ -1,46 +1,48 @@
 using System;
-using System.Collections.Generic;
 
 namespace XSOverlayKeyboardIme.Ime
 {
-    /// <summary>
-    /// One keyboard profile TSF lists for a language, and whether this thread has it active.
-    /// Kept free of TSF types so the pick can be tested. See ADR 0035.
-    /// </summary>
-    internal readonly struct LanguageProfile
+    internal enum KeyboardInputType : uint
     {
-        internal LanguageProfile(Guid service, ushort language, Guid profile, bool active)
+        TextService = 1,
+        KeyboardLayout = 2,
+    }
+
+    /// <summary>The identity TSF needs to activate a keyboard input. See ADR 0044.</summary>
+    internal readonly struct LanguageProfile : IEquatable<LanguageProfile>
+    {
+        internal LanguageProfile(KeyboardInputType type, ushort language, Guid service, Guid profile, IntPtr layout)
         {
-            Service = service;
+            Type = type;
             Language = language;
-            Profile = profile;
-            Active = active;
+            Service = type == KeyboardInputType.TextService ? service : Guid.Empty;
+            Profile = type == KeyboardInputType.TextService ? profile : Guid.Empty;
+            Layout = type == KeyboardInputType.KeyboardLayout ? layout : IntPtr.Zero;
         }
 
-        /// <summary>The text service that owns the profile.</summary>
-        internal Guid Service { get; }
-
+        internal KeyboardInputType Type { get; }
         internal ushort Language { get; }
-
+        internal Guid Service { get; }
         internal Guid Profile { get; }
+        internal IntPtr Layout { get; }
 
-        /// <summary>True when this thread composes with this profile.</summary>
-        internal bool Active { get; }
-
-        /// <summary>The profile this thread has active, or false when the page holds none.</summary>
-        internal static bool TryFindActive(IReadOnlyList<LanguageProfile> profiles, out LanguageProfile active)
+        public bool Equals(LanguageProfile other)
         {
-            for (int index = 0; index < profiles.Count; index++)
-            {
-                if (profiles[index].Active)
-                {
-                    active = profiles[index];
-                    return true;
-                }
-            }
+            return Type == other.Type
+                && Language == other.Language
+                && Service == other.Service
+                && Profile == other.Profile
+                && Layout == other.Layout;
+        }
 
-            active = default;
-            return false;
+        public override bool Equals(object value)
+        {
+            return value is LanguageProfile profile && Equals(profile);
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Type, Language, Service, Profile, Layout);
         }
     }
 }

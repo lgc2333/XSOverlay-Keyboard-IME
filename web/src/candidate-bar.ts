@@ -99,10 +99,11 @@ export function createCandidateBar(): CandidateBar {
     profiles = view.profiles
     activeProfile = view.activeProfile
 
-    const shown = view.active && ime.length > 0
+    const shown = view.active
     const clickable = shown && profiles.length > 0
     chip.hidden = !shown
-    chip.textContent = ime
+    chip.textContent = ime || '未知输入法'
+    chip.classList.toggle('ime-chip-unknown', ime.length === 0)
     chip.classList.toggle(RayButtonClass, clickable)
     if (clickable) {
       chip.setAttribute('aria-haspopup', 'menu')

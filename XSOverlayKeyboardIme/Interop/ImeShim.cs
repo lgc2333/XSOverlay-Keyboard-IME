@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace XSOverlayKeyboardIme.Interop
 {
@@ -22,6 +23,18 @@ namespace XSOverlayKeyboardIme.Interop
         internal delegate void CommitCallback(IntPtr text, IntPtr user);
 
         internal delegate void CandidatesCallback(int state, int selection, IntPtr items, int count, IntPtr user);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate void ProfileChangedCallback(IntPtr user);
+
+        [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern IntPtr iime_watch_profiles(ProfileChangedCallback changed, IntPtr user, out int result);
+
+        [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void iime_unwatch_profiles(IntPtr watch);
+
+        [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
+        internal static extern int iime_get_keyboard_layout_name(IntPtr layout, StringBuilder name, int capacity);
 
         [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
         internal static extern IntPtr iime_create(IntPtr window);

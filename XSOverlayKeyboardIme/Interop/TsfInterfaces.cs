@@ -4,9 +4,8 @@ using System.Runtime.InteropServices;
 namespace XSOverlayKeyboardIme.Interop
 {
     /// <summary>
-    /// The TSF interfaces the plugin consumes, read for the IME name and its input-mode
-    /// button. The plugin implements none of them: the input context belongs to
-    /// IngameIME. See ADR 0009 and ADR 0028.
+    /// The TSF interfaces the plugin consumes. The input context and notification
+    /// sink remain native. See ADR 0022, ADR 0028 and ADR 0045.
     ///
     /// Every method stays in header order, including the ones the plugin never calls: a
     /// COM vtable is positional, so dropping one would shift every call after it.
@@ -63,41 +62,89 @@ namespace XSOverlayKeyboardIme.Interop
         int GetLanguageList(out IntPtr languages, out uint count);
 
         [PreserveSig]
-        int EnumLanguageProfiles(ushort langid, out IEnumTfLanguageProfiles enumerator);
+        int EnumLanguageProfiles(ushort langid, out IntPtr enumerator);
     }
 
-    /// <summary>One row of a language's profiles, as TSF lists them.</summary>
-    [StructLayout(LayoutKind.Explicit)]
-    internal struct TfLanguageProfile
+    /// <summary>TF_INPUTPROCESSORPROFILE, in Windows SDK field order.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct TfInputProcessorProfile
     {
-        [FieldOffset(0)]
-        internal Guid Service;
-
-        [FieldOffset(16)]
+        internal uint Type;
         internal ushort Language;
-
-        [FieldOffset(20)]
-        internal Guid Category;
-
-        /// <summary>A BOOL that is true when this thread has the profile active.</summary>
-        [FieldOffset(36)]
-        internal int Active;
-
-        [FieldOffset(40)]
+        internal Guid Service;
         internal Guid Profile;
+        internal Guid Category;
+        internal IntPtr Substitute;
+        internal uint Capabilities;
+        internal IntPtr Layout;
+        internal uint Flags;
     }
 
-    /// <summary>The profiles TSF lists for one language. See ADR 0035.</summary>
-    [ComImport, Guid("3D61BF11-AC5F-42C8-A4CB-931BCC28C744"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    internal interface IEnumTfLanguageProfiles
+    [ComImport, Guid("71C6E74C-0F28-11D8-A82A-00065B84435C"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    internal interface ITfInputProcessorProfileMgr
     {
         [PreserveSig]
-        int Clone(out IEnumTfLanguageProfiles enumerator);
+        int ActivateProfile(uint type, ushort language, ref Guid service, ref Guid profile, IntPtr layout, uint flags);
+
+        [PreserveSig]
+        int DeactivateProfile(
+            uint type,
+            ushort language,
+            ref Guid service,
+            ref Guid profile,
+            IntPtr layout,
+            uint flags
+        );
+
+        [PreserveSig]
+        int GetProfile(
+            uint type,
+            ushort language,
+            ref Guid service,
+            ref Guid profile,
+            IntPtr layout,
+            out TfInputProcessorProfile value
+        );
+
+        [PreserveSig]
+        int EnumProfiles(ushort language, out IEnumTfInputProcessorProfiles enumerator);
+
+        [PreserveSig]
+        int ReleaseInputProcessor(ref Guid service, uint flags);
+
+        [PreserveSig]
+        int RegisterProfile(
+            ref Guid service,
+            ushort language,
+            ref Guid profile,
+            [MarshalAs(UnmanagedType.LPWStr)] string description,
+            uint descriptionLength,
+            [MarshalAs(UnmanagedType.LPWStr)] string iconFile,
+            uint iconFileLength,
+            uint iconIndex,
+            IntPtr substitute,
+            uint preferredLayout,
+            int enabledByDefault,
+            uint flags
+        );
+
+        [PreserveSig]
+        int UnregisterProfile(ref Guid service, ushort language, ref Guid profile, uint flags);
+
+        [PreserveSig]
+        int GetActiveProfile(ref Guid category, out TfInputProcessorProfile profile);
+    }
+
+    [ComImport, Guid("71C6E74D-0F28-11D8-A82A-00065B84435C"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    internal interface IEnumTfInputProcessorProfiles
+    {
+        [PreserveSig]
+        int Clone(out IEnumTfInputProcessorProfiles enumerator);
 
         [PreserveSig]
         int Next(
             uint count,
-            [Out, MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 0)] TfLanguageProfile[] profiles,
+            [Out, MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 0)] TfInputProcessorProfile[] profiles,
             out uint fetched
         );
 

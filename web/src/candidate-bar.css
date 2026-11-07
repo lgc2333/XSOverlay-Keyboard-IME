@@ -140,6 +140,10 @@
   user-select: none;
 }
 
+#bar-id .ime-chip.ime-chip-unknown {
+  color: color-mix(in srgb, var(--theme-contrasting) 65%, transparent);
+}
+
 /* The page's dropdown class only makes the name a ray target; the look stays here. */
 #bar-id .ime-chip.dropdown-button {
   width: auto;
