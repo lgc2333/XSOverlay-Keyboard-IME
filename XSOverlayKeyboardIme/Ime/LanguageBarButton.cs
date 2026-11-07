@@ -1,276 +1,114 @@
 using System;
 using System.Runtime.InteropServices;
-using XSOverlayKeyboardIme.Diagnostics;
 using XSOverlayKeyboardIme.Interop;
 
 namespace XSOverlayKeyboardIme.Ime
 {
-    /// <summary>
-    /// The button an input method adds to the TSF language bar, which is the one the
-    /// Windows input indicator draws. Reading it yields the icon to mirror; clicking it
-    /// asks the IME to switch, so the plugin never writes a mode itself. See ADR 0028.
-    /// </summary>
+    /// <summary>The host thread's public input-mode item. See ADR 0042.</summary>
     internal sealed class LanguageBarButton : IDisposable
     {
-        /// <summary>TF_LBI_CLK_LEFT, the click the language bar sends for a plain press.</summary>
-        private const int ClickLeft = 2;
-
-        /// <summary>Enough for the items a text service adds; a runaway list stops here.</summary>
-        private const int MaxItems = 32;
-
-        private readonly ITfThreadMgr _threadManager;
+        private readonly ITfThreadMgr _thread;
+        private readonly ITfLangBarItem _item;
         private readonly ITfLangBarItemButton _button;
-        private bool _disposed;
 
-        private LanguageBarButton(ITfThreadMgr threadManager, ITfLangBarItemButton button)
+        private LanguageBarButton(ITfThreadMgr thread, ITfLangBarItem item)
         {
-            _threadManager = threadManager;
-            _button = button;
+            _thread = thread;
+            _item = item;
+            _button = item as ITfLangBarItemButton;
         }
 
-        /// <summary>
-        /// Looks the button up on the calling thread, which must be the one that owns the
-        /// input context. Null when the IME offers no such button.
-        /// </summary>
-        internal static LanguageBarButton Open()
+        internal static LanguageBarButton Open(out bool absent)
         {
-            IntPtr raw;
-            int hr = Win32Native.TF_GetThreadMgr(out raw);
+            absent = false;
+            int hr = Win32Native.TF_GetThreadMgr(out IntPtr raw);
             if (hr < 0 || raw == IntPtr.Zero)
-            {
-                HostLog.Warn("no TSF thread manager, hr=0x" + hr.ToString("x") + "; the switch has nothing to press");
                 return null;
-            }
-
-            ITfThreadMgr threadManager;
+            ITfThreadMgr thread;
             try
             {
-                threadManager = Marshal.GetObjectForIUnknown(raw) as ITfThreadMgr;
+                thread = Marshal.GetObjectForIUnknown(raw) as ITfThreadMgr;
             }
             finally
             {
                 Marshal.Release(raw);
             }
-
-            var manager = threadManager as ITfLangBarItemMgr;
-            IEnumTfLangBarItems items = null;
-            if (manager == null || manager.EnumItems(out items) < 0 || items == null)
-            {
-                HostLog.Info("no language bar items; the switch is hidden");
-                Release(threadManager);
-                return null;
-            }
-
-            ITfLangBarItemButton found;
+            bool retained = false;
             try
             {
-                found = PickButton(items);
+                var manager = thread as ITfLangBarItemMgr;
+                if (manager == null)
+                    return null;
+                var id = new Guid("2c77a81e-41cc-4178-a3a7-5f8a987568e6");
+                hr = manager.GetItem(ref id, out ITfLangBarItem item);
+                // S_FALSE means absence. Query and picture failures do not.
+                absent = hr == 1 && item == null;
+                if (hr != 0 || item == null)
+                {
+                    Release(item);
+                    return null;
+                }
+                retained = true;
+                return new LanguageBarButton(thread, item);
             }
             finally
             {
-                Release(items);
+                if (!retained)
+                    Release(thread);
             }
+        }
 
-            if (found == null)
-            {
-                HostLog.Info("the language bar switch is hidden");
-                Release(threadManager);
+        internal InputModeView Read()
+        {
+            int hr = _item.GetStatus(out uint status);
+            if (hr >= 0 && (status & 1) != 0)
                 return null;
-            }
-
-            return new LanguageBarButton(threadManager, found);
-        }
-
-        /// <summary>Presses the button, which is the IME's own way to switch 中 and 英.</summary>
-        internal bool Click()
-        {
-            if (_disposed)
+            bool enabled = hr >= 0 && (status & 2) == 0 && _button != null;
+            string tooltip = string.Empty;
+            if (_item.GetTooltipString(out IntPtr text) >= 0 && text != IntPtr.Zero)
             {
-                return false;
-            }
-
-            int hr = _button.OnClick(ClickLeft, 0, 0, IntPtr.Zero);
-            HostLog.Info("language bar button pressed, hr=0x" + hr.ToString("x"));
-            return hr >= 0;
-        }
-
-        /// <summary>The icon the input indicator would draw, or null when it is unreadable.</summary>
-        internal LanguageBarIcon ReadIcon()
-        {
-            if (_disposed)
-            {
-                return null;
-            }
-
-            IntPtr icon;
-            int hr = _button.GetIcon(out icon);
-            if (hr < 0)
-            {
-                HostLog.Warn("the language bar icon could not be read, hr=0x" + hr.ToString("x"));
-                return null;
-            }
-
-            if (icon == IntPtr.Zero)
-            {
-                return null;
-            }
-
-            try
-            {
-                LanguageBarIcon result = ToIcon(icon);
-                if (result == null)
-                {
-                    HostLog.Warn("the language bar icon could not be converted; the switch is hidden");
-                }
-
-                return result;
-            }
-            finally
-            {
-                // The item creates the icon for this call, so the caller releases it.
-                GdiNative.DestroyIcon(icon);
-            }
-        }
-
-        public void Dispose()
-        {
-            if (_disposed)
-            {
-                return;
-            }
-
-            _disposed = true;
-            Release(_button);
-            Release(_threadManager);
-        }
-
-        /// <summary>
-        /// Takes the first item that draws an icon, because the input-mode button is the
-        /// one the input indicator can show. The items that draw nothing are other menus.
-        /// </summary>
-        private static ITfLangBarItemButton PickButton(IEnumTfLangBarItems items)
-        {
-            for (int index = 0; index < MaxItems; index++)
-            {
-                ITfLangBarItem item;
-                uint fetched;
-                if (items.Next(1, out item, out fetched) < 0 || fetched == 0 || item == null)
-                {
-                    return null;
-                }
-
-                var button = item as ITfLangBarItemButton;
-                bool draws = button != null && Draws(button);
-                HostLog.Info("language bar item " + index + (draws ? " has a usable icon" : " has no usable icon"));
-
-                if (button != null && draws)
-                {
-                    // The item is the button, so it stays alive for the caller.
-                    return button;
-                }
-
-                Release(item);
-            }
-
-            return null;
-        }
-
-        private static bool Draws(ITfLangBarItemButton button)
-        {
-            IntPtr icon;
-            int hr = button.GetIcon(out icon);
-            if (hr < 0)
-            {
-                HostLog.Warn("the language bar icon could not be read, hr=0x" + hr.ToString("x"));
-                return false;
-            }
-
-            if (icon == IntPtr.Zero)
-            {
-                return false;
-            }
-
-            GdiNative.DestroyIcon(icon);
-            return true;
-        }
-
-        /// <summary>Copies an icon into straight RGBA, which is what a canvas wants.</summary>
-        private static LanguageBarIcon ToIcon(IntPtr icon)
-        {
-            GdiNative.IconInfo info;
-            if (!GdiNative.GetIconInfo(icon, out info))
-            {
-                return null;
-            }
-
-            try
-            {
-                if (info.Color == IntPtr.Zero)
-                {
-                    return null;
-                }
-
-                GdiNative.Bitmap bitmap;
-                if (GdiNative.GetObject(info.Color, GdiNative.BitmapSize, out bitmap) == 0)
-                {
-                    return null;
-                }
-
-                int width = bitmap.Width;
-                int height = bitmap.Height;
-                if (width <= 0 || height <= 0 || width > 256 || height > 256)
-                {
-                    return null;
-                }
-
-                var header = new GdiNative.BitmapInfo();
-                header.Header.Size = (uint)Marshal.SizeOf<GdiNative.BitmapInfoHeader>();
-                header.Header.Width = width;
-                // A negative height asks for the rows top down, as a canvas wants them.
-                header.Header.Height = -height;
-                header.Header.Planes = 1;
-                header.Header.BitCount = GdiNative.BitCount32;
-
-                var pixels = new byte[width * height * 4];
-                IntPtr dc = GdiNative.CreateCompatibleDC(IntPtr.Zero);
                 try
                 {
-                    if (
-                        GdiNative.GetDIBits(dc, info.Color, 0, (uint)height, pixels, ref header, GdiNative.DipRgbColors)
-                        == 0
-                    )
+                    tooltip = Marshal.PtrToStringBSTR(text);
+                }
+                finally
+                {
+                    Marshal.FreeBSTR(text);
+                }
+            }
+            LanguageBarIcon image = null;
+            if (_button != null)
+            {
+                int iconHr = _button.GetIcon(out IntPtr icon);
+                try
+                {
+                    if (iconHr >= 0 && icon != IntPtr.Zero)
                     {
-                        return null;
+                        _item.GetInfo(out TfLangBarItemInfo info);
+                        image = IconPixels.Read(icon, (info.Style & 0x20) != 0);
                     }
                 }
                 finally
                 {
-                    GdiNative.DeleteDC(dc);
+                    if (icon != IntPtr.Zero)
+                        GdiNative.DestroyIcon(icon);
                 }
-
-                return LanguageBarIcon.FromBgra(width, height, pixels);
             }
-            finally
-            {
-                DeleteBitmap(info.Color);
-                DeleteBitmap(info.Mask);
-            }
+            return new InputModeView(image, enabled: enabled, tooltip: tooltip);
         }
 
-        private static void DeleteBitmap(IntPtr bitmap)
+        internal bool Click() => _button != null && _button.OnClick(2, 0, 0, IntPtr.Zero) >= 0;
+
+        public void Dispose()
         {
-            if (bitmap != IntPtr.Zero)
-            {
-                GdiNative.DeleteObject(bitmap);
-            }
+            Release(_item);
+            Release(_thread);
         }
 
-        private static void Release(object instance)
+        private static void Release(object value)
         {
-            if (instance != null && Marshal.IsComObject(instance))
-            {
-                Marshal.ReleaseComObject(instance);
-            }
+            if (value != null && Marshal.IsComObject(value))
+                Marshal.ReleaseComObject(value);
         }
     }
 }

@@ -53,6 +53,7 @@ list(APPEND INGAMEIME_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/shim/shim.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/shim/profile-notifications.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/shim/keyboard-layout-name.cpp")
+list(APPEND INGAMEIME_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/shim/shell-mode-button.cpp")
 
 # One module, so the C++ symbols resolve internally. Only the shim's entry points are
 # exported, and it marks them itself.

@@ -26,6 +26,7 @@
     <Compile Include="..\XSOverlayKeyboardIme\Ime\InlinePreeditWatch.cs" LinkBase="Linked\Ime" />
     <Compile Include="..\XSOverlayKeyboardIme\Ime\LanguageProfile.cs" LinkBase="Linked\Ime" />
     <Compile Include="..\XSOverlayKeyboardIme\Ime\LanguageBarIcon.cs" LinkBase="Linked\Ime" />
+    <Compile Include="..\XSOverlayKeyboardIme\Ime\InputModeView.cs" LinkBase="Linked\Ime" />
     <Compile Include="..\XSOverlayKeyboardIme\Takeover\**\*.cs" LinkBase="Linked\Takeover" />
     <Compile Include="..\XSOverlayKeyboardIme\Input\**\*.cs" LinkBase="Linked\Input" />
     <Compile Include="..\XSOverlayKeyboardIme\Page\ComposerStatePayload.cs" LinkBase="Linked\Page" />

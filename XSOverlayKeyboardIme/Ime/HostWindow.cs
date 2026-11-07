@@ -17,6 +17,7 @@ namespace XSOverlayKeyboardIme.Ime
         internal const uint LanguageMessage = Win32Native.WmApp + 3;
         internal const uint ComposerMessage = Win32Native.WmApp + 4;
         internal const uint ProfileMessage = Win32Native.WmApp + 6;
+        internal const uint ModeCompleteMessage = Win32Native.WmApp + 7;
 
         private const string WindowClassName = "XSOverlayKeyboardImeHost";
         private const string WindowTitle = "XSOverlay Keyboard IME host";

@@ -28,6 +28,16 @@ const SwitchStyle = `
 #${ContainerId} .${SwitchClass} canvas {
   width: 32px; height: auto; object-fit: contain; image-rendering: auto; pointer-events: none;
 }
+#${ContainerId} .${SwitchClass} .ime-mode-glyph {
+  font-size: 32px; line-height: 1; pointer-events: none;
+}
+#${ContainerId} .${SwitchClass} .ime-mode-mask {
+  display: block; width: 32px; background-color: currentColor;
+  mask: center / contain no-repeat; pointer-events: none;
+}
+#${ContainerId} .${SwitchClass}[aria-disabled="true"] {
+  cursor: default; scale: 1 !important; box-shadow: none !important; z-index: auto;
+}
 `
 
 export interface SwitchKey {
@@ -51,7 +61,7 @@ export function createSwitchKey(): SwitchKey {
   } | null = null
 
   function show(view: SwitchIconView | null): void {
-    icon = view != null && view.width > 0 && view.height > 0 ? view : null
+    icon = view
     sync()
   }
 
@@ -148,11 +158,9 @@ function createKey(model: HTMLElement, unit: HTMLElement): HTMLElement {
     pointerEvents: 'auto',
   })
 
-  const canvas = document.createElement('canvas')
-  key.append(canvas)
-
   key.addEventListener('pointerdown', (event) => {
     event.preventDefault()
+    if (key.getAttribute('aria-disabled') === 'true') return
     animateKey(key)
     playTap()
     requestSwitch()
@@ -302,11 +310,28 @@ function clampUnit(value: number): number {
   return Math.max(0, Math.min(1, value))
 }
 
+const drawnViews = new WeakMap<HTMLElement, SwitchIconView>()
+
 function draw(key: HTMLElement, view: SwitchIconView): void {
-  const canvas = key.querySelector('canvas')
-  if (canvas == null) {
+  if (drawnViews.get(key) === view) return
+  drawnViews.set(key, view)
+  key.title = view.tooltip
+  key.setAttribute('aria-disabled', String(!view.enabled))
+  if (!view.enabled) {
+    for (const animation of key.getAnimations()) animation.cancel()
+  }
+  if (view.kind !== 'image') {
+    const glyph = document.createElement('span')
+    glyph.className = 'ime-mode-glyph'
+    glyph.textContent = view.kind === 'glyph' ? view.glyph : '中/英'
+    if (view.kind === 'glyph') glyph.style.fontFamily = view.font
+    else glyph.style.fontSize = '20px'
+    key.replaceChildren(glyph)
     return
   }
+
+  const canvas = document.createElement('canvas')
+  key.replaceChildren(canvas)
 
   const context = canvas.getContext('2d')
   if (context == null) {
@@ -320,6 +345,13 @@ function draw(key: HTMLElement, view: SwitchIconView): void {
     0,
     0,
   )
+  if (view.tint) {
+    const mask = document.createElement('span')
+    mask.className = 'ime-mode-mask'
+    mask.style.aspectRatio = `${view.width} / ${view.height}`
+    mask.style.maskImage = `url(${canvas.toDataURL()})`
+    key.replaceChildren(mask)
+  }
 }
 
 /** The plugin sends straight RGBA; the canvas wants bytes it can clamp. */

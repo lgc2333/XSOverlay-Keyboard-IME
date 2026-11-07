@@ -12,6 +12,34 @@ namespace XSOverlayKeyboardIme.Interop
     {
         internal const string LibraryName = "IngameIME.dll";
 
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct ShellModeItem
+        {
+            internal IntPtr Tooltip;
+            internal IntPtr Icon;
+            internal int Disabled;
+            internal int Hidden;
+            internal IntPtr Glyph;
+            internal IntPtr Reserved;
+        }
+
+        [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern IntPtr iime_shell_mode_open(
+            IntPtr host,
+            ProfileChangedCallback changed,
+            IntPtr user,
+            out int result
+        );
+
+        [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void iime_shell_mode_close(IntPtr button);
+
+        [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int iime_shell_mode_read(IntPtr button, out ShellModeItem item);
+
+        [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void iime_shell_mode_free(ref ShellModeItem item);
+
         internal delegate void PreEditCallback(
             int state,
             int selectionStart,

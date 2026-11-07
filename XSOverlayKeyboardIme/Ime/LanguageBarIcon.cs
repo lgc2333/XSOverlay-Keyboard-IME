@@ -8,12 +8,13 @@ namespace XSOverlayKeyboardIme.Ime
     /// </summary>
     internal sealed class LanguageBarIcon
     {
-        private LanguageBarIcon(int width, int height, byte[] rgba, string key)
+        private LanguageBarIcon(int width, int height, byte[] rgba, bool tint)
         {
             Width = width;
             Height = height;
             Rgba = rgba;
-            Key = key;
+            Tint = tint;
+            Key = Fingerprint(width, height, rgba) + (tint ? ":tint" : string.Empty);
         }
 
         internal int Width { get; }
@@ -22,12 +23,20 @@ namespace XSOverlayKeyboardIme.Ime
 
         /// <summary>Straight RGBA, row by row, top down.</summary>
         internal byte[] Rgba { get; }
+        internal bool Tint { get; }
 
         /// <summary>Fingerprint of the picture, for telling one icon from the next.</summary>
         internal string Key { get; }
 
         /// <summary>Turns the 32-bit DIB order into RGBA, and makes a key from the result.</summary>
-        internal static LanguageBarIcon FromBgra(int width, int height, byte[] pixels)
+        internal static LanguageBarIcon FromBgra(
+            int width,
+            int height,
+            byte[] pixels,
+            byte[] mask = null,
+            bool tint = false,
+            bool premultiplied = false
+        )
         {
             var rgba = new byte[pixels.Length];
             bool opaque = false;
@@ -37,9 +46,9 @@ namespace XSOverlayKeyboardIme.Ime
                 byte green = pixels[index + 1];
                 byte red = pixels[index + 2];
                 byte alpha = pixels[index + 3];
-                rgba[index] = red;
-                rgba[index + 1] = green;
-                rgba[index + 2] = blue;
+                rgba[index] = Straight(red, alpha, premultiplied);
+                rgba[index + 1] = Straight(green, alpha, premultiplied);
+                rgba[index + 2] = Straight(blue, alpha, premultiplied);
                 rgba[index + 3] = alpha;
                 opaque |= alpha != 0;
             }
@@ -49,12 +58,28 @@ namespace XSOverlayKeyboardIme.Ime
             {
                 for (int index = 3; index < rgba.Length; index += 4)
                 {
-                    rgba[index] = 255;
+                    rgba[index] = mask != null && mask[index - 3] != 0 ? (byte)0 : (byte)255;
                 }
             }
 
-            return new LanguageBarIcon(width, height, rgba, Fingerprint(width, height, rgba));
+            return new LanguageBarIcon(width, height, rgba, tint);
         }
+
+        internal static LanguageBarIcon FromMonochrome(int width, int height, byte[] andXor)
+        {
+            int length = width * height * 4;
+            var rgba = new byte[length];
+            for (int index = 0; index < length; index += 4)
+            {
+                rgba[index] = rgba[index + 1] = rgba[index + 2] = 255;
+                // Transparent AND-only pixels stay clear; ink and inversion follow the theme.
+                rgba[index + 3] = andXor[index] != 0 && andXor[length + index] == 0 ? (byte)0 : (byte)255;
+            }
+            return new LanguageBarIcon(width, height, rgba, true);
+        }
+
+        private static byte Straight(byte color, byte alpha, bool premultiplied) =>
+            premultiplied && alpha > 0 ? (byte)Math.Min(255, (color * 255 + alpha / 2) / alpha) : color;
 
         private static string Fingerprint(int width, int height, byte[] pixels)
         {

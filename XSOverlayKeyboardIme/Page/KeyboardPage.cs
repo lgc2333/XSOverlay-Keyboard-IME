@@ -42,10 +42,10 @@ namespace XSOverlayKeyboardIme.Page
         private static ComposerState _composerState = ComposerState.Hidden;
 
         /// <summary>The IME's input-mode icon, replayed onto a page that appears later.</summary>
-        private static LanguageBarIcon _switchIcon;
+        private static InputModeView _switchIcon;
 
         /// <summary>Shows the IME's input-mode icon, the one the page's switch button draws.</summary>
-        internal static void ShowSwitchIcon(LanguageBarIcon icon)
+        internal static void ShowSwitchIcon(InputModeView icon)
         {
             _switchIcon = icon;
             IWebView page = EnsureInjected();
@@ -200,7 +200,7 @@ namespace XSOverlayKeyboardIme.Page
 
         private static void PushSwitchIcon(IWebView page)
         {
-            LanguageBarIcon icon = _switchIcon;
+            InputModeView icon = _switchIcon;
 
             // A null icon removes the switch, including one from the previous IME. See ADR 0042.
             Call(

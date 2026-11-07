@@ -6,16 +6,22 @@ namespace XSOverlayKeyboardIme.Page
     internal static class SwitchIconPayload
     {
         /// <summary>An IME with no bar item sends its null icon as the literal null.</summary>
-        internal static string Build(LanguageBarIcon icon)
+        internal static string Build(InputModeView view)
         {
             return JavaScriptJson.Serialize(
-                icon == null
+                view == null
                     ? null
                     : new
                     {
-                        width = icon.Width,
-                        height = icon.Height,
-                        rgba = icon.Rgba,
+                        kind = view.Kind,
+                        enabled = view.Enabled,
+                        tooltip = view.Tooltip,
+                        glyph = view.Glyph,
+                        font = view.Font,
+                        width = view.Icon?.Width ?? 0,
+                        height = view.Icon?.Height ?? 0,
+                        rgba = view.Icon?.Rgba,
+                        tint = view.Icon?.Tint ?? false,
                     }
             );
         }

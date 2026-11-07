@@ -22,6 +22,7 @@ namespace XSOverlayKeyboardIme.Ime
         private CompositionView _view;
         private bool _open;
         private bool _batchOpen;
+        private bool _modeActionOpen;
 
         internal CompositionSession(
             ImeContext ime,
@@ -125,7 +126,7 @@ namespace XSOverlayKeyboardIme.Ime
             finally
             {
                 _batchOpen = outerBatch;
-                if (!_open && !_batchOpen)
+                if (!_open && !_batchOpen && !_modeActionOpen)
                     _lease.Restore();
             }
         }
@@ -134,7 +135,22 @@ namespace XSOverlayKeyboardIme.Ime
         internal void CompleteBatch()
         {
             _batchOpen = false;
-            if (!_open)
+            if (!_open && !_modeActionOpen)
+                _lease.Restore();
+        }
+
+        internal bool BeginModeAction()
+        {
+            if (!(_open || _modeActionOpen ? _lease.Ensure() : _lease.Acquire()))
+                return false;
+            _modeActionOpen = true;
+            return true;
+        }
+
+        internal void EndModeAction()
+        {
+            _modeActionOpen = false;
+            if (!_open && !_batchOpen)
                 _lease.Restore();
         }
 
@@ -170,7 +186,7 @@ namespace XSOverlayKeyboardIme.Ime
 
             _open = false;
             _view = CompositionView.Idle();
-            if (!_batchOpen)
+            if (!_batchOpen && !_modeActionOpen)
                 _lease.Restore();
             Publish();
         }

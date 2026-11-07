@@ -53,7 +53,7 @@ The candidate bar is display only. Clicking a candidate does nothing. The bar ha
 
 #### Why it is designed this way
 
-This trade-off is deliberate, to keep the code as clean as possible. The plugin aims to work with any IME through public APIs only, and does not add per-IME special cases for now. The cost of that choice shows up here.
+The plugin does not select behavior by IME name. This choice has the following limits.
 
 Clicking a candidate would make the plugin press keys for you. The same keys do different things in different IMEs: they may move the candidate, page, or do nothing at all. So the keys stay in your hands, and the IME interprets them as it always does.
 
@@ -84,7 +84,9 @@ The cost is that the IME's own faults land on the keyboard unchanged. Take Wease
 
 Once the input box loses the focus, the IME information has no stable source. The plugin cannot get a value that stays true, so whatever it showed could stop matching reality at any moment. Hiding it is better than showing an unreliable name.
 
-The name identifies the IME that receives your next key. It appears while the input box has focus. The 中/英 switch also requires a displayable IME icon. Without an icon, the switch stays hidden.
+The name identifies the IME that receives your next key. It appears while the input box has focus. The 中/英 switch appears when the language bar has an additional mode icon. An unreadable image uses a fixed placeholder. The US layout hides the switch.
+
+Microsoft Pinyin and Japanese Microsoft IME currently show their original mode glyphs with a disabled button. Use the switching key configured in your IME. See the [system compatibility limits](docs/input-mode-shell.md#支持范围).
 
 The bar shows the name and dropdown on the right. The switch sits to the right of left Alt. Space becomes narrower while the switch is visible. Hiding the switch restores Space's full width. The keyboard row keeps the same width.
 

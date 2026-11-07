@@ -22,17 +22,16 @@ namespace XSOverlayKeyboardIme.Ime
 
         private readonly Action<string> _onCommitted;
         private readonly Action<CompositionView> _onView;
-        private readonly Action<LanguageBarIcon> _onLanguageBarIcon;
+        private readonly Action<InputModeView> _onLanguageBarIcon;
         private readonly Action<ComposerState> _onComposerState;
 
         private volatile HostWindow _window;
         private volatile CompositionSession _session;
-        private LanguageBarButton _languageBar;
+        private InputModeButton _modeButton;
         private ForegroundLease _lease;
         private ImeContext _ime;
         private ImeProfiles _profiles;
         private ImeProfileNotifications _profileNotifications;
-        private string _switchIconKey;
         private LanguageProfile? _switchProfile;
         private string _imeName = string.Empty;
         private volatile bool _composerActive;
@@ -44,7 +43,7 @@ namespace XSOverlayKeyboardIme.Ime
         private ImeHost(
             Action<string> onCommitted,
             Action<CompositionView> onView,
-            Action<LanguageBarIcon> onLanguageBarIcon,
+            Action<InputModeView> onLanguageBarIcon,
             Action<ComposerState> onComposerState
         )
         {
@@ -76,7 +75,7 @@ namespace XSOverlayKeyboardIme.Ime
         internal static void Start(
             Action<string> onCommitted,
             Action<CompositionView> onView,
-            Action<LanguageBarIcon> onLanguageBarIcon,
+            Action<InputModeView> onLanguageBarIcon,
             Action<ComposerState> onComposerState
         )
         {
@@ -240,6 +239,7 @@ namespace XSOverlayKeyboardIme.Ime
                 var session = new CompositionSession(_ime, _window, _lease, feeder, _onCommitted, _onView);
                 session.Start();
                 _session = session;
+                _modeButton = new InputModeButton(_window, session, () => _profiles.ReadActive(), _onLanguageBarIcon);
 
                 if (_composerActive)
                 {
@@ -275,6 +275,9 @@ namespace XSOverlayKeyboardIme.Ime
                     break;
                 case HostWindow.SwitchMessage:
                     PressSwitch();
+                    break;
+                case HostWindow.ModeCompleteMessage:
+                    _modeButton?.Complete();
                     break;
                 case HostWindow.ProfileMessage:
                     OnProfileRequested();
@@ -378,74 +381,13 @@ namespace XSOverlayKeyboardIme.Ime
 
         private void PressSwitch()
         {
-            if (!_composerActive || !_switchProfile.HasValue || _imeName.Length == 0)
-                return;
-            if (_languageBar == null)
-            {
-                ReopenLanguageBar();
-            }
-
-            if (_languageBar != null && _languageBar.Click())
-            {
-                RefreshComposer();
-            }
+            if (_composerActive)
+                _modeButton?.Click();
         }
 
-        /// <summary>Looks the language bar item up again, after the IME may have replaced it. See ADR 0028.</summary>
-        private void ReopenLanguageBar()
-        {
-            ClearLanguageBar();
-            if (_switchProfile?.Type == KeyboardInputType.TextService && _imeName.Length > 0)
-                _languageBar = LanguageBarButton.Open();
-        }
+        private void ClearLanguageBar() => _modeButton?.Reset();
 
-        private void ClearLanguageBar()
-        {
-            if (_languageBar != null)
-            {
-                _languageBar.Dispose();
-                _languageBar = null;
-            }
-
-            _switchIconKey = null;
-            _onLanguageBarIcon(null);
-        }
-
-        /// <summary>Shows the page the current icon, and only when the picture changed. See ADR 0028.</summary>
-        private void PublishSwitchIcon()
-        {
-            if (!_composerActive || !_switchProfile.HasValue || _imeName.Length == 0)
-            {
-                ClearLanguageBar();
-                return;
-            }
-
-            if (_languageBar == null)
-            {
-                ReopenLanguageBar();
-            }
-
-            LanguageBarIcon icon = _languageBar?.ReadIcon();
-            if (icon == null)
-            {
-                // An unavailable icon must not leave the previous picture on the page.
-                if (_switchIconKey != null)
-                {
-                    _switchIconKey = null;
-                    _onLanguageBarIcon(null);
-                }
-
-                return;
-            }
-
-            if (icon.Key == _switchIconKey)
-            {
-                return;
-            }
-
-            _switchIconKey = icon.Key;
-            _onLanguageBarIcon(icon);
-        }
+        private void PublishSwitchIcon() => _modeButton?.Refresh(_switchProfile);
 
         /// <summary>
         /// Feeds the queued keys. Waiting for the IME pumps this same queue, so a nested
@@ -512,11 +454,8 @@ namespace XSOverlayKeyboardIme.Ime
                 return;
             }
 
-            if (_languageBar != null)
-            {
-                _languageBar.Dispose();
-                _languageBar = null;
-            }
+            _modeButton?.Dispose();
+            _modeButton = null;
 
             if (_profiles != null)
             {
