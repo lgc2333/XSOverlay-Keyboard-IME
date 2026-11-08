@@ -39,6 +39,10 @@
       <HintPath>$(ManagedDir)\Assembly-CSharp.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="uOSC.Runtime">
+      <HintPath>$(ManagedDir)\uOSC.Runtime.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="Vuplex.WebView">
       <HintPath>$(ManagedDir)\Vuplex.WebView.dll</HintPath>
       <Private>false</Private>

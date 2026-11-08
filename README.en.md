@@ -7,6 +7,8 @@
 
 This plugin connects XSOverlay's VR keyboard to the system IME. Compose text in the input box on the keyboard page. The composing string and the candidates show on the keyboard. Pick a candidate with the keyboard keys. The committed text goes back into the input box.
 
+Enable VRC ChatBox and focus the input box to update your chat bubble at most once per second. Updates exclude IME preedit. Clearing the input or removing focus preserves the bubble. A successful send clears the input. An overlong draft stays in the input box. The bubble shows a shortened preview, and the original length error appears.
+
 ## Why this plugin
 
 For Chinese input in VRChat, the two solutions I tried did not fit.

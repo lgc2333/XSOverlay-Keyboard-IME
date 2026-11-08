@@ -6,6 +6,7 @@ using BepInEx;
 using BepInEx.Configuration;
 using HarmonyLib;
 using XSOverlayKeyboardIme.Diagnostics;
+using XSOverlayKeyboardIme.Game;
 using XSOverlayKeyboardIme.Ime;
 using XSOverlayKeyboardIme.Interop;
 using XSOverlayKeyboardIme.Page;
@@ -101,6 +102,8 @@ namespace XSOverlayKeyboardIme
             };
 
             KeyboardPage.CancelRequested = ImeHost.CancelCurrent;
+            KeyboardPage.ChatboxChanged = ChatboxIntegration.Update;
+            KeyboardPage.PageUnavailable = ChatboxIntegration.Hide;
 
             KeyboardPage.ProfileRequested = index =>
             {
@@ -160,6 +163,7 @@ namespace XSOverlayKeyboardIme
         {
             if (_harmony != null)
             {
+                ChatboxIntegration.Stop();
                 _harmony.UnpatchSelf();
                 _harmony = null;
             }

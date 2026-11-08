@@ -9,7 +9,7 @@ const nativeModuleRoot = join(
   'XSOverlay_Data/StreamingAssets/Plugins/Applications/UserInterface/Default/Keyboard/js',
 )
 const nativeModules = new Map(
-  ['keyboard-input.js', 'keyboard-audio.js'].map(name => [
+  ['keyboard-input.js', 'keyboard-audio.js', 'keyboard-speech-composer.js', 'keyboard-speech-view.js', 'keyboard-speech-utils.js', 'keyboard-state.js'].map(name => [
     `/apps/UserInterface/Default/Keyboard/js/${name}`,
     join(nativeModuleRoot, name),
   ]),

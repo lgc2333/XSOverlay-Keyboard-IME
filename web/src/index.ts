@@ -1,7 +1,9 @@
 import { createCandidateBar } from './candidate-bar'
+import { observeChatbox } from './chatbox'
 import { routeComposerReturn } from './composer-return'
 import {
   clearPreedit,
+  committedComposerText,
   insertText,
   keepComposerFocus,
   onCompositionCancel,
@@ -25,9 +27,13 @@ function install(): void {
   const bar = createCandidateBar()
   const switchKey = createSwitchKey()
   const returnRouting = routeComposerReturn()
+  const refreshChatbox = observeChatbox(committedComposerText)
   // Cancelled codes may still have queued views; the host's idle view ends that stream.
   let cancelledComposition = false
-  keepComposerFocus((active) => switchKey.setActive(active))
+  keepComposerFocus((active) => {
+    switchKey.setActive(active)
+    refreshChatbox()
+  })
   onCompositionCancel(() => {
     cancelledComposition = true
     bar.render(null)
@@ -35,6 +41,7 @@ function install(): void {
   })
 
   window.__xsoKeyboardIme = {
+    refreshChatbox,
     setKeyboardFormat: switchKey.setKeyboardFormat,
     resolveReturn: returnRouting.resolve,
     playReturnSound: returnRouting.sound,

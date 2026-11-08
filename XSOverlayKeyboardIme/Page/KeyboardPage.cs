@@ -1,5 +1,6 @@
 using System;
 using Vuplex.WebView;
+using XSOverlayKeyboardIme.Chatbox;
 using XSOverlayKeyboardIme.Diagnostics;
 using XSOverlayKeyboardIme.Game;
 using XSOverlayKeyboardIme.Ime;
@@ -34,6 +35,8 @@ namespace XSOverlayKeyboardIme.Page
 
         /// <summary>Raised with true when the composer takes the focus and false when it drops it.</summary>
         internal static Action<bool> ComposerActivationChanged;
+        internal static Action<ChatboxState> ChatboxChanged;
+        internal static Action PageUnavailable;
 
         /// <summary>What the bar shows right now, replayed onto a page that appears later.</summary>
         private static CompositionView _view = CompositionView.Idle();
@@ -106,6 +109,18 @@ namespace XSOverlayKeyboardIme.Page
             ShowBar(page, _view);
             PushSwitchIcon(page);
             PushComposerState(page);
+            RefreshChatbox(ChatboxIntegration.Revision);
+        }
+
+        internal static void RefreshChatbox(int revision)
+        {
+            if (_listening != null && !_listening.IsDisposed)
+                Call(
+                    _listening,
+                    "ChatBox state",
+                    CallVoid("refreshChatbox", JavaScriptJson.Serialize(revision)),
+                    _ => { }
+                );
         }
 
         /// <summary>Writes committed text into the composer. See ADR 0008.</summary>
@@ -169,6 +184,7 @@ namespace XSOverlayKeyboardIme.Page
             IWebView page = KeyboardOverlayScope.FindPage();
             if (page == null || page.IsDisposed)
             {
+                PageUnavailable?.Invoke();
                 if (!_missingLogged)
                 {
                     _missingLogged = true;
@@ -321,6 +337,7 @@ namespace XSOverlayKeyboardIme.Page
             }
 
             IWebView previous = _listening;
+            PageUnavailable?.Invoke();
             _scrollArea = null;
             _listening = page;
             _messageHandler ??= OnMessage;
@@ -338,6 +355,7 @@ namespace XSOverlayKeyboardIme.Page
         {
             if (args.Type == ProgressChangeType.Started)
             {
+                PageUnavailable?.Invoke();
                 _scrollArea = null;
                 _confirmed = false;
             }
@@ -348,6 +366,23 @@ namespace XSOverlayKeyboardIme.Page
             if (!ReferenceEquals(sender, _listening))
                 return;
             string message = args.Value;
+            const string chatboxPrefix = "xso-keyboard-ime chatbox ";
+            if (message.StartsWith(chatboxPrefix, StringComparison.Ordinal))
+            {
+                try
+                {
+                    ChatboxState state = Newtonsoft.Json.JsonConvert.DeserializeObject<ChatboxState>(
+                        message.Substring(chatboxPrefix.Length)
+                    );
+                    if (state != null)
+                        ChatboxChanged?.Invoke(state);
+                }
+                catch (Newtonsoft.Json.JsonException exception)
+                {
+                    HostLog.Warn("ChatBox state was rejected: " + exception.Message);
+                }
+                return;
+            }
             if (message.StartsWith(ComposerReturnFeedback.MessagePrefix, StringComparison.Ordinal))
             {
                 try

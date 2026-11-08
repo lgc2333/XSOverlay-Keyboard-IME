@@ -6,6 +6,10 @@ const ComposerInactive = 'xso-keyboard-ime composer-inactive'
 const Profile = 'xso-keyboard-ime profile '
 const CandidateArea = 'xso-keyboard-ime candidate-area '
 
+export function reportChatbox(state: { revision: number; active: boolean; text: string; submitting: boolean }): boolean {
+  return post(`xso-keyboard-ime chatbox ${JSON.stringify(state)}`)
+}
+
 export function requestReturn(id: number): boolean {
   return post(`xso-keyboard-ime return ${id}`)
 }

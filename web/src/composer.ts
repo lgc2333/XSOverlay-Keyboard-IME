@@ -123,6 +123,14 @@ export function onCompositionCancel(callback: () => void): void {
 
 export { findComposer } from './composer-focus'
 
+/** Keep the original committed selection while inline codes temporarily replace it. */
+export function committedComposerText(): string {
+  const composer = findComposer()
+  return composing && composer != null && composer === composingComposer && composer.value === expectedValue
+    ? baseValue
+    : composer?.value ?? ''
+}
+
 /**
  * Writes committed text with execCommand so Chromium keeps its undo stack, caret and
  * input events. The focus check guards against writing into another field. See ADR 0008.

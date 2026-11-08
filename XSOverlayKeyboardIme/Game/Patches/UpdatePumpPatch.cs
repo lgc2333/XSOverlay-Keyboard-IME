@@ -13,6 +13,7 @@ namespace XSOverlayKeyboardIme.Game.Patches
         private static void Postfix()
         {
             MainThreadDispatcher.Drain();
+            ChatboxIntegration.Pump();
         }
     }
 }

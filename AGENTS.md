@@ -7,6 +7,7 @@ XSOverlayKeyboardIme/              BepInEx 5 插件
   KeyboardImePlugin.cs             入口；绑定配置、给 XSOverlay 打补丁、把宿主接到页面上
   MainThreadDispatcher.cs          任意线程 → Unity 主线程
   Game/                            一切碰 XSOverlay 的东西；Patches/ 里是 Harmony 补丁
+  Chatbox/                         实时 OSC 广播状态与限频，不含 XSOverlay 类型
   Takeover/                        判定键盘页的按键归谁；纯数据，不含 XSOverlay 类型
   Ime/                             组字宿主：STA 线程、隐藏窗口、输入法上下文、喂键、输入法的语言栏按钮
   Page/                            注入页面脚本、写回已提交的文本、显示组字串与切换图标
@@ -72,7 +73,7 @@ pnpm --dir web test
 - 不要递归子模块：`IngameIME_Win32` 经 SSH 地址取它自己那份 `IngameIME-Common`，而 `native/CMakeLists.txt` 用的是同级子模块。
 - CSharpier 是锁版本的本地工具。克隆后跑一次 `dotnet tool restore`，改动 `.config/dotnet-tools.json` 之后也要再跑一次。
 - XSOverlay 路径默认是 `D:\SteamLibrary\steamapps\common\XSOverlay_Beta`，用 `-p:GameDir=<path>` 覆盖。
-- 回车浏览器回归仅复用安装版按键与音效模块，发送仍为 mock，不覆盖真实宿主往返。路径用 `XSOVERLAY_GAME_DIR` 覆盖；缺少模块时跳过依赖它们的用例。
+- 回车与 ChatBox 浏览器回归复用安装版按键、音效、composer 与 view 模块，宿主答复仍为 mock，不覆盖真实宿主往返。路径用 `XSOVERLAY_GAME_DIR` 覆盖；缺少模块时跳过依赖它们的用例。
 - 页面模块的真实 HTTP 路径以 `/apps/UserInterface/` 开头，回车测试服务器对旧路径与未知模块返回 404。
 - 日志落到 XSOverlay 目录下的 `BepInEx\LogOutput.log`。
 - CI 跑单元测试、页面浏览器回归、CSharpier、Prettier、测试工程上的分析器、页面脚本检查与原生构建。它从不构建插件：那需要 XSOverlay 的 Managed 程序集，而它们只留在这台机器上。
