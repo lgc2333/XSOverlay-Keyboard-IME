@@ -10,7 +10,7 @@ const nativeModuleRoot = join(
 )
 const nativeModules = new Map(
   ['keyboard-input.js', 'keyboard-audio.js'].map(name => [
-    `/UserInterface/Default/Keyboard/js/${name}`,
+    `/apps/UserInterface/Default/Keyboard/js/${name}`,
     join(nativeModuleRoot, name),
   ]),
 )
@@ -41,6 +41,14 @@ async function start() {
       response.writeHead(200, { 'Content-Type': 'text/javascript' }).end(script)
       return
     }
+    if (request.url === '/favicon.ico') {
+      response.writeHead(204).end()
+      return
+    }
+    if (request.url !== '/') {
+      response.writeHead(404).end()
+      return
+    }
     response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
       .end(`<!doctype html>
 <html><head><style>
@@ -58,9 +66,13 @@ body { margin: 10px; }
 <div class="row" id="bottom"><button id="key-LCONTROL" class="key dark" style="width:96px;height:64px;margin:2px">Ctrl</button><button id="key-LALT" class="key dark" style="width:80px;height:64px;margin:2px">Alt</button><button id="key-SPACE" class="key" style="width:320px;height:64px;margin:2px;transition:all 150ms">Space</button><button id="key-RCONTROL" class="key dark" style="width:96px;height:64px;margin:2px">Ctrl</button><button id="key-RETURN" class="key" style="width:64px;height:64px;margin:2px">Return</button></div></div><div id="keyboard-background"></div></div>
 <script>
 window.messages = [];
-window.vuplex = { postMessage: message => window.messages.push(message) };
+window.vuplex = { postMessage: message => {
+  window.messages.push(message);
+  if (message === 'xso-keyboard-ime ready') window.__xsoKeyboardIme.setKeyboardFormat('ANSI');
+} };
 document.getElementById('keyboard-voice-send').addEventListener('click', () => { document.getElementById('keyboard-voice-input').blur(); window.messages.push('native-submit'); });
 document.getElementById('key-RETURN').addEventListener('pointerdown', () => document.getElementById('keyboard-voice-send').click());
+document.getElementById('key-RETURN').addEventListener('touchstart', () => document.getElementById('keyboard-voice-send').click());
 document.getElementById('keyboard-voice-input').addEventListener('keydown', event => { if (event.key === 'Enter') document.getElementById('keyboard-voice-send').click(); });
 </script><script src="/plugin.js"></script></body></html>`)
   }).listen(8745, '127.0.0.1')

@@ -45,6 +45,7 @@ export interface SwitchKey {
   show: (view: SwitchIconView | null) => void
   /** Gives the switch space beside left Alt, or restores the space bar. */
   setActive: (active: boolean) => void
+  setKeyboardFormat: (format: string | null) => void
 }
 
 /**
@@ -53,6 +54,7 @@ export interface SwitchKey {
 export function createSwitchKey(): SwitchKey {
   let icon: SwitchIconView | null = null
   let active = false
+  let keyboardFormat: string | null = null
   let mounted: {
     key: HTMLElement
     space: HTMLElement
@@ -71,7 +73,7 @@ export function createSwitchKey(): SwitchKey {
   }
 
   function sync(): void {
-    if (!active || icon == null) {
+    if (!active || icon == null || (keyboardFormat !== 'ANSI' && keyboardFormat !== 'ISO')) {
       unmount()
       return
     }
@@ -81,7 +83,14 @@ export function createSwitchKey(): SwitchKey {
 
   ensurePageStyle(SwitchStyleId, SwitchStyle)
   observeRebuilds()
-  return { show, setActive }
+  return {
+    show,
+    setActive,
+    setKeyboardFormat: (format) => {
+      keyboardFormat = format
+      sync()
+    },
+  }
 
   function mount(): void {
     if (!active || icon == null) {

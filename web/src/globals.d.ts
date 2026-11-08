@@ -16,6 +16,7 @@ interface VuplexHost {
 }
 
 interface KeyboardPageApi {
+  setKeyboardFormat: (format: string | null) => void
   resolveReturn: (id: number, taken: boolean) => void
   playReturnSound: (view: ReturnSound) => void
   insertText: typeof insertText

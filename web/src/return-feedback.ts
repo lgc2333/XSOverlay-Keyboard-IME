@@ -30,7 +30,7 @@ export function createReturnFeedback(): {
   async function play(view: ReturnSound): Promise<void> {
     current = view
     if (!view.enabled || view.soundPack == null || view.audio === 'mute') return
-    const moduleUrl = '/UserInterface/Default/Keyboard/js/keyboard-audio.js'
+    const moduleUrl = '/apps/UserInterface/Default/Keyboard/js/keyboard-audio.js'
     loading ??= import(moduleUrl) as Promise<NativeKeyboardAudio>
     const native = await loading
     if (disposed) return

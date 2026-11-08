@@ -35,6 +35,7 @@ function install(): void {
   })
 
   window.__xsoKeyboardIme = {
+    setKeyboardFormat: switchKey.setKeyboardFormat,
     resolveReturn: returnRouting.resolve,
     playReturnSound: returnRouting.sound,
     insertText,

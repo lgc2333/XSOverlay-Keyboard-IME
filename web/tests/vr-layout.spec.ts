@@ -1,5 +1,33 @@
 import { expect, test } from './browser-test'
 
+test('physical JIS hides the switch and restores space through layout rebuilds', async ({ page }) => {
+  await page.goto('/')
+  const original = await page.locator('#bottom').evaluate(row => row.outerHTML)
+  await page.locator('#keyboard-voice-input').focus()
+  await page.evaluate(() => {
+    window.__xsoKeyboardIme!.setKeyboardFormat(null)
+    window.__xsoKeyboardIme!.showComposerState({ active: true, ime: '中文输入法', profiles: [], activeProfile: -1 })
+    window.__xsoKeyboardIme!.showSwitchIcon({ kind: 'glyph', enabled: true, tooltip: '', glyph: '中', font: 'sans-serif' })
+  })
+  await expect(page.locator('.ime-switch-key')).toHaveCount(0)
+  await expect(page.locator('#key-SPACE')).toHaveCSS('width', '320px')
+  for (const format of ['JIS', 'ANSI', 'ISO', 'JIS', 'ISO', 'ANSI', 'JIS']) {
+    await page.evaluate(format => {
+      window.__xsoKeyboardIme!.showComposerState({ active: true, ime: format === 'JIS' ? '中文输入法' : '日本語 IME', profiles: [], activeProfile: -1 })
+      window.__xsoKeyboardIme!.setKeyboardFormat(format)
+    }, format)
+    await expect(page.locator('.ime-switch-key')).toHaveCount(format === 'JIS' ? 0 : 1)
+    await expect(page.locator('#key-SPACE')).toHaveCSS('width', format === 'JIS' ? '320px' : '252px')
+    await page.evaluate(original => {
+      const template = document.createElement('template')
+      template.innerHTML = original
+      document.getElementById('bottom')!.replaceWith(template.content)
+    }, original)
+    await expect(page.locator('.ime-switch-key')).toHaveCount(format === 'JIS' ? 0 : 1)
+    await expect(page.locator('#key-SPACE')).toHaveCSS('width', format === 'JIS' ? '320px' : '252px')
+  }
+})
+
 test('the switch shares space without moving either Ctrl, including animation and rebuild', async ({
   page,
 }) => {

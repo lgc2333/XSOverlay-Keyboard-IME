@@ -44,6 +44,18 @@ namespace XSOverlayKeyboardIme.Takeover
                 return KeyOwnership.Swallow;
             }
 
+            if (HoldsCombination(key))
+            {
+                return KeyOwnership.Page;
+            }
+
+            // Native IME keys keep their identity even with a character label. See ADR 0048.
+            if (key.NativeKey is VirtualKey.Kana or VirtualKey.Convert or VirtualKey.NonConvert)
+            {
+                strokes.Add(KeyStroke.FromKey(key.NativeKey, HasShift(key)));
+                return KeyOwnership.Ime;
+            }
+
             if (gate == TakeoverGate.Composing)
             {
                 return ReadComposing(key, strokes);
@@ -58,12 +70,6 @@ namespace XSOverlayKeyboardIme.Takeover
         /// </summary>
         private static KeyOwnership ReadComposing(PageKey key, List<KeyStroke> strokes)
         {
-            // Every other modifier means the page interprets the key. See ADR 0029.
-            if (HoldsCombination(key))
-            {
-                return KeyOwnership.Page;
-            }
-
             string text = key.Text;
             if (text.Length == 1 && text[0] != ' ')
             {
@@ -100,12 +106,6 @@ namespace XSOverlayKeyboardIme.Takeover
         /// <summary>While the IME composes nothing, only a key that can start it is taken.</summary>
         private static KeyOwnership ReadIdle(PageKey key, List<KeyStroke> strokes)
         {
-            // Every other modifier means the page interprets the key. See ADR 0029.
-            if (HoldsCombination(key))
-            {
-                return KeyOwnership.Page;
-            }
-
             // The page already resolved the character, including the shift state. A space
             // never starts a composition, so it stays with the page. A lone modifier has no
             // character, so it falls through to the page like every other key.

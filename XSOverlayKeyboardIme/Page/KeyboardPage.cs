@@ -44,6 +44,17 @@ namespace XSOverlayKeyboardIme.Page
         /// <summary>The IME's input-mode icon, replayed onto a page that appears later.</summary>
         private static InputModeView _switchIcon;
 
+        private static string _keyboardFormat;
+
+        /// <summary>Receives the physical layout XSOverlay generated. See ADR 0049.</summary>
+        internal static void ShowKeyboardFormat(string format)
+        {
+            _keyboardFormat = format;
+            IWebView page = EnsureInjected();
+            if (page != null)
+                PushKeyboardFormat(page);
+        }
+
         /// <summary>Shows the IME's input-mode icon, the one the page's switch button draws.</summary>
         internal static void ShowSwitchIcon(InputModeView icon)
         {
@@ -91,6 +102,7 @@ namespace XSOverlayKeyboardIme.Page
                 return;
             }
 
+            PushKeyboardFormat(page);
             ShowBar(page, _view);
             PushSwitchIcon(page);
             PushComposerState(page);
@@ -194,6 +206,20 @@ namespace XSOverlayKeyboardIme.Page
                     }
 
                     HostLog.Info("page script injected -> " + outcome);
+                }
+            );
+        }
+
+        private static void PushKeyboardFormat(IWebView page)
+        {
+            Call(
+                page,
+                "keyboard layout",
+                CallVoid("setKeyboardFormat", JavaScriptJson.Serialize(_keyboardFormat)),
+                outcome =>
+                {
+                    if (outcome != "ok")
+                        HostLog.Warn("the keyboard layout did not reach the page: " + outcome);
                 }
             );
         }

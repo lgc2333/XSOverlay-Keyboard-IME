@@ -73,7 +73,7 @@ pnpm --dir web test
 - CSharpier 是锁版本的本地工具。克隆后跑一次 `dotnet tool restore`，改动 `.config/dotnet-tools.json` 之后也要再跑一次。
 - XSOverlay 路径默认是 `D:\SteamLibrary\steamapps\common\XSOverlay_Beta`，用 `-p:GameDir=<path>` 覆盖。
 - 回车浏览器回归仅复用安装版按键与音效模块，发送仍为 mock，不覆盖真实宿主往返。路径用 `XSOVERLAY_GAME_DIR` 覆盖；缺少模块时跳过依赖它们的用例。
-- 页面模块的真实 HTTP 路径以 `/apps/UserInterface/` 开头；回车测试服务器目前漏了 `/apps`，会掩盖模块地址错误，见[调查记录](docs/handoffs/26-11-08-1_roadmap-input-defects.md#回车无反应)。
+- 页面模块的真实 HTTP 路径以 `/apps/UserInterface/` 开头，回车测试服务器对旧路径与未知模块返回 404。
 - 日志落到 XSOverlay 目录下的 `BepInEx\LogOutput.log`。
 - CI 跑单元测试、页面浏览器回归、CSharpier、Prettier、测试工程上的分析器、页面脚本检查与原生构建。它从不构建插件：那需要 XSOverlay 的 Managed 程序集，而它们只留在这台机器上。
 

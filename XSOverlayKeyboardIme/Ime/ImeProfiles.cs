@@ -113,14 +113,8 @@ namespace XSOverlayKeyboardIme.Ime
             _choices.Clear();
             if (_disposed)
                 return _choices;
-            bool hasCurrent = _profiles.GetCurrentLanguage(out ushort current) >= 0;
-            if (hasCurrent)
-                ReadLanguageProfiles(current);
             foreach (ushort language in ReadLanguages())
-            {
-                if (!hasCurrent || language != current)
-                    ReadLanguageProfiles(language);
-            }
+                ReadLanguageProfiles(language);
 
             return _choices;
         }
