@@ -23,7 +23,7 @@
 末六项的来源、实施顺序与验收条件见[落地方案](./roadmap-input-fixes.md)。宿主随 composer 聚焦持有前台，失焦遵循输入法默认行为，见 [0050](./adr/0050-hold-the-host-focus-for-the-composer.md)；实现与验证尚未完成。
 
 - [x] 按语言栏附加图标的有无显示切换键，公开 TSF 模式项优先，缺项时读取 Shell 原图或字形。原图不可读时使用占位，美式布局隐藏，点击不可用时保持 disabled。见 [0042](./adr/0042-hide-the-switch-without-an-icon.md)。
-- [ ] Shell 原生点击尚未证明能在归还前台前可靠完成，当前仅显示状态；系统 DLL 适配也仅覆盖精确验证的版本，详见[适配说明](./input-mode-shell.md)。
+- [ ] 缺少公开 TSF 模式项时，采用 Shell 原图与任务栏 UIA 点击，见 [0051](./adr/0051-use-taskbar-uia-for-shell-mode-clicks.md)。独立模块已实现并通过 .NET 与 Unity Mono 探针，待 0050 验收后启用；系统 DLL 图像适配仍仅覆盖精确验证的版本，详见[适配说明](./input-mode-shell.md)。
 
 - [ ] 微软中文与日语输入法在输入框为焦点时打不出任何字，不管是中文还是英文模式，打不出一个字，没有预编辑，没有候选，没有一个字上屏输入框。英文模式也如此。独立生产宿主对照已重复：原样归还前台时无输入，仅抑制归还后拼音开始组字、日语收到普通字符，支持插件过早归还前台；提权游戏内的干预尚未完成。日语迟到字符未立即交付也是插件缺陷，见[调查记录](./handoffs/26-11-08-1_roadmap-input-defects.md#微软拼音与日语输入法无输入)。
 - [ ] 微软日语的快捷键（jis布局键盘）貌似不生效（变换，非变换，平假片假快捷切换）按平片假切换只能出来一个预编辑的f，按非变换只能按出来一个预编辑的a。插件漏接管有效专用码，另已捕获 XSOverlay 实际提供 `70/235`，不能把接管标准码等同于修复真实按键。边界见 [0048](./adr/0048-route-jis-ime-keys-through-the-host.md) 与[调查记录](./handoffs/26-11-08-1_roadmap-input-defects.md#jis-专用键)。

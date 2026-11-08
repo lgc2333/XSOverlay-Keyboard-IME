@@ -5,7 +5,7 @@ using XSOverlayKeyboardIme.Interop;
 namespace XSOverlayKeyboardIme.Ime
 {
     /// <summary>The host thread's public input-mode item. See ADR 0042.</summary>
-    internal sealed class LanguageBarButton : IDisposable
+    internal sealed class LanguageBarButton : IInputModeSource
     {
         private readonly ITfThreadMgr _thread;
         private readonly ITfLangBarItem _item;
@@ -98,6 +98,20 @@ namespace XSOverlayKeyboardIme.Ime
         }
 
         internal bool Click() => _button != null && _button.OnClick(2, 0, 0, IntPtr.Zero) >= 0;
+
+        InputModeView IInputModeSource.Read() => Read();
+
+        void IInputModeSource.Click(Action complete)
+        {
+            try
+            {
+                Click();
+            }
+            finally
+            {
+                complete();
+            }
+        }
 
         public void Dispose()
         {

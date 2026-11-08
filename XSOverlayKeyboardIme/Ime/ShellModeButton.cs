@@ -5,7 +5,7 @@ using XSOverlayKeyboardIme.Interop;
 
 namespace XSOverlayKeyboardIme.Ime
 {
-    /// <summary>A short-lived Shell observer, created only with the host in front. See ADR 0042.</summary>
+    /// <summary>A Shell visual observer held for the foreground lease. See ADR 0051.</summary>
     internal sealed class ShellModeButton : IDisposable
     {
         private static readonly ImeShim.ProfileChangedCallback ChangedRef = OnChanged;
@@ -55,12 +55,11 @@ namespace XSOverlayKeyboardIme.Ime
                 // US returns hidden=0 with every content field empty.
                 if (item.Hidden != 0 || (item.Icon == IntPtr.Zero && glyph.Length == 0 && tooltip.Length == 0))
                     return true;
-                // Shell's queued click has no reliable completion boundary before foreground return.
                 view = new InputModeView(
                     item.Icon == IntPtr.Zero ? null : IconPixels.Read(item.Icon),
                     glyph,
                     "Segoe Fluent Icons",
-                    false,
+                    item.Disabled == 0,
                     tooltip
                 );
                 return true;

@@ -54,10 +54,12 @@ list(APPEND INGAMEIME_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/shim/profile-notifications.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/shim/keyboard-layout-name.cpp")
 list(APPEND INGAMEIME_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/shim/shell-mode-button.cpp")
+list(APPEND INGAMEIME_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/shim/taskbar-mode-button.cpp")
 
 # One module, so the C++ symbols resolve internally. Only the shim's entry points are
 # exported, and it marks them itself.
 add_library(IngameIME SHARED ${INGAMEIME_SOURCES})
+target_link_libraries(IngameIME PRIVATE ole32 oleaut32 shlwapi uiautomationcore)
 target_include_directories(IngameIME
   PRIVATE "${INGAMEIME_WIN32}/include"
           "${INGAMEIME_COMMON}/include")

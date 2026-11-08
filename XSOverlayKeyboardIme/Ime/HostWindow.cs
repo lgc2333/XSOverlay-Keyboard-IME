@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 using XSOverlayKeyboardIme.Diagnostics;
@@ -18,6 +19,7 @@ namespace XSOverlayKeyboardIme.Ime
         internal const uint ComposerMessage = Win32Native.WmApp + 4;
         internal const uint ProfileMessage = Win32Native.WmApp + 6;
         internal const uint ModeCompleteMessage = Win32Native.WmApp + 7;
+        private const uint DispatchMessage = Win32Native.WmApp + 8;
 
         private const string WindowClassName = "XSOverlayKeyboardImeHost";
         private const string WindowTitle = "XSOverlay Keyboard IME host";
@@ -32,6 +34,8 @@ namespace XSOverlayKeyboardIme.Ime
 
         private readonly Action<uint> _onHostMessage;
         private readonly StringBuilder _typed = new StringBuilder();
+        private readonly object _dispatchLock = new object();
+        private readonly Queue<Action> _actions = new Queue<Action>();
         private IntPtr _handle;
 
         private HostWindow(Action<uint> onHostMessage)
@@ -55,6 +59,37 @@ namespace XSOverlayKeyboardIme.Ime
         internal void Post(uint message)
         {
             Win32Native.PostMessageW(_handle, message, IntPtr.Zero, IntPtr.Zero);
+        }
+
+        /// <summary>Runs a worker completion on the host STA, unless its window has closed.</summary>
+        internal bool Post(Action action)
+        {
+            lock (_dispatchLock)
+            {
+                if (_handle == IntPtr.Zero)
+                    return false;
+                _actions.Enqueue(action);
+                if (!Win32Native.PostMessageW(_handle, DispatchMessage, IntPtr.Zero, IntPtr.Zero))
+                {
+                    _actions.Clear();
+                    return false;
+                }
+                return true;
+            }
+        }
+
+        private void DispatchActions()
+        {
+            while (true)
+            {
+                Action action;
+                lock (_dispatchLock)
+                {
+                    if (!_actions.TryDequeue(out action))
+                        return;
+                }
+                action();
+            }
         }
 
         internal int PumpMessages()
@@ -88,11 +123,15 @@ namespace XSOverlayKeyboardIme.Ime
         internal void Close()
         {
             _current = null;
-            if (_handle != IntPtr.Zero)
+            IntPtr handle;
+            lock (_dispatchLock)
             {
-                Win32Native.DestroyWindow(_handle);
+                handle = _handle;
                 _handle = IntPtr.Zero;
+                _actions.Clear();
             }
+            if (handle != IntPtr.Zero)
+                Win32Native.DestroyWindow(handle);
         }
 
         /// <summary>
@@ -186,6 +225,11 @@ namespace XSOverlayKeyboardIme.Ime
                 HostWindow window = _current;
                 if (window != null)
                 {
+                    if (message == DispatchMessage)
+                    {
+                        window.DispatchActions();
+                        return IntPtr.Zero;
+                    }
                     if (message >= Win32Native.WmApp)
                     {
                         window._onHostMessage(message);

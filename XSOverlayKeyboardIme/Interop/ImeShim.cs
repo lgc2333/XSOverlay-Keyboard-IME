@@ -40,6 +40,19 @@ namespace XSOverlayKeyboardIme.Interop
         [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
         internal static extern void iime_shell_mode_free(ref ShellModeItem item);
 
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate int TaskbarRequestAllowed(IntPtr user);
+
+        [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int iime_taskbar_mode_run(
+            IntPtr host,
+            int click,
+            TaskbarRequestAllowed allowed,
+            TaskbarRequestAllowed authorize,
+            IntPtr user,
+            out int available
+        );
+
         internal delegate void PreEditCallback(
             int state,
             int selectionStart,

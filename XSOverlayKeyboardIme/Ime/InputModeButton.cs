@@ -105,7 +105,8 @@ namespace XSOverlayKeyboardIme.Ime
         {
             if (_shell == null || !Nullable.Equals(_profile, _readProfile()))
                 return;
-            Publish(_shell.TryRead(out InputModeView view) ? view : _view?.Disabled());
+            // Keep production display-only until the ADR 0050 lease is integrated.
+            Publish(_shell.TryRead(out InputModeView view) ? view?.Disabled() : _view?.Disabled());
         }
 
         /// <summary>Collects queued Shell notifications before returning foreground.</summary>

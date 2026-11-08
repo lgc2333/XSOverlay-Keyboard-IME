@@ -124,7 +124,7 @@ pnpm --dir web test
 
 输入法说了算。键盘做它没有插件时也会做的事：键进去，输入法拿它怎么处理，就是用户看到的答案。只用公共 API（例如 TSF，IME），不做按输入法的特例。
 
-公开语言栏模式项缺失时，允许 [0042](docs/adr/0042-hide-the-switch-without-an-icon.md) 的 InputSwitch 例外。修改 Shell ABI 或生命周期前读[适配约束](docs/input-mode-shell.md)。
+修改模式项来源前读 [0042](docs/adr/0042-hide-the-switch-without-an-icon.md) 与 [0051](docs/adr/0051-use-taskbar-uia-for-shell-mode-clicks.md)：公开 TSF 优先，缺项时允许 InputSwitch 原图与任务栏 UIA 点击。修改 Shell ABI 或生命周期前读[适配约束](docs/input-mode-shell.md)。
 
 - 先按来源给缺陷分类：插件、XSOverlay、输入法，还是系统。说出来源，以及把它归到那里的证据。
 - 由输入法或系统产生的结果是预期行为：切换时被丢下的组字、组字结束后才到的提交、布局打不出的字符、把编码当原文提交。记为基线，别去动它。

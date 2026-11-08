@@ -1,6 +1,6 @@
 # Shell 输入模式项适配
 
-实现入口：[原生适配](../native/shim/shell-mode-button.cpp)、[宿主按钮](../XSOverlayKeyboardIme/Ime/InputModeButton.cs)。产品规则见 [0042](./adr/0042-hide-the-switch-without-an-icon.md)。
+实现入口：[原生适配](../native/shim/shell-mode-button.cpp)、[宿主按钮](../XSOverlayKeyboardIme/Ime/InputModeButton.cs)。原图规则见 [0042](./adr/0042-hide-the-switch-without-an-icon.md)，已接受的 UIA 点击路径见 [0051](./adr/0051-use-taskbar-uia-for-shell-mode-clicks.md)，尚未接入生产。
 
 ## 支持范围
 
@@ -39,3 +39,18 @@ Shell 的 `ClickImeModeItem` 把点击投到原生 worker，返回成功不表�
 2026-11-08 用生产源码分别在 .NET 10 与 XSOverlay 自带 Unity Mono 中验证：小狼毫使用公开原图，可原生点击两次还原；微软拼音显示原始字形，日语输入法显示原始字形，两者禁用点击；美式布局隐藏。恢复目标与宿主分属不同线程。禁用点击和后台刷新均未改变前台或快照，profile 切换清除旧图，结束后恢复原输入项与前台。
 
 页面浏览器回归覆盖原图布局、系统字体字形、固定占位、disabled 无音效与原生消息、主题着色。上述隔离验证不替代 VR 验收，也不证明其他系统 DLL 版本兼容。
+
+后续[任务栏 UIA 调查](./handoffs/26-11-08-2_taskbar-uia-mode-toggle.md)已在前台往返矩阵验证 60 次实际切换。Invoke 返回后立即释放观察对象会漏掉图像更新；后续 12 次按实际图像更新收尾，图像与真实输入一致。异步动作与宿主输入生命周期尚需集成，未接入生产点击路径。
+
+## 尚未启用的 UIA 模块
+
+[InputModeSwitch](../XSOverlayKeyboardIme/Ime/InputModeSwitch.cs) 已实现 [0051](./adr/0051-use-taskbar-uia-for-shell-mode-clicks.md) 的按钮协调，通过 [IInputModePlatform](../XSOverlayKeyboardIme/Ime/IInputModePlatform.cs) 隔离 Windows 接口。[TaskbarModeButton](../XSOverlayKeyboardIme/Ime/TaskbarModeButton.cs) 保留 STA 上的 Shell 观察对象，在独立 MTA 中调用[原生 UIA 适配](../native/shim/taskbar-mode-button.cpp)。当前 [ImeHost](../XSOverlayKeyboardIme/Ime/ImeHost.cs) 仍使用原有采样路径，Shell 按钮保持 disabled；待 [0050](./adr/0050-hold-the-host-focus-for-the-composer.md) 验收后再接入。
+
+- `Refresh(profile)` 优先打开公开 TSF 项，明确缺项才打开 Shell 与 UIA 来源。来源回调均在宿主 STA 执行。
+- `Click()` 只禁用当前按钮，期间重复点击被忽略。调用返回后立即收尾，不等待图像变化，普通输入不经过该模块。
+- UIA 使用本机资源定位唯一模式按钮，排除语言选择器，检查 Invoke 能力、可用与可见状态。自动设焦关闭，请求超时配置为 2 秒与 20 秒，设置后读回确认；没有整体硬超时。
+- 定位完成后回到 STA 校验完整输入项与宿主资格，Invoke 前再次校验原生焦点。取消不能撤回已交给 Explorer 的动作。
+- `Reset()` 废弃请求与来源代次，取消尚未获准的动作并清除旧图。`Dispose()` 同时阻止迟到刷新重新打开原生项。Shell 系统事件与点击完成分别处理。
+- 接入时沿 composer 前台租约保留来源，并在失焦、切换输入项和退出时先使旧请求失效。工作线程不持有 Shell 或 TSF 对象，STA 不等待线程退出。
+
+2026-11-08 新模块在 .NET 10 与 XSOverlay 自带 Unity Mono 中各完成 8 次实际切换，拼音与日语均得到交替的直通字符或组字。Mono 另验证了 STA 拒绝授权后恢复可点击、请求期间立即送键，以及销毁来源后抑制迟到完成。授权拒绝不是实际 Invoke 内部失败；缺失或重复的任务栏目标尚未做实机故障注入。按钮策略由可移植测试覆盖，VR 页面与提权进程仍待集成验收。
