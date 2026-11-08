@@ -16,7 +16,7 @@
 - [ ] 回车模块地址已修正，DOM、pointer、touch 的空闲与组字路由回归通过。真实 VR 页面仍需核对宿主答复、提交、音效、触觉与最终发送。
 - [ ] 输入法列表已按系统枚举顺序显示，独立 STA 切换线程语言至中文、英文、日语时身份序列一致。真实页面仍需核对同语言与跨语言切换后的顺序和选中项。
 - [ ] JIS 物理布局已隐藏中英切换按钮，ANSI、ISO 沿用原条件，布局切换与重建回归通过。真实 VR 页面仍需核对布局通知与空格宽度，见 [0049](./adr/0049-hide-the-input-mode-switch-on-jis.md)。
-- [ ] VRC ChatBox 实时广播已实现并通过本地回归，待 SteamVR 会话验收页面、宿主与 VRChat 的完整往返，见[调查交接](./handoffs/26-11-08-3_vrchat-chatbox-investigation.md)。
+- [ ] VRC ChatBox 实时广播已实现并通过本地回归，待 SteamVR 会话验收页面、宿主与 VRChat 的完整往返；决策见 [0052](./adr/0052-broadcast-chatbox-previews-and-keep-native-submission.md)，实测见[调查交接](./handoffs/26-11-08-3_vrchat-chatbox-investigation.md)。
 
 ## XSOverlay 侧问题，不由本插件修复
 

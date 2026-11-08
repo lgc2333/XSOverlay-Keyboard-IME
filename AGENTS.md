@@ -86,6 +86,7 @@ pnpm --dir web test
 - 引用 XSOverlay 自己的 `Managed/*.dll`。别的 Unity 版本的 stub 包对不上真实的 API 面。
 - 没有备份和写明的恢复路径，不要改 XSOverlay 的 `StreamingAssets`。
 - 输入法的中英状态归用户：绝不从代码切它，也绝不读模式。按输入法是否组字来分流按键。见 ADR 0026。
+- 修改 ChatBox 广播或正式发送衔接前读 [0052](docs/adr/0052-broadcast-chatbox-previews-and-keep-native-submission.md)。
 - 修改宿主前台寿命或 composer 失焦路径前读 [0050](docs/adr/0050-hold-the-host-focus-for-the-composer.md)，其规则已接受，实现与原型验证尚未完成。
 - XSOverlay 即便 Steam 没有提权也是提权运行，所以普通 shell 停不掉它，往运行中的 XSOverlay 上部署会撞上被锁住的 `IngameIME.dll`。改为从 Steam 客户端的库页面停 XSOverlay：Steam 客户端服务以 `LocalSystem` 运行，会替 Steam 结束 XSOverlay。
 - 经 Steam 重启 XSOverlay：`steam.exe -applaunch 1173510`。进程死掉之后 Steam 仍会报应用在运行，这时候早启动会失败并提示 “the game is already running”。等 `HKCU\Software\Valve\Steam\Apps\1173510` 的 `Running` 报成 0，再启动。
