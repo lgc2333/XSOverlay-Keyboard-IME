@@ -9,11 +9,14 @@ The licence text ships in this repository at [native/LICENSE-LGPL-2.1.txt](nativ
 
 ## IngameIME_Win32
 
-- Source: <https://github.com/Windmill-City/IngameIME_Win32>
-- Pinned commit: `0e77cac6d2cf1e6a69155dda9d8090ca2f6852b7` (tag `v6.1.5`)
+- Source: <https://github.com/lgc2333/IngameIME_Win32>
+- Upstream: <https://github.com/Windmill-City/IngameIME_Win32>
+- Pinned commit: `a95d660c1d5b2ba0b0e933266df4e23e5f6c7232`
+- Fork base: `0e77cac6d2cf1e6a69155dda9d8090ca2f6852b7` (tag `v6.1.5`)
 - Licence: LGPL 2.1
 - Contributes the TSF input context, the composition and candidate callbacks, and the
   report of the input mode.
+- The fork fixes COM interface identity and the reference count returned during object destruction.
 
 ## IngameIME-Common
 

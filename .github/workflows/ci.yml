@@ -121,3 +121,5 @@ jobs:
           submodules: true
       - name: Build native library
         run: pwsh native/build.ps1 -Configuration Release
+      - name: Test native COM identity and lifetime
+        run: ctest --test-dir native/build --output-on-failure

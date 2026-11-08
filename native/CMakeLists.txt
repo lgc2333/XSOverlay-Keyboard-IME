@@ -63,3 +63,8 @@ target_link_libraries(IngameIME PRIVATE ole32 oleaut32 shlwapi uiautomationcore)
 target_include_directories(IngameIME
   PRIVATE "${INGAMEIME_WIN32}/include"
           "${INGAMEIME_COMMON}/include")
+
+include(CTest)
+if(BUILD_TESTING)
+  add_subdirectory("${INGAMEIME_WIN32}/tests" "${CMAKE_BINARY_DIR}/tests")
+endif()

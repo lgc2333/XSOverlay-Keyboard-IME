@@ -216,6 +216,24 @@ VR Shift 保持宿主前台后的物理按键对照已成功，两款都能把�
 
 所有带线程字段的原生追踪事件均在同一托管 STA 线程回报。实验退出前核验活动档案恢复为初始小狼毫，子进程退出码为 0，临时服务和窗口已清理。没有测量已使用真实输入法上下文的长期保留成本，没有验证模式保持、物理编辑键、Vuplex 或 Unity；双窗口与文本存储仍是候选，尚未形成产品决定。
 
+### 多上下文的公共接口约束
+
+候选列表的公开 [GetDocumentMgr](https://learn.microsoft.com/en-us/windows/win32/api/msctf/nf-msctf-itfcandidatelistuielement-getdocumentmgr) 可以返回所属文档，比较时须将双方接口规范化为 `IUnknown` 身份。它不是所有输入法都实现的保证：微软 [SampleIME 的实现](https://github.com/microsoft/Windows-classic-samples/blob/main/Samples/IME/cpp/SampleIME/CandidateListUIPresenter.cpp#L539-L544)返回空指针与 `E_NOTIMPL`，失败或空值不能解释为当前焦点所属文档。
+
+[UI-less 契约](https://learn.microsoft.com/en-us/windows/win32/tsf/uiless-mode-overview#the-flow-chart-of-uilessmode)允许内容直到首次 Update 才就绪，不能只在 Begin 判定一次。[GetUpdatedFlags](https://learn.microsoft.com/en-us/windows/win32/api/msctf/nf-msctf-itfcandidatelistuielement-getupdatedflags)的 `TF_CLUIE_DOCUMENTMGR` 又明确允许目标文档改变，因此必须重新确认更新后的归属。End 只携带元素 ID；当前资料未保证此时仍可重新查询元素，路由只能依据该活动元素先前已确认的关联，并在 End 清除。没有查到 ID 结束后永不复用的保证，不能把它当作永久来源身份。真实三款输入法的返回值仍待采集。
+
+原生对象释放与结果完整性也是两个问题。[AssociateFocus](https://learn.microsoft.com/en-us/windows/win32/api/msctf/nf-msctf-itfthreadmgr-associatefocus)不增加文档引用计数，销毁前须移除或恢复窗口关联，并独立管理文档所有权。每次异步编辑请求可以持有自己的状态，避免原生 owner 被销毁后再访问；这只能证明内存安全，不能证明所有实际迟到提交已经交付。[RequestEditSession](https://learn.microsoft.com/en-us/windows/win32/api/msctf/nf-msctf-itfcontext-requesteditsession)对待处理异步请求的顺序承诺不是输入法永久不再产生结果的屏障。尚未证明在保留全部迟到提交的同时，能按焦点期有界回收上下文；未据此增加超时、丢弃或停用兜底。
+
+### 原生 COM 身份与最终释放缺陷
+
+生命周期审查另确认了随插件打包的 IngameIME 原生依赖缺陷。上游 `COM_DEF_BEGIN` 在查询 `IUnknown` 时返回完整对象指针，但其首基类是含虚析构的 `ComObjectBase`，真正的 COM 接口位于另一个地址。同继承结构、同宏的 MSVC x64 对照中，四个接口返回同一个错误地址，首个 COM 接口偏移为 16，两个地址的虚表首项不同；直接编译实际 `CompositionHandler` 头文件的布局报告也确认该偏移。没有调用错误 `IUnknown` 的虚表来触发崩溃。
+
+第二处是 `InternalRelease`：计数归零时 `delete this`，随后返回已释放对象内的 `ref`。直接编译上游实现的 AddressSanitizer 对照检出第 13 行的四字节 `heap-use-after-free`。临时对照改为选择明确的 COM 接口身份，并在删除前保存剩余计数后，两项检查通过，最后一次 Release 返回 0。
+
+用户授权 fork、修复并验证后，已发布 [fork 修复提交](https://github.com/lgc2333/IngameIME_Win32/commit/a95d660c1d5b2ba0b0e933266df4e23e5f6c7232)。三个生产 handler 明确选择自己的标准 COM 接口身份；C ABI、输入处理及 TSF 会话策略保持原有行为。新增[原生回归](../../native/IngameIME_Win32/tests/ComObjectBaseTests.cpp)覆盖多接口身份、通过查询所得接口调用、失败查询、引用保活及恰好一次销毁，普通与 AddressSanitizer 构建均通过。根构建和 CI 接入 CTest，子模块源与许可证来源记录指向 fork，并保留上游基点。
+
+修复库还通过原有独立 TSF 合成对照：旧来源只提交 `a`，新来源保留活动组字 `b`，随后独立提交；窗口始终不可见，前台未变。它验证修改后的库仍支持该原生路径，不覆盖真实按键、Vuplex 或提权 XSOverlay。尚未部署到 XSOverlay，也未证明这两处缺陷导致前述六项现场症状；它们不解决 raw owner 的异步存活期、候选归属或上下文回收契约。
+
 ## JIS 专用键
 
 [KeyStrokeReader](../../XSOverlayKeyboardIme/Takeover/KeyStrokeReader.cs) 在组字期间按键名白名单映射，无映射时吞掉，空闲时只接管单字符。有效的 JIS 专用键因此也无法按 [0048](../adr/0048-route-jis-ime-keys-through-the-host.md) 的目标规则送达。
