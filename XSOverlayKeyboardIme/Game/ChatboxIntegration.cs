@@ -66,13 +66,7 @@ namespace XSOverlayKeyboardIme.Game
                 var service = VRChatOscIntegration.Service as VRChatOscService;
                 int generation = service?.TargetGeneration ?? 0;
                 VRChatOscTarget target = service?.Target;
-                if (
-                    service == null
-                    || !service.IsAvailable
-                    || !VRChatOscIntegration.IsVRChatActive
-                    || target == null
-                    || generation != service.TargetGeneration
-                )
+                if (!IsCurrentTarget(service, target, generation))
                 {
                     _endpoint = null;
                     Broadcast.ResetDelivery();
@@ -135,13 +129,7 @@ namespace XSOverlayKeyboardIme.Game
 
         private static void Send(string address, object[] arguments)
         {
-            if (
-                _endpoint == null
-                || !ReferenceEquals(_service, VRChatOscIntegration.Service)
-                || !_service.IsAvailable
-                || !ReferenceEquals(_target, _service.Target)
-                || _generation != _service.TargetGeneration
-            )
+            if (_endpoint == null || !IsCurrentTarget(_service, _target, _generation))
                 return;
             try
             {
@@ -155,5 +143,13 @@ namespace XSOverlayKeyboardIme.Game
                 HostLog.Warn("ChatBox update failed: " + exception.Message);
             }
         }
+
+        private static bool IsCurrentTarget(VRChatOscService service, VRChatOscTarget target, int generation) =>
+            service != null
+            && service.IsAvailable
+            && target != null
+            && ReferenceEquals(service, VRChatOscIntegration.Service)
+            && ReferenceEquals(target, service.Target)
+            && generation == service.TargetGeneration;
     }
 }
