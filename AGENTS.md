@@ -72,7 +72,8 @@ pnpm --dir web test
 - 不要递归子模块：`IngameIME_Win32` 经 SSH 地址取它自己那份 `IngameIME-Common`，而 `native/CMakeLists.txt` 用的是同级子模块。
 - CSharpier 是锁版本的本地工具。克隆后跑一次 `dotnet tool restore`，改动 `.config/dotnet-tools.json` 之后也要再跑一次。
 - XSOverlay 路径默认是 `D:\SteamLibrary\steamapps\common\XSOverlay_Beta`，用 `-p:GameDir=<path>` 覆盖。
-- 原页回车集成测试读取安装版页面模块，路径用 `XSOVERLAY_GAME_DIR` 覆盖；未安装 XSOverlay 时跳过。
+- 回车浏览器回归仅复用安装版按键与音效模块，发送仍为 mock，不覆盖真实宿主往返。路径用 `XSOVERLAY_GAME_DIR` 覆盖；缺少模块时跳过依赖它们的用例。
+- 页面模块的真实 HTTP 路径以 `/apps/UserInterface/` 开头；回车测试服务器目前漏了 `/apps`，会掩盖模块地址错误，见[调查记录](docs/handoffs/26-11-08-1_roadmap-input-defects.md#回车无反应)。
 - 日志落到 XSOverlay 目录下的 `BepInEx\LogOutput.log`。
 - CI 跑单元测试、页面浏览器回归、CSharpier、Prettier、测试工程上的分析器、页面脚本检查与原生构建。它从不构建插件：那需要 XSOverlay 的 Managed 程序集，而它们只留在这台机器上。
 
@@ -84,6 +85,7 @@ pnpm --dir web test
 - 引用 XSOverlay 自己的 `Managed/*.dll`。别的 Unity 版本的 stub 包对不上真实的 API 面。
 - 没有备份和写明的恢复路径，不要改 XSOverlay 的 `StreamingAssets`。
 - 输入法的中英状态归用户：绝不从代码切它，也绝不读模式。按输入法是否组字来分流按键。见 ADR 0026。
+- 修改宿主前台寿命或 composer 失焦路径前读 [0050](docs/adr/0050-hold-the-host-focus-for-the-composer.md)，其规则已接受，实现与原型验证尚未完成。
 - XSOverlay 即便 Steam 没有提权也是提权运行，所以普通 shell 停不掉它，往运行中的 XSOverlay 上部署会撞上被锁住的 `IngameIME.dll`。改为从 Steam 客户端的库页面停 XSOverlay：Steam 客户端服务以 `LocalSystem` 运行，会替 Steam 结束 XSOverlay。
 - 经 Steam 重启 XSOverlay：`steam.exe -applaunch 1173510`。进程死掉之后 Steam 仍会报应用在运行，这时候早启动会失败并提示 “the game is already running”。等 `HKCU\Software\Valve\Steam\Apps\1173510` 的 `Running` 报成 0，再启动。
 

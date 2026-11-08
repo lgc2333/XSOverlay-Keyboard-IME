@@ -1,7 +1,7 @@
 ---
 status: accepted
 amends: ['0019']
-amended_by: ['0034']
+amended_by: ['0034', '0050']
 ---
 
 # 组字期间 composer 输入框的光标一动就取消组字

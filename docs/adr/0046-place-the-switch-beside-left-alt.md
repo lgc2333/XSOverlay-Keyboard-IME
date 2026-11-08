@@ -1,6 +1,7 @@
 ---
 status: accepted
 amends: ['0037']
+amended_by: ['0049']
 ---
 
 # 中英切换按钮占左 Alt 右侧的 1u，空格等量让位

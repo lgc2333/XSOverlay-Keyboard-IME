@@ -1,6 +1,7 @@
 ---
 status: accepted
 amends: ['0027']
+amended_by: ['0050']
 ---
 
 # 页面重建输入框不算失焦，用户离开才算
