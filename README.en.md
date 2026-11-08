@@ -88,7 +88,7 @@ Once the input box loses the focus, the IME information has no stable source. Th
 
 The name identifies the IME that receives your next key. It appears while the input box has focus. The 中/英 switch appears when the language bar has an additional mode icon. An unreadable image uses a fixed placeholder. The US layout hides the switch.
 
-Microsoft Pinyin and Japanese Microsoft IME currently show their original mode glyphs with a disabled button. Use the switching key configured in your IME. See the [system compatibility limits](docs/input-mode-shell.md#支持范围).
+Microsoft Pinyin and Japanese Microsoft IME currently show their original mode glyphs with a disabled button. Use the switching key configured in your IME. See the [system compatibility limits](docs/notes/input-mode-shell.md#支持范围).
 
 The bar shows the name and dropdown on the right. The switch sits to the right of left Alt. Space becomes narrower while the switch is visible. Hiding the switch restores Space's full width. The keyboard row keeps the same width.
 

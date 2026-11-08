@@ -1,6 +1,6 @@
 # Shell 输入模式项适配
 
-实现入口：[原生适配](../native/shim/shell-mode-button.cpp)、[宿主按钮](../XSOverlayKeyboardIme/Ime/InputModeButton.cs)。原图规则见 [0042](./adr/0042-hide-the-switch-without-an-icon.md)，已接受的 UIA 点击路径见 [0051](./adr/0051-use-taskbar-uia-for-shell-mode-clicks.md)，尚未接入生产。
+实现入口：[原生适配](../../native/shim/shell-mode-button.cpp)、[宿主按钮](../../XSOverlayKeyboardIme/Ime/InputModeButton.cs)。原图规则见 [0042](../adr/0042-hide-the-switch-without-an-icon.md)，已接受的 UIA 点击路径见 [0051](../adr/0051-use-taskbar-uia-for-shell-mode-clicks.md)，尚未接入生产。
 
 ## 支持范围
 
@@ -28,7 +28,7 @@ getter 返回 40 字节结构：tooltip 指针、HICON、disabled BOOL、hidden 
 
 回调槽 3 至 10 依次为 `OnUpdateProfile(const profile*)`、`OnUpdateTsfFloatingFlags(ULONG)`、`OnProfileCountChange(UINT, BOOL)`、`OnShowHide(BOOL, BOOL, BOOL)`、`OnImeModeItemUpdate(const item*)`、`OnModalitySelected(int)`、`OnContextFlagsChange(ULONG)`、`OnTouchKeyboardManualInvoke()`。均返回 HRESULT，使用 STDMETHODCALLTYPE。
 
-回调参数是借用指针，可能为空。适配只发失效通知，不保留或释放参数。`SetCallback(NULL)` 解除订阅。原生 sink 通过静态 cdecl 委托通知 Mono，遵循 [0024](./adr/0024-managed-delegate-callbacks.md)。
+回调参数是借用指针，可能为空。适配只发失效通知，不保留或释放参数。`SetCallback(NULL)` 解除订阅。原生 sink 通过静态 cdecl 委托通知 Mono，遵循 [0024](../adr/0024-managed-delegate-callbacks.md)。
 
 字形用原始字符与 Segoe Fluent Icons 显示。HICON 保留 alpha 与 AND mask，单色图标及 `TF_LBI_STYLE_TEXTCOLORICON` 使用页面前景色。美式布局的内容字段均为空，即使 hidden 为 0，也没有模式按钮。
 
@@ -40,11 +40,11 @@ Shell 的 `ClickImeModeItem` 把点击投到原生 worker，返回成功不表�
 
 页面浏览器回归覆盖原图布局、系统字体字形、固定占位、disabled 无音效与原生消息、主题着色。上述隔离验证不替代 VR 验收，也不证明其他系统 DLL 版本兼容。
 
-后续[任务栏 UIA 调查](./handoffs/26-11-08-2_taskbar-uia-mode-toggle.md)已在前台往返矩阵验证 60 次实际切换。Invoke 返回后立即释放观察对象会漏掉图像更新；后续 12 次按实际图像更新收尾，图像与真实输入一致。异步动作与宿主输入生命周期尚需集成，未接入生产点击路径。
+后续[任务栏 UIA 调查](../handoffs/26-11-08-2_taskbar-uia-mode-toggle.md)已在前台往返矩阵验证 60 次实际切换。Invoke 返回后立即释放观察对象会漏掉图像更新；后续 12 次按实际图像更新收尾，图像与真实输入一致。异步动作与宿主输入生命周期尚需集成，未接入生产点击路径。
 
 ## 尚未启用的 UIA 模块
 
-[InputModeSwitch](../XSOverlayKeyboardIme/Ime/InputModeSwitch.cs) 已实现 [0051](./adr/0051-use-taskbar-uia-for-shell-mode-clicks.md) 的按钮协调，通过 [IInputModePlatform](../XSOverlayKeyboardIme/Ime/IInputModePlatform.cs) 隔离 Windows 接口。[TaskbarModeButton](../XSOverlayKeyboardIme/Ime/TaskbarModeButton.cs) 保留 STA 上的 Shell 观察对象，在独立 MTA 中调用[原生 UIA 适配](../native/shim/taskbar-mode-button.cpp)。当前 [ImeHost](../XSOverlayKeyboardIme/Ime/ImeHost.cs) 仍使用原有采样路径，Shell 按钮保持 disabled；待 [0050](./adr/0050-hold-the-host-focus-for-the-composer.md) 验收后再接入。
+[InputModeSwitch](../../XSOverlayKeyboardIme/Ime/InputModeSwitch.cs) 已实现 [0051](../adr/0051-use-taskbar-uia-for-shell-mode-clicks.md) 的按钮协调，通过 [IInputModePlatform](../../XSOverlayKeyboardIme/Ime/IInputModePlatform.cs) 隔离 Windows 接口。[TaskbarModeButton](../../XSOverlayKeyboardIme/Ime/TaskbarModeButton.cs) 保留 STA 上的 Shell 观察对象，在独立 MTA 中调用[原生 UIA 适配](../../native/shim/taskbar-mode-button.cpp)。当前 [ImeHost](../../XSOverlayKeyboardIme/Ime/ImeHost.cs) 仍使用原有采样路径，Shell 按钮保持 disabled；待 [0050](../adr/0050-hold-the-host-focus-for-the-composer.md) 验收后再接入。
 
 - `Refresh(profile)` 优先打开公开 TSF 项，明确缺项才打开 Shell 与 UIA 来源。来源回调均在宿主 STA 执行。
 - `Click()` 只禁用当前按钮，期间重复点击被忽略。调用返回后立即收尾，不等待图像变化，普通输入不经过该模块。

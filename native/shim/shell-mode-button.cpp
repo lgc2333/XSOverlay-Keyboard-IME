@@ -1,4 +1,4 @@
-// Verified private Shell ABI; see docs/input-mode-shell.md. LGPL-2.1, like shim.cpp.
+// Verified private Shell ABI; see docs/notes/input-mode-shell.md. LGPL-2.1, like shim.cpp.
 #include <Windows.h>
 #include <bcrypt.h>
 #include <objbase.h>
