@@ -19,6 +19,7 @@ namespace XSOverlayKeyboardIme.Ime
         internal const uint ComposerMessage = Win32Native.WmApp + 4;
         internal const uint ProfileMessage = Win32Native.WmApp + 6;
         internal const uint ModeCompleteMessage = Win32Native.WmApp + 7;
+        internal const uint FocusLostMessage = Win32Native.WmApp + 9;
         private const uint DispatchMessage = Win32Native.WmApp + 8;
 
         private const string WindowClassName = "XSOverlayKeyboardImeHost";
@@ -225,6 +226,15 @@ namespace XSOverlayKeyboardIme.Ime
                 HostWindow window = _current;
                 if (window != null)
                 {
+                    if (
+                        message == 0x0008
+                        || (message == 0x0006 && (wParam.ToInt64() & 0xffff) == 0)
+                        || (message == 0x001c && wParam == IntPtr.Zero)
+                    )
+                    {
+                        // Revoke on the original STA before any asynchronous page update.
+                        window._onHostMessage(FocusLostMessage);
+                    }
                     if (message == DispatchMessage)
                     {
                         window.DispatchActions();

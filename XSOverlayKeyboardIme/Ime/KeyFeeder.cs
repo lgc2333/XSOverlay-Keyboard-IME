@@ -11,22 +11,23 @@ namespace XSOverlayKeyboardIme.Ime
     internal sealed class KeyFeeder
     {
         private readonly HostWindow _window;
+        private readonly Dictionary<VirtualKey, FocusTicket> _pressed = new Dictionary<VirtualKey, FocusTicket>();
 
         internal KeyFeeder(HostWindow window)
         {
             _window = window;
         }
 
-        internal bool Send(KeyStroke stroke)
+        internal bool Send(KeyStroke stroke, FocusTicket owner)
         {
             switch (stroke.Kind)
             {
                 case KeyStrokeKind.System:
                     return SendSystemSwitch();
                 case KeyStrokeKind.ModifierDown:
-                    return SendBatch(new List<NativeInput> { KeyInput.Create(stroke.Key, 0) });
+                    return SendModifier(stroke, owner, false);
                 case KeyStrokeKind.ModifierUp:
-                    return SendBatch(new List<NativeInput> { KeyInput.Create(stroke.Key, Win32Native.KeyEventKeyUp) });
+                    return SendModifier(stroke, owner, true);
                 default:
                     if (stroke.Key == 0)
                     {
@@ -36,6 +37,22 @@ namespace XSOverlayKeyboardIme.Ime
 
                     return SendBatch(BuildStroke(stroke.Key, stroke.Shift && !Held(VirtualKey.Shift)));
             }
+        }
+
+        private bool SendModifier(KeyStroke stroke, FocusTicket owner, bool release)
+        {
+            if (release && (!_pressed.TryGetValue(stroke.Key, out FocusTicket down) || !down.SameRequest(owner)))
+                return true;
+            var input = new[] { KeyInput.Create(stroke.Key, release ? Win32Native.KeyEventKeyUp : 0) };
+            if (Win32Native.SendInput(1, input, Marshal.SizeOf<NativeInput>()) != 1)
+                return false;
+            // Record insertion before pumping: a nested release must see the accepted down.
+            if (release)
+                _pressed.Remove(stroke.Key);
+            else
+                _pressed[stroke.Key] = owner;
+            _window.DrainKeyboardInput();
+            return true;
         }
 
         private bool SendSystemSwitch()

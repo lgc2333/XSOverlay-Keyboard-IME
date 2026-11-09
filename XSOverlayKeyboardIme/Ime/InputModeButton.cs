@@ -68,15 +68,21 @@ namespace XSOverlayKeyboardIme.Ime
             }
         }
 
-        internal void Click()
+        internal void Click(Func<bool> valid)
         {
             // This guard precedes foreground, audio (on the page), and every native call.
-            if (_view?.Enabled != true || !_profile.HasValue || !Nullable.Equals(_profile, _readProfile()))
+            if (
+                !valid()
+                || _view?.Enabled != true
+                || !_profile.HasValue
+                || !Nullable.Equals(_profile, _readProfile())
+                || !valid()
+            )
                 return;
             if (_public != null)
             {
                 Publish(_public.Read());
-                if (_view?.Enabled == true)
+                if (_view?.Enabled == true && valid())
                 {
                     _public.Click();
                     Publish(_public.Read());
@@ -114,16 +120,9 @@ namespace XSOverlayKeyboardIme.Ime
         {
             if (_pending == 0 || --_pending != 0)
                 return;
-            try
-            {
-                ReadShell();
-                _shell?.Dispose();
-                _shell = null;
-            }
-            finally
-            {
-                _session.EndModeAction();
-            }
+            ReadShell();
+            _shell?.Dispose();
+            _shell = null;
         }
 
         internal void Reset()
@@ -149,7 +148,6 @@ namespace XSOverlayKeyboardIme.Ime
         {
             Reset();
             _pending = 0;
-            _session.EndModeAction();
         }
     }
 }

@@ -4,6 +4,8 @@ test('manual browsing survives repeated composition and IME-name refreshes, but 
   page,
 }) => {
   await page.goto('/')
+  // ADR 0057 drops result UI while no current composer is focused.
+  await page.locator('#keyboard-voice-input').focus()
   const view = {
     preedit: '',
     composing: false,

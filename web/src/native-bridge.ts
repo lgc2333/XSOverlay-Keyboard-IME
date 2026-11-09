@@ -6,12 +6,25 @@ const ComposerInactive = 'xso-keyboard-ime composer-inactive'
 const Profile = 'xso-keyboard-ime profile '
 const CandidateArea = 'xso-keyboard-ime candidate-area '
 
+export interface FocusIdentity { document: string; revision: number; request: number }
+let focusIdentity: (() => FocusIdentity | null) | null = null
+
+export function useFocusIdentity(provider: () => FocusIdentity | null): void { focusIdentity = provider }
+export function reportFocus(kind: string, identity: FocusIdentity, index = 0): boolean {
+  return post(`xso-keyboard-ime focus ${JSON.stringify({ kind, ...identity, index })}`)
+}
+function focusedAction(kind: string, index: number, legacy: string): boolean {
+  if (focusIdentity == null) return post(legacy)
+  const identity = focusIdentity()
+  return identity != null && reportFocus(kind, identity, index)
+}
+
 export function reportChatbox(state: { revision: number; active: boolean; text: string; submitting: boolean }): boolean {
   return post(`xso-keyboard-ime chatbox ${JSON.stringify(state)}`)
 }
 
 export function requestReturn(id: number): boolean {
-  return post(`xso-keyboard-ime return ${id}`)
+  return focusedAction('return', id, `xso-keyboard-ime return ${id}`)
 }
 
 export function requestReturnFeedback(numpad: boolean, hapticTarget: string): boolean {
@@ -47,7 +60,7 @@ export function announceReady(): boolean {
  * changes 中 and 英 without the plugin writing a mode. See ADR 0028.
  */
 export function requestSwitch(): boolean {
-  return post(Switch)
+  return focusedAction('switch', 0, Switch)
 }
 
 /**
@@ -55,7 +68,7 @@ export function requestSwitch(): boolean {
  * longer holds the text it was composing into. See ADR 0027.
  */
 export function requestCancel(): boolean {
-  return post(Cancel)
+  return focusedAction('cancel-composition', 0, Cancel)
 }
 
 /**
@@ -71,7 +84,7 @@ export function reportComposerActive(active: boolean): boolean {
  * composer state carried. See ADR 0039.
  */
 export function requestProfile(index: number): boolean {
-  return post(`${Profile}${index}`)
+  return focusedAction('profile', index, `${Profile}${index}`)
 }
 
 function post(message: string): boolean {

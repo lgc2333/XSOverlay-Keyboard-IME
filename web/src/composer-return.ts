@@ -7,6 +7,7 @@ import type { NativeKeyboardInput, NativeRepeatController } from './native-keybo
 
 /** The host decides each Return before the page can send uncommitted text. */
 export function routeComposerReturn(): {
+  cancel: () => void
   resolve: (id: number, taken: boolean) => void
   sound: ReturnType<typeof createReturnFeedback>['sound']
 } {
@@ -245,6 +246,7 @@ export function routeComposerReturn(): {
   })
 
   return {
+    cancel: () => clear('focus-revoked'),
     sound: feedback.sound,
     resolve: (id, taken) => {
       const continuation = pending.get(id)

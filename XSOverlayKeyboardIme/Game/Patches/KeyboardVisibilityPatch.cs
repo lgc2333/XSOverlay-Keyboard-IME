@@ -22,10 +22,9 @@ namespace XSOverlayKeyboardIme.Game.Patches
             try
             {
                 ChatboxIntegration.SetVisible(__0);
+                KeyboardPage.SetVisible(__0);
                 if (!__0)
                 {
-                    ImeHost.CancelCurrent();
-                    ImeHost.DeactivateComposer();
                     return;
                 }
 

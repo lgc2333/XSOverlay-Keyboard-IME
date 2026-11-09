@@ -1,6 +1,7 @@
 import type { insertText } from './composer'
 import type { ComposerStateView, CompositionView, SwitchIconView } from './ime-view'
 import type { ReturnSound } from './return-feedback'
+import type { installComposerAdmission } from './composer-admission'
 
 declare global {
   interface Window {
@@ -15,7 +16,7 @@ interface VuplexHost {
   postMessage: (message: string) => void
 }
 
-interface KeyboardPageApi {
+interface KeyboardPageApi extends ReturnType<typeof installComposerAdmission> {
   refreshChatbox: (revision: number) => void
   setKeyboardFormat: (format: string | null) => void
   resolveReturn: (id: number, taken: boolean) => void

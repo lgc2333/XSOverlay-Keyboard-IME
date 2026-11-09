@@ -17,6 +17,8 @@ import type {
 } from './ime-view'
 import { announceReady, requestCancel } from './native-bridge'
 import { createSwitchKey } from './switch-key'
+import { installComposerAdmission } from './composer-admission'
+import { hasComposerFocus, releaseComposerFocus } from './composer-focus'
 
 /**
  * Entry point of the injected script. The keyboard page imports it for its side
@@ -39,8 +41,18 @@ function install(): void {
     bar.render(null)
     requestCancel()
   })
+  const admission = installComposerAdmission(() => {
+    returnRouting.cancel()
+    cancelledComposition = false
+    setImeComposing(false)
+    clearPreedit()
+    bar.render(null)
+    switchKey.setActive(false)
+    releaseComposerFocus()
+  })
 
   window.__xsoKeyboardIme = {
+    ...admission,
     refreshChatbox,
     setKeyboardFormat: switchKey.setKeyboardFormat,
     resolveReturn: returnRouting.resolve,
@@ -51,6 +63,7 @@ function install(): void {
         if (view.composing) return
         cancelledComposition = false
       }
+      if (!hasComposerFocus()) return
       setImeComposing(view.composing)
       if (view.preedit.length > 0) {
         showPreedit(view.preedit, view.selectionStart, view.selectionEnd)

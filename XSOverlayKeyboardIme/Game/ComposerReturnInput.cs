@@ -8,7 +8,7 @@ namespace XSOverlayKeyboardIme.Game
     /// <summary>Shares the ordinary key gate with Return paths consumed early by the page.</summary>
     internal static class ComposerReturnInput
     {
-        internal static bool TryAccept()
+        internal static bool TryAccept(FocusTicket? source = null)
         {
             InputManager input = InputManager.Instance;
             ImeHost host = ImeHost.Current;
@@ -21,7 +21,7 @@ namespace XSOverlayKeyboardIme.Game
                 KeyboardModifiers.Read(input),
                 VirtualKey.Return
             );
-            return host.TryAcceptKey(key, () => KeyboardModifierInput.ConsumeSticky(input));
+            return host.TryAcceptKey(key, () => KeyboardModifierInput.ConsumeSticky(input), source);
         }
     }
 }

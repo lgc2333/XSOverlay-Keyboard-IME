@@ -110,6 +110,32 @@ namespace XSOverlayKeyboardIme.Interop
         [DllImport("user32.dll")]
         internal static extern IntPtr GetForegroundWindow();
 
+        [DllImport("user32.dll")]
+        internal static extern bool IsWindow(IntPtr hwnd);
+
+        [DllImport("user32.dll")]
+        internal static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint process);
+
+        [DllImport("user32.dll")]
+        internal static extern bool GetGUIThreadInfo(uint thread, ref GuiThreadInfo info);
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct GuiThreadInfo
+        {
+            internal uint Size;
+            internal uint Flags;
+            internal IntPtr Active,
+                Focus,
+                Capture,
+                MenuOwner,
+                MoveSize,
+                Caret;
+            internal int Left,
+                Top,
+                Right,
+                Bottom;
+        }
+
         [DllImport("user32.dll", SetLastError = true)]
         internal static extern uint SendInput(uint count, NativeInput[] inputs, int size);
 

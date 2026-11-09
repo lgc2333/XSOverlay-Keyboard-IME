@@ -7,6 +7,12 @@ let viewActive = !document.hidden
 let reportedActive = false
 let localActive = false
 
+/** Forget the rebuild basis before blur callbacks can observe it. */
+export function releaseComposerFocus(): void {
+  focused = null
+  findComposer()?.blur()
+}
+
 export function findComposer(): HTMLInputElement | null {
   const element = document.getElementById(ComposerId)
   return element instanceof HTMLInputElement ? element : null

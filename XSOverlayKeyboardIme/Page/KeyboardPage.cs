@@ -4,6 +4,7 @@ using XSOverlayKeyboardIme.Chatbox;
 using XSOverlayKeyboardIme.Diagnostics;
 using XSOverlayKeyboardIme.Game;
 using XSOverlayKeyboardIme.Ime;
+using XSOverlayKeyboardIme.Takeover;
 
 namespace XSOverlayKeyboardIme.Page
 {
@@ -20,21 +21,17 @@ namespace XSOverlayKeyboardIme.Page
         private static bool _confirmed;
         private static bool _missingLogged;
         private static CandidateScrollArea _scrollArea;
+        private static long _focusGeneration;
+        private static string _focusDocument;
+        private static bool _bindingFocus;
+        private static bool _focusBound;
+        private static bool _visible = true;
 
         internal static CandidateScrollArea ScrollAreaFor(IWebView page) =>
             page != null && !page.IsDisposed && ReferenceEquals(page, _listening) ? _scrollArea : null;
 
-        /// <summary>Raised when the page's switch button is pressed. Set by the root.</summary>
-        internal static Action SwitchRequested;
-
-        /// <summary>Raised when the page reports that the composition no longer fits. Set by the root.</summary>
-        internal static Action CancelRequested;
-
-        /// <summary>Raised with the index of the IME the page asked for. Set by the root.</summary>
-        internal static Action<int> ProfileRequested;
-
-        /// <summary>Raised with true when the composer takes the focus and false when it drops it.</summary>
-        internal static Action<bool> ComposerActivationChanged;
+        internal static Action<FocusMessage> FocusMessageReceived;
+        internal static Action<string> FocusDocumentBound;
         internal static Action<ChatboxState> ChatboxChanged;
         internal static Action PageUnavailable;
 
@@ -110,6 +107,95 @@ namespace XSOverlayKeyboardIme.Page
             PushSwitchIcon(page);
             PushComposerState(page);
             RefreshChatbox(ChatboxIntegration.Revision);
+            BindFocus(page);
+        }
+
+        internal static void SetVisible(bool visible)
+        {
+            _visible = visible;
+            if (!visible)
+                InvalidateFocus();
+        }
+
+        private static void InvalidateFocus()
+        {
+            string previous = _focusDocument;
+            _focusGeneration++;
+            _focusDocument = Guid.NewGuid().ToString("N");
+            _bindingFocus = false;
+            _focusBound = false;
+            PageUnavailable?.Invoke();
+            if (previous != null && _listening != null && !_listening.IsDisposed)
+                _listening.ExecuteJavaScript(CallVoid("unbindFocus", JavaScriptJson.Serialize(previous)), _ => { });
+        }
+
+        private static void BindFocus(IWebView page)
+        {
+            if (!_visible || !_confirmed || _bindingFocus || _focusBound)
+                return;
+            if (_focusDocument == null)
+                InvalidateFocus();
+            long generation = _focusGeneration;
+            string document = _focusDocument;
+            _bindingFocus = true;
+            page.ExecuteJavaScript(
+                "(function(){var a=window.__xsoKeyboardIme;return a?a.focusDocument:''})()",
+                nonce =>
+                {
+                    if (!CurrentBinding(page, document, generation))
+                        return;
+                    if (string.IsNullOrEmpty(nonce))
+                    {
+                        _bindingFocus = false;
+                        return;
+                    }
+                    string arguments =
+                        JavaScriptJson.Serialize(document) + "," + generation + "," + JavaScriptJson.Serialize(nonce);
+                    page.ExecuteJavaScript(
+                        Wrap("bindFocus", "return a.bindFocus(" + arguments + ")?'bound':'stale'"),
+                        outcome =>
+                        {
+                            if (!CurrentBinding(page, document, generation))
+                                return;
+                            _bindingFocus = false;
+                            if (outcome != "bound")
+                                return;
+                            _focusBound = true;
+                            FocusDocumentBound?.Invoke(document);
+                        }
+                    );
+                }
+            );
+        }
+
+        private static bool CurrentBinding(IWebView page, string document, long generation) =>
+            _visible
+            && !page.IsDisposed
+            && ReferenceEquals(page, _listening)
+            && document == _focusDocument
+            && generation == _focusGeneration;
+
+        internal static void ShowFocus(string kind, FocusTicket ticket)
+        {
+            IWebView page = _listening;
+            if (!_visible || !_focusBound || page == null || page.IsDisposed || ticket.Document != _focusDocument)
+                return;
+            // Never reinject or replay admission operations onto a different document.
+            page.ExecuteJavaScript(
+                CallVoid(
+                    "applyFocus",
+                    JavaScriptJson.Serialize(
+                        new
+                        {
+                            kind,
+                            document = ticket.Document,
+                            revision = ticket.Revision,
+                            request = ticket.Request,
+                        }
+                    )
+                ),
+                _ => { }
+            );
         }
 
         internal static void RefreshChatbox(int revision)
@@ -181,10 +267,13 @@ namespace XSOverlayKeyboardIme.Page
         /// <summary>Finds the page and makes sure it runs the bundle; null while it does not exist.</summary>
         private static IWebView EnsureInjected()
         {
+            if (!_visible)
+                return null;
             IWebView page = KeyboardOverlayScope.FindPage();
             if (page == null || page.IsDisposed)
             {
-                PageUnavailable?.Invoke();
+                if (_focusBound || _bindingFocus)
+                    InvalidateFocus();
                 if (!_missingLogged)
                 {
                     _missingLogged = true;
@@ -337,7 +426,7 @@ namespace XSOverlayKeyboardIme.Page
             }
 
             IWebView previous = _listening;
-            PageUnavailable?.Invoke();
+            InvalidateFocus();
             _scrollArea = null;
             _listening = page;
             _messageHandler ??= OnMessage;
@@ -355,7 +444,9 @@ namespace XSOverlayKeyboardIme.Page
         {
             if (args.Type == ProgressChangeType.Started)
             {
-                PageUnavailable?.Invoke();
+                if (!ReferenceEquals(sender, _listening))
+                    return;
+                InvalidateFocus();
                 _scrollArea = null;
                 _confirmed = false;
             }
@@ -366,6 +457,38 @@ namespace XSOverlayKeyboardIme.Page
             if (!ReferenceEquals(sender, _listening))
                 return;
             string message = args.Value;
+            FocusTicket? source = null;
+            const string focusPrefix = "xso-keyboard-ime focus ";
+            if (message.StartsWith(focusPrefix, StringComparison.Ordinal))
+            {
+                try
+                {
+                    FocusMessage focus = Newtonsoft.Json.JsonConvert.DeserializeObject<FocusMessage>(
+                        message.Substring(focusPrefix.Length)
+                    );
+                    if (
+                        !_visible
+                        || !_focusBound
+                        || focus == null
+                        || focus.Document != _focusDocument
+                        || focus.Revision < 1
+                        || focus.Request < 0
+                    )
+                        return;
+                    if (focus.Kind != "return")
+                    {
+                        FocusMessageReceived?.Invoke(focus);
+                        return;
+                    }
+                    source = focus.Ticket;
+                    message = "xso-keyboard-ime return " + focus.Index;
+                }
+                catch (Newtonsoft.Json.JsonException exception)
+                {
+                    HostLog.Warn("focus request was rejected: " + exception.Message);
+                    return;
+                }
+            }
             const string chatboxPrefix = "xso-keyboard-ime chatbox ";
             if (message.StartsWith(chatboxPrefix, StringComparison.Ordinal))
             {
@@ -411,17 +534,30 @@ namespace XSOverlayKeyboardIme.Page
             int returnId;
             if (PageMessages.TryReadReturnRequest(message, out returnId))
             {
+                if (!source.HasValue)
+                    return;
                 HostLog.Info("Return request " + returnId + " received");
-                bool taken = ComposerReturnInput.TryAccept();
+                bool taken = ComposerReturnInput.TryAccept(source.Value);
                 HostLog.Info("Return request " + returnId + (taken ? " -> IME" : " -> page"));
                 IWebView page = sender as IWebView;
                 if (page != null && ReferenceEquals(page, _listening))
-                    Call(
-                        page,
-                        "Return routing",
-                        CallVoid(
+                    page.ExecuteJavaScript(
+                        Wrap(
                             "resolveReturn",
-                            JavaScriptJson.Serialize(returnId) + "," + (taken ? "true" : "false")
+                            "if(a.ownsFocus("
+                                + JavaScriptJson.Serialize(
+                                    new
+                                    {
+                                        document = source.Value.Document,
+                                        revision = source.Value.Revision,
+                                        request = source.Value.Request,
+                                    }
+                                )
+                                + "))a.resolveReturn("
+                                + returnId
+                                + ","
+                                + (taken ? "true" : "false")
+                                + ");return 'ok'"
                         ),
                         outcome =>
                         {
@@ -444,82 +580,11 @@ namespace XSOverlayKeyboardIme.Page
                 }
                 return;
             }
-            if (message == PageScript.SwitchMessage)
-            {
-                OnSwitchRequested();
-                return;
-            }
-
-            if (message == PageScript.CancelMessage)
-            {
-                OnCancelRequested();
-                return;
-            }
-
-            int profile;
-            if (PageMessages.TryReadProfileIndex(message, out profile))
-            {
-                OnProfileRequested(profile);
-                return;
-            }
-
-            if (message == PageScript.ComposerActiveMessage)
-            {
-                OnComposerActivationChanged(true);
-                return;
-            }
-
-            if (message == PageScript.ComposerInactiveMessage)
-            {
-                OnComposerActivationChanged(false);
-                return;
-            }
-
             if (message == PageScript.ReadyMessage)
             {
                 _confirmed = true;
                 HostLog.Info("page message: " + message);
                 Attach();
-            }
-        }
-
-        /// <summary>The page's switch was pressed; the root presses the IME's button.</summary>
-        private static void OnSwitchRequested()
-        {
-            Action switchRequested = SwitchRequested;
-            if (switchRequested != null)
-            {
-                switchRequested();
-            }
-        }
-
-        /// <summary>The composer took or dropped the focus; the root shows or hides its state.</summary>
-        private static void OnComposerActivationChanged(bool active)
-        {
-            Action<bool> changed = ComposerActivationChanged;
-            if (changed != null)
-            {
-                changed(active);
-            }
-        }
-
-        /// <summary>The page asked for another IME; the root switches the thread's profile.</summary>
-        private static void OnProfileRequested(int index)
-        {
-            Action<int> profileRequested = ProfileRequested;
-            if (profileRequested != null)
-            {
-                profileRequested(index);
-            }
-        }
-
-        /// <summary>The page reports that the composition no longer fits; the root cancels it.</summary>
-        private static void OnCancelRequested()
-        {
-            Action cancelRequested = CancelRequested;
-            if (cancelRequested != null)
-            {
-                cancelRequested();
             }
         }
     }

@@ -92,36 +92,14 @@ namespace XSOverlayKeyboardIme
             HostLog.Info("patched " + typeof(XSOverlay.InputManager).FullName + "; keys and frame pump are ours");
 
             // The root wires the host to the page, so neither layer knows the other.
-            KeyboardPage.SwitchRequested = () =>
-            {
-                ImeHost host = ImeHost.Current;
-                if (host != null)
-                {
-                    host.RequestSwitch();
-                }
-            };
-
-            KeyboardPage.CancelRequested = ImeHost.CancelCurrent;
             KeyboardPage.ChatboxChanged = ChatboxIntegration.Update;
-            KeyboardPage.PageUnavailable = ChatboxIntegration.Hide;
-
-            KeyboardPage.ProfileRequested = index =>
+            KeyboardPage.PageUnavailable = () =>
             {
-                ImeHost host = ImeHost.Current;
-                if (host != null)
-                {
-                    host.RequestProfile(index);
-                }
+                ImeHost.Current?.ForgetComposerDocument();
+                ChatboxIntegration.Hide();
             };
-
-            KeyboardPage.ComposerActivationChanged = active =>
-            {
-                ImeHost host = ImeHost.Current;
-                if (host != null)
-                {
-                    host.SetComposerActive(active);
-                }
-            };
+            KeyboardPage.FocusDocumentBound = document => ImeHost.Current?.BindComposerDocument(document);
+            KeyboardPage.FocusMessageReceived = message => ImeHost.Current?.HandleFocusMessage(message);
 
             ImeHost.Start(
                 text => MainThreadDispatcher.Post(() => KeyboardPage.WriteBack(text)),
@@ -129,6 +107,8 @@ namespace XSOverlayKeyboardIme
                 icon => MainThreadDispatcher.Post(() => KeyboardPage.ShowSwitchIcon(icon)),
                 state => MainThreadDispatcher.Post(() => KeyboardPage.ShowComposerState(state))
             );
+            ImeHost.Current.FocusChanged = (kind, ticket) =>
+                MainThreadDispatcher.Post(() => KeyboardPage.ShowFocus(kind, ticket));
             MainThreadDispatcher.Post(KeyboardPage.Attach);
         }
 

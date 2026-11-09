@@ -1,89 +1,87 @@
 using System;
+using System.Runtime.InteropServices;
 using System.Text;
 using XSOverlayKeyboardIme.Diagnostics;
+using XSOverlayKeyboardIme.Input;
 using XSOverlayKeyboardIme.Interop;
+using XSOverlayKeyboardIme.Takeover;
 
 namespace XSOverlayKeyboardIme.Ime
 {
-    /// <summary>Holds the foreground while keys are fed, then hands it back. See ADR 0014.</summary>
+    /// <summary>Holds the foreground for one admitted composer request. See ADR 0050 and ADR 0055.</summary>
     internal sealed class ForegroundLease
     {
-        private readonly IntPtr _hostWindow;
-        private IntPtr _previous;
+        private readonly ForegroundAcquisition _acquisition;
 
         internal ForegroundLease(IntPtr hostWindow)
         {
-            _hostWindow = hostWindow;
+            _acquisition = new ForegroundAcquisition(new Platform(), hostWindow);
         }
 
-        internal bool Acquire()
+        internal bool Acquire(Func<bool> valid)
         {
-            // The first take remembers where the foreground came from; a later one must
-            // not overwrite it with this host.
-            if (_previous == IntPtr.Zero)
-            {
-                _previous = Win32Native.GetForegroundWindow();
-                if (_previous != IntPtr.Zero && _previous != _hostWindow)
-                {
-                    HostLog.Info("taking the foreground from " + Describe(_previous));
-                }
-            }
-
-            return Ensure();
+            bool acquired = _acquisition.Acquire(valid);
+            HostLog.Info("composer foreground acquisition -> " + acquired);
+            return acquired;
         }
 
-        /// <summary>Re-asserts only when the foreground or the host focus was lost.</summary>
-        internal bool Ensure()
-        {
-            if (Win32Native.GetForegroundWindow() == _hostWindow && Win32Native.GetFocus() == _hostWindow)
-            {
-                return true;
-            }
+        /// <summary>Observes focus only; old work must never reacquire it.</summary>
+        internal bool Ensure() => _acquisition.Ensure();
 
-            return Take();
-        }
-
-        internal void Restore()
-        {
-            if (_previous == IntPtr.Zero)
-            {
-                return;
-            }
-
-            if (Win32Native.GetForegroundWindow() != _hostWindow)
-            {
-                _previous = IntPtr.Zero;
-                return;
-            }
-
-            if (Win32Native.SetForegroundWindow(_previous))
-            {
-                HostLog.Info("foreground restored");
-            }
-            else
-            {
-                HostLog.Warn("foreground restore failed; the previous window is gone");
-            }
-
-            _previous = IntPtr.Zero;
-        }
+        internal void Restore() => _acquisition.Restore();
 
         /// <summary>Tries the normal foreground switch once. See ADR 0041.</summary>
-        private bool Take()
+        private sealed class Platform : IForegroundPlatform
         {
-            Win32Native.SetForegroundWindow(_hostWindow);
-            if (Win32Native.GetForegroundWindow() == _hostWindow)
+            public IntPtr Foreground => Win32Native.GetForegroundWindow();
+            public IntPtr Focus => Win32Native.GetFocus();
+
+            public WindowIdentity? Identify(IntPtr window)
             {
-                Win32Native.SetFocus(_hostWindow);
+                if (window == IntPtr.Zero || !Win32Native.IsWindow(window))
+                    return null;
+                uint thread = Win32Native.GetWindowThreadProcessId(window, out uint process);
+                return thread == 0 ? (WindowIdentity?)null : new WindowIdentity(window, process, thread);
             }
 
-            bool taken = Win32Native.GetForegroundWindow() == _hostWindow && Win32Native.GetFocus() == _hostWindow;
-            if (!taken)
+            public bool RequestForeground(IntPtr window)
             {
-                HostLog.Warn("could not focus the IME host; this key was not sent");
+                bool result = Win32Native.SetForegroundWindow(window);
+                HostLog.Info("SetForegroundWindow returned " + result + "; actual foreground " + Describe(Foreground));
+                return result;
             }
 
-            return taken;
+            public void FocusWindow(IntPtr window) => Win32Native.SetFocus(window);
+
+            public bool KeysAndMenusIdle(IntPtr original)
+            {
+                for (int key = 1; key < 256; key++)
+                    if ((Win32Native.GetAsyncKeyState(key) & 0x8000) != 0)
+                        return false;
+                uint originalThread = Win32Native.GetWindowThreadProcessId(original, out _);
+                return originalThread != 0 && MenusIdle(originalThread) && MenusIdle(0);
+            }
+
+            private static bool MenusIdle(uint thread)
+            {
+                var info = new Win32Native.GuiThreadInfo { Size = (uint)Marshal.SizeOf<Win32Native.GuiThreadInfo>() };
+                return Win32Native.GetGUIThreadInfo(thread, ref info)
+                    && (info.Flags & 0x1c) == 0
+                    && info.MenuOwner == IntPtr.Zero
+                    && info.MoveSize == IntPtr.Zero;
+            }
+
+            public uint InsertAltPair()
+            {
+                var input = new[]
+                {
+                    KeyInput.Create(VirtualKey.LeftAlt, 0),
+                    KeyInput.Create(VirtualKey.LeftAlt, Win32Native.KeyEventKeyUp),
+                };
+                uint count = Win32Native.SendInput(2, input, Marshal.SizeOf<NativeInput>());
+                HostLog.Info("foreground Alt pair inserted " + count + "/2; input processing is not fenced");
+                return count;
+            }
         }
 
         internal static string Describe(IntPtr hwnd)

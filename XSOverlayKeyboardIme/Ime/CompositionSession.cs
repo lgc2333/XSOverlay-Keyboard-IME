@@ -21,8 +21,6 @@ namespace XSOverlayKeyboardIme.Ime
 
         private CompositionView _view;
         private bool _open;
-        private bool _batchOpen;
-        private bool _modeActionOpen;
 
         internal CompositionSession(
             ImeContext ime,
@@ -59,39 +57,39 @@ namespace XSOverlayKeyboardIme.Ime
         }
 
         /// <summary>Feeds one taken key, then acts on what the IME did with it.</summary>
-        internal void Send(KeyStroke stroke)
+        internal bool Send(KeyStroke stroke, FocusTicket owner, Func<bool> valid)
         {
             // Releases must reach Windows even after the keyboard has closed. They must
             // not take foreground back from the user's next window. See ADR 0040.
             if (stroke.Kind != KeyStrokeKind.ModifierUp)
             {
-                if (!(_open ? _lease.Ensure() : _lease.Acquire()))
+                if (!valid() || !_lease.Ensure() || !valid())
                 {
-                    return;
+                    return false;
                 }
 
                 _open = true;
             }
 
             HostLog.Info("feed " + stroke.Describe());
-            if (!_feeder.Send(stroke))
+            if (!_feeder.Send(stroke, owner))
             {
                 if (!_ime.Composing)
                     End();
-                return;
+                return false;
             }
 
             if (stroke.Kind == KeyStrokeKind.ModifierDown)
             {
                 // Keep the same input target until the release or next ordinary key.
                 _open = true;
-                return;
+                return true;
             }
 
             // A commit ends the session from inside the callback, which settles the key.
             if (!_open)
             {
-                return;
+                return true;
             }
 
             // A session covers exactly one composition, so it ends as soon as the IME holds
@@ -102,56 +100,23 @@ namespace XSOverlayKeyboardIme.Ime
             {
                 End();
             }
-        }
-
-        internal void BeginBatch()
-        {
-            _batchOpen = true;
+            return true;
         }
 
         /// <summary>Activates with foreground held, without synthesizing composition input. See ADR 0045.</summary>
-        internal bool ActivateProfile(ImeProfiles profiles, LanguageProfile profile)
+        internal bool ActivateProfile(ImeProfiles profiles, LanguageProfile profile, Func<bool> valid)
         {
-            bool outerBatch = _batchOpen;
-            _batchOpen = true;
-            try
-            {
-                if (!(_open ? _lease.Ensure() : _lease.Acquire()))
-                    return false;
-                bool activated = profiles.Activate(profile);
-                if (!_ime.Composing)
-                    End();
-                return activated;
-            }
-            finally
-            {
-                _batchOpen = outerBatch;
-                if (!_open && !_batchOpen && !_modeActionOpen)
-                    _lease.Restore();
-            }
-        }
-
-        /// <summary>Restore after queued sticky releases have followed the ordinary key.</summary>
-        internal void CompleteBatch()
-        {
-            _batchOpen = false;
-            if (!_open && !_modeActionOpen)
-                _lease.Restore();
+            if (!valid() || !_lease.Ensure() || !valid())
+                return false;
+            bool activated = profiles.Activate(profile);
+            if (!_ime.Composing)
+                End();
+            return valid() && activated;
         }
 
         internal bool BeginModeAction()
         {
-            if (!(_open || _modeActionOpen ? _lease.Ensure() : _lease.Acquire()))
-                return false;
-            _modeActionOpen = true;
-            return true;
-        }
-
-        internal void EndModeAction()
-        {
-            _modeActionOpen = false;
-            if (!_open && !_batchOpen)
-                _lease.Restore();
+            return _lease.Ensure();
         }
 
         /// <summary>
@@ -176,7 +141,7 @@ namespace XSOverlayKeyboardIme.Ime
             return true;
         }
 
-        /// <summary>Ends the session and hands the foreground back.</summary>
+        /// <summary>Ends only composition; the composer focus lease outlives a commit. See ADR 0050.</summary>
         private void End()
         {
             if (!_open)
@@ -186,8 +151,6 @@ namespace XSOverlayKeyboardIme.Ime
 
             _open = false;
             _view = CompositionView.Idle();
-            if (!_batchOpen && !_modeActionOpen)
-                _lease.Restore();
             Publish();
         }
 
