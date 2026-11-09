@@ -88,6 +88,8 @@ The bar shows the name and dropdown on the right. The switch sits to the right o
 
 The dropdown lists enabled IMEs and ordinary keyboard layouts across all languages. Select an entry to switch, or use Win+Space. Windows shared input settings can also change the IME in desktop windows. An unreadable current IME shows a dimmed “未知输入法” label, with no old icon or selection mark. You can still open the dropdown when its list is available.
 
+The input mode button simulates one click on the IME's additional language bar icon. Each IME determines the result, which can cause unexpected behavior. For example, switching Weasel does not end the composition. Physical keyboard testing showed the same issue, so this behavior falls outside the plugin's scope.
+
 Microsoft Pinyin and Japanese Microsoft IME show their original mode glyphs. Click the button to switch input modes, or use the IME's switching shortcut on the keyboard (for example, tap Shift three times quickly: two taps enable its held state, then the third releases it to simulate one physical Shift press and release). Some older systems may have compatibility issues. See the [archived compatibility tests](docs/handoffs/archived-notes/input-mode-shell.md#支持范围).
 
 ### Why the IME name and the 中/英 switch are hidden while the input box has no focus

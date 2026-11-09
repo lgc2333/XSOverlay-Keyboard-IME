@@ -11,13 +11,13 @@
 
 ## 当前待解决
 
-- [ ] 微软中文与日语输入法在输入框聚焦时无法正常输入。完成持续前台、文字与编辑排序、当前焦点结果处理及 transitory 后端，实现后验收连续输入、自然失焦和原生撤销。
-- [ ] 键盘首次打开聚焦后切换输入法无效。实现正常获取、受限一次 Alt、旧请求撤销与明确操作重开，验收失败、关闭、重载及首次重新操作。
+- [ ] 微软中文与日语输入法在输入框聚焦时无法正常输入。剩余实现包括持续前台、文字与编辑排序、当前焦点结果处理及 transitory 后端。回车接线修复已完成，列入下方待验证。
+- [ ] 键盘首次打开聚焦后切换输入法无效。正常获取、受限一次 Alt、旧请求撤销与明确操作重开已接线，完整回归与代码审阅进行中，尚未部署；之后验收失败、关闭、重载及首次重新操作。
 
-## 待真机验证
+## 待验证
 
-- [ ] 缺少公开 TSF 模式项时，采用 Shell 原图与任务栏 UIA 点击，见 [0051](./adr/0051-use-taskbar-uia-for-shell-mode-clicks.md)。独立模块已实现并通过 .NET 与 Unity Mono 探针，待 0050 验收后启用；系统 DLL 图像适配仍仅覆盖精确验证的版本，详见[适配说明](./handoffs/archived-notes/input-mode-shell.md)。
 - [ ] 回车首次宿主请求已与原模块加载解耦，15 项专项回归通过，保留原生重复、释放与反馈。尚未部署；按 [0047](./adr/0047-route-page-consumed-return-through-the-host.md) 与 [0052](./adr/0052-broadcast-chatbox-previews-and-keep-native-submission.md) 验收真实宿主答复、提交、音效、触觉与最终发送。
+- [ ] 缺少公开 TSF 模式项时，采用 Shell 原图与任务栏 UIA 点击，见 [0051](./adr/0051-use-taskbar-uia-for-shell-mode-clicks.md)。独立模块已实现并通过 .NET 与 Unity Mono 探针，待 0050 验收后启用；系统 DLL 图像适配仍仅覆盖精确验证的版本，详见[适配说明](./handoffs/archived-notes/input-mode-shell.md)。
 - [ ] 输入法列表已按系统枚举顺序显示，独立 STA 切换线程语言至中文、英文、日语时身份序列一致。真实页面仍需核对同语言与跨语言切换后的顺序和选中项，见[输入法列表顺序](./handoffs/archived-notes/ime-profile-order.md)。
 - [ ] JIS 物理布局已隐藏中英切换按钮，ANSI、ISO 沿用原条件，布局切换与重建回归通过。真实 VR 页面仍需核对布局通知与空格宽度，见 [0049](./adr/0049-hide-the-input-mode-switch-on-jis.md) 与[JIS 物理布局](./handoffs/archived-notes/jis-layout-switch.md)。
 - [ ] VRC ChatBox 实时广播已实现并通过本地回归，待 SteamVR 会话验收页面、宿主与 VRChat 的完整往返；决策见 [0052](./adr/0052-broadcast-chatbox-previews-and-keep-native-submission.md)，实测与验收见[VRC ChatBox](./handoffs/archived-notes/vrchat-chatbox.md)。
