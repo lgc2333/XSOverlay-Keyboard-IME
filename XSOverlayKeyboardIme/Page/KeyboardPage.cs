@@ -411,7 +411,9 @@ namespace XSOverlayKeyboardIme.Page
             int returnId;
             if (PageMessages.TryReadReturnRequest(message, out returnId))
             {
+                HostLog.Info("Return request " + returnId + " received");
                 bool taken = ComposerReturnInput.TryAccept();
+                HostLog.Info("Return request " + returnId + (taken ? " -> IME" : " -> page"));
                 IWebView page = sender as IWebView;
                 if (page != null && ReferenceEquals(page, _listening))
                     Call(

@@ -108,7 +108,7 @@ test('Return waits for the host decision and preserves repeated DOM Enter events
   ).toBe(1)
 })
 
-test('losing page focus cancels Return while its native controller is loading', async ({
+test('losing page focus cancels the pending Return decision while its controller loads', async ({
   page,
   request,
 }) => {
@@ -129,15 +129,86 @@ test('losing page focus cancels Return while its native controller is loading', 
   await page.locator('#keyboard-voice-input').focus()
   await page.locator('#key-RETURN').click()
   await started
+  const requests = await page.evaluate(() => window.messages.filter(message => message.startsWith('xso-keyboard-ime return ')))
+  expect(requests).toHaveLength(1)
   await page.evaluate(() => window.dispatchEvent(new Event('blur')))
+  await page.evaluate(id => window.__xsoKeyboardIme!.resolveReturn(id, false), Number(requests[0]!.split(' ').at(-1)))
   unblock()
   await page.evaluate(async moduleUrl => {
     await import(moduleUrl)
     await new Promise(requestAnimationFrame)
   }, moduleUrl)
-  expect(await page.evaluate(() => window.messages.some(message => message.startsWith('xso-keyboard-ime return ')))).toBe(false)
+  expect(await page.evaluate(() => window.messages.filter(message => message.startsWith('xso-keyboard-ime return ')))).toEqual(requests)
   expect(await page.evaluate(() => window.messages)).not.toContain('native-submit')
 })
+
+for (const input of ['pointer', 'touch'] as const) {
+  for (const failure of [false, true]) {
+    test(`${input} Return reaches the host before its controller ${failure ? 'fails' : 'loads'}`, async ({ page, request }) => {
+      const available = await request.get('/native-keyboard-available')
+      test.skip(!await available.json(), 'Requires the installed XSOverlay keyboard modules (XSOVERLAY_GAME_DIR).')
+      const moduleUrl = '/apps/UserInterface/Default/Keyboard/js/keyboard-input.js'
+      let unblock = (): void => {}
+      const blocked = new Promise<void>(resolve => { unblock = resolve })
+      let loading = (): void => {}
+      const started = new Promise<void>(resolve => { loading = resolve })
+      await page.route(`**${moduleUrl}`, async route => {
+        const response = await route.fetch()
+        loading()
+        await blocked
+        if (failure) {
+          await route.fulfill({ contentType: 'text/javascript', body: 'throw new Error("repeat controller unavailable")' })
+        } else {
+          await route.fulfill({ response })
+        }
+      })
+      await page.goto('/')
+      await page.locator('#keyboard-voice-input').fill('draft')
+      const press = () => page.locator('#key-RETURN').evaluate((key, input) => {
+        const down = input === 'pointer'
+          ? new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: 7, pointerType: 'mouse' })
+          : new TouchEvent('touchstart', { bubbles: true, cancelable: true, changedTouches: [new Touch({ identifier: 7, target: key })] })
+        key.dispatchEvent(down)
+        key.dispatchEvent(input === 'pointer'
+          ? new PointerEvent('pointerup', { bubbles: true, pointerId: 7, pointerType: 'mouse' })
+          : new TouchEvent('touchend', { bubbles: true, changedTouches: [new Touch({ identifier: 7, target: key })] }))
+        return {
+          prevented: down.defaultPrevented,
+          requests: window.messages.filter(message => message.startsWith('xso-keyboard-ime return ')),
+        }
+      }, input)
+      const immediate = await press()
+      expect(immediate.prevented).toBe(true)
+      expect(immediate.requests).toHaveLength(1)
+      await started
+      const id = Number(immediate.requests[0]!.split(' ').at(-1))
+      await page.evaluate(id => {
+        window.__xsoKeyboardIme!.resolveReturn(id, true)
+        window.__xsoKeyboardIme!.resolveReturn(id, true)
+      }, id)
+      expect((await page.evaluate(() => window.messages)).filter(message => message.startsWith('xso-keyboard-ime return-feedback '))).toHaveLength(1)
+      const loaded = page.waitForEvent('console', {
+        predicate: message => message.text().includes(failure ? 'Return repeat unavailable' : 'Return controller ready'),
+      })
+      unblock()
+      await loaded
+      expect(await page.evaluate(() => window.messages.filter(message => message.startsWith('xso-keyboard-ime return ')))).toEqual(immediate.requests)
+      expect(await page.evaluate(() => window.messages)).not.toContain('native-submit')
+      await expect(page.locator('#keyboard-voice-input')).toBeFocused()
+      await expect(page.locator('#keyboard-voice-input')).toHaveValue('draft')
+      if (failure) {
+        const next = await press()
+        expect(next.requests).toHaveLength(2)
+        const nextId = Number(next.requests[1]!.split(' ').at(-1))
+        await page.evaluate(id => {
+          window.__xsoKeyboardIme!.resolveReturn(id, false)
+          window.__xsoKeyboardIme!.resolveReturn(id, false)
+        }, nextId)
+        expect((await page.evaluate(() => window.messages)).filter(message => message === 'native-submit')).toHaveLength(1)
+      }
+    })
+  }
+}
 
 test('held VR Return keeps producing host requests and stops on release', async ({
   page,
