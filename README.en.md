@@ -7,18 +7,24 @@
 
 This plugin connects XSOverlay's VR keyboard to the system IME. Compose text in the input box on the keyboard page. The composing string and the candidates show on the keyboard. Pick a candidate with the keyboard keys. The committed text goes back into the input box.
 
-Enable VRC ChatBox and focus the input box to update your chat bubble at most once per second. Updates exclude IME preedit. Clearing the input or removing focus preserves the bubble. A successful send clears the input. An overlong draft stays in the input box. The bubble shows a shortened preview, and the original length error appears.
+The plugin also enhances VRC ChatBox. Enable it and focus the input box to update your chat bubble once per second. Updates exclude IME preedit. Clearing the input or removing focus preserves the bubble. A successful send clears the input. An overlong draft stays in the input box. The bubble shows a shortened preview and an error appears.
 
 ## Why this plugin
 
 For Chinese input in VRChat, the two solutions I tried did not fit.
 
-- [OVR Input Method Bridge](https://store.steampowered.com/app/3448100/OVR_Input_Method_Bridge/) supports few IMEs and has an awkward UI. It is barely usable.
-- [Tapi](https://booth.pm/zh-cn/items/7047187) bundles its own Rime-based input method, so it does not integrate with the system IME. The dictionary you have built up does not carry over.
+- [OVR Input Method Bridge](https://store.steampowered.com/app/3448100/OVR_Input_Method_Bridge/) supports only Microsoft Pinyin and Sogou IME. I rarely use either. The UI also feels too awkward, so it is barely usable.
+- [Tapi](https://booth.pm/zh-cn/items/7047187) offers an excellent typing experience. However, it bundles its own Rime-based input method and does not integrate with the system IME. Moving the dictionary you have built up is inconvenient.
 
 [OVR Toolkit](https://store.steampowered.com/app/1068820/OVR_Toolkit/) also bundles a virtual keyboard, but it is known to have performance problems, so I did not consider it. I have not tested whether it supports Chinese input, or whether the community has a working setup for it.
 
 Then I found that the XSOverlay keyboard recently added official VRC ChatBox support. So I had an idea: connect it to the system IME, and the dictionary you have built up is ready to use. This plugin started there.
+
+### Developer note
+
+While fixing the last difficult bugs with an AI agent, I realized how complicated general system IME integration can be. Some problems required compromises from the start; others emerged as complex edge cases near the end. Supporting many IMEs while keeping the implementation manageable meant sacrificing some user experience. See the Design trade-offs section and this repository's ADRs for details. An AI can explain them if you prefer.
+
+I cannot claim this is the best VR IME solution. With good tools already available, I sometimes wonder why I made this awkward alternative. Still, it exists. If it addresses your needs and you accept the inconvenience of these compromises, give it a try. Your interest in this plugin means a lot to me. It gives me support and encouragement.
 
 ## Showcase
 
@@ -35,7 +41,7 @@ TBD
 
 ### IME
 
-- Only IMEs that implement TSF are supported. This repository is verified with Weasel (Rime for Windows).
+- The plugin supports only IMEs that implement TSF. Verified with Weasel (Rime for Windows), Microsoft Pinyin, and Japanese Microsoft IME. Most IMEs should support TSF. Install the plugin and try yours if you are unsure.
 - The IME may need inline preedit on. Otherwise you see only the candidates, not the code you are typing.
   - In testing, Weasel required it. In Weasel, set `style/inline_preedit: true` in `weasel.custom.yaml`.
 
@@ -48,6 +54,12 @@ TBD
 <!-- ordered from the most surprising behaviour to the least -->
 
 The behaviours in this section look like faults. They are deliberate.
+
+### VRC ChatBox button stays inactive
+
+The VRC ChatBox button can stay inactive if XSOverlay starts before VRChat. A proxy in TUN mode may also be involved. This is an XSOverlay fault. This plugin does not fix it. Start XSOverlay after VRChat, or close XSOverlay and restart it.
+
+I cannot explain other cases. I added this note for anyone who encounters the same issue.
 
 ### Why the candidates cannot be clicked
 
@@ -90,7 +102,7 @@ The dropdown lists enabled IMEs and ordinary keyboard layouts across all languag
 
 The input mode button simulates one click on the IME's additional language bar icon. Each IME determines the result, which can cause unexpected behavior. For example, switching Weasel does not end the composition. Physical keyboard testing showed the same issue, so this behavior falls outside the plugin's scope.
 
-Microsoft Pinyin and Japanese Microsoft IME show their original mode glyphs. Click the button to switch input modes, or use the IME's switching shortcut on the keyboard (for example, tap Shift three times quickly: two taps enable its held state, then the third releases it to simulate one physical Shift press and release). Some older systems may have compatibility issues. See the [archived compatibility tests](docs/handoffs/archived-notes/input-mode-shell.md#支持范围).
+Microsoft Pinyin and Japanese Microsoft IME show their original mode glyphs. Click the button to switch input modes, or use the IME's switching shortcut on the keyboard (for example, tap Shift three times quickly: two taps enable its held state, then the third releases it to simulate one physical Shift press and release). Some older systems may have compatibility issues. See the [archived compatibility tests](docs/archived/notes/input-mode-shell.md#支持范围).
 
 ### Why the IME name and the 中/英 switch are hidden while the input box has no focus
 

@@ -2,7 +2,7 @@
 
 任务栏 UIA 已在五个新进程的前台往返矩阵中完成 60 次实际切换，覆盖微软拼音和日语，也覆盖小狼毫初始输入项。立即释放 Shell 观察对象曾漏掉图像更新；随后增加真实图像更新的事件边界，12 次图像与实际输入全部一致，且不再使用点击与下一输入之间的固定间隔。建议采用“公开 TSF 优先，Shell 原图加任务栏 UIA 点击”的路径，产品集成仍须处理异步动作生命周期。
 
-生产点击行为未改，仍遵循 [Shell 适配说明](archived-notes/input-mode-shell.md)：公开 TSF 按钮调用自身 `OnClick`，Shell 图像显示为 disabled。本轮只改隔离探针，不处理路线图的新问题。
+生产点击行为未改，仍遵循 [Shell 适配说明](../notes/input-mode-shell.md)：公开 TSF 按钮调用自身 `OnClick`，Shell 图像显示为 disabled。本轮只改隔离探针，不处理路线图的新问题。
 
 ## 实验方法
 
@@ -148,17 +148,17 @@
 
 UIA 的公开调用不依赖新增私有 Shell ABI；原图读取仍受现有精确版本校验约束。桌面隔离探针不能代替提权游戏进程、实际 VR 页面、任务栏不可用和不同 Windows 版本的验收。头显休息期间不启动 SteamVR 或 XSOverlay。
 
-后续访谈已接受展示与点击分源，记录为 [0051](../adr/0051-use-taskbar-uia-for-shell-mode-clicks.md)。[0050](../adr/0050-hold-the-host-focus-for-the-composer.md) 另将租约改为随 composer 焦点存续，因此每次点击收集图像后归还前台的实验流程不再是拟采用的产品生命周期。输入不因点击排队，图标异步更新；按钮处理中短暂禁用，单次点击失败恢复可点击。本轮不增加自定义硬超时，产品尚未接入 UIA。
+后续访谈已接受展示与点击分源，记录为 [0051](../../adr/0051-use-taskbar-uia-for-shell-mode-clicks.md)。[0050](../../adr/0050-hold-the-host-focus-for-the-composer.md) 另将租约改为随 composer 焦点存续，因此每次点击收集图像后归还前台的实验流程不再是拟采用的产品生命周期。输入不因点击排队，图标异步更新；按钮处理中短暂禁用，单次点击失败恢复可点击。本轮不增加自定义硬超时，产品尚未接入 UIA。
 
 ### 实施顺序与放行
 
-1. 先完成独立的宿主输入生命周期修复及验收，避免 UIA 已成功却仍因每键过早归还前台而无输入。此项由[输入修复方案](archived-notes/host-lifecycle.md)跟踪。
+1. 先完成独立的宿主输入生命周期修复及验收，避免 UIA 已成功却仍因每键过早归还前台而无输入。此项由[输入修复方案](../notes/host-lifecycle.md)跟踪。
 2. 将 UIA 定位和 Invoke 封装为独立 MTA 动作，STA 只接收准备、返回和失败结果，不跨 apartment 传递 TSF、Shell 或 UIA 对象。检查设置 API 的返回值并读回自动设焦与超时配置；定位完成后由 STA 再校验档案、composer 和动作代次，允许执行前再检查前台。
-3. 将 [InputModeButton](../../XSOverlayKeyboardIme/Ime/InputModeButton.cs) 的同步 pending 计数改为有身份的请求生命周期。每个请求保存宿主档案、代次与处理中状态，只收尾一次，通过宿主消息处理迟到结果。Shell 图像订阅沿前台租约存续，不以图像变化决定点击是否结束。
-4. [ImeHost](../../XSOverlayKeyboardIme/Ime/ImeHost.cs) 不因 UIA 点击暂存或延迟后续输入，点击期间到达的普通键仍立即走既有送键路径。失焦或关闭后不再恢复普通键，修饰键释放继续遵循既有不抢前台规则。失效前尚未 Invoke 的请求取消，已进入 Invoke 的动作不能宣称已撤回。
+3. 将 [InputModeButton](../../../XSOverlayKeyboardIme/Ime/InputModeButton.cs) 的同步 pending 计数改为有身份的请求生命周期。每个请求保存宿主档案、代次与处理中状态，只收尾一次，通过宿主消息处理迟到结果。Shell 图像订阅沿前台租约存续，不以图像变化决定点击是否结束。
+4. [ImeHost](../../../XSOverlayKeyboardIme/Ime/ImeHost.cs) 不因 UIA 点击暂存或延迟后续输入，点击期间到达的普通键仍立即走既有送键路径。失焦或关闭后不再恢复普通键，修饰键释放继续遵循既有不抢前台规则。失效前尚未 Invoke 的请求取消，已进入 Invoke 的动作不能宣称已撤回。
 5. 档案改变、composer 失焦或退出时使代次失效，废弃旧图与迟到结果。先停止接受工作，等 worker 不再访问宿主后释放资源，期间 STA 继续泵消息，不能同步 Join。
 6. 验收失败目标、匹配不唯一、无图像变化、快速重复点击、点击中立即输入或切档案、外部夺焦、composer 关闭及退出。确认找不到可信目标与单次点击失败的禁用行为不同，失败不自动重试或补发切换键。旧请求的迟到完成结果不得更新新请求，当前宿主与输入项的可信系统事件仍正常更新图标；不能撤销已投递给 Explorer 的动作。
-7. 最后在提权 Unity Mono 的真实 VR 页面复测图像、切换后的首键、连续输入和前台恢复。调整租约时还须同时观察宿主与 Vuplex 物理键盘路径，检查重复输入与快捷键丢失，详见[宿主生命周期验收](archived-notes/host-lifecycle.md)。通过后才把相应 Shell 按钮从 disabled 改为可用；其他系统版本继续受原图适配范围约束。
+7. 最后在提权 Unity Mono 的真实 VR 页面复测图像、切换后的首键、连续输入和前台恢复。调整租约时还须同时观察宿主与 Vuplex 物理键盘路径，检查重复输入与快捷键丢失，详见[宿主生命周期验收](../notes/host-lifecycle.md)。通过后才把相应 Shell 按钮从 disabled 改为可用；其他系统版本继续受原图适配范围约束。
 
 当前代码的 `Reset` 没有异步动作身份，不能复用没有动作 ID 的 `ModeCompleteMessage` 收尾新请求。按钮处理中状态不能误用于阻塞输入。这些是新增 UIA 生命周期所需的接缝，不是已完成的产品修改。
 
@@ -172,7 +172,7 @@ UIA 的公开调用不依赖新增私有 Shell ABI；原图读取仍受现有精
 
 ## 独立模块实现
 
-用户随后确认先完成 UIA 模块，待 0050 验收后启用。实现及接入约束见[适配说明](archived-notes/input-mode-shell.md#尚未启用的-uia-模块)，生产采样路径与 Shell disabled 行为保留。
+用户随后确认先完成 UIA 模块，待 0050 验收后启用。实现及接入约束见[适配说明](../notes/input-mode-shell.md#尚未启用的-uia-模块)，生产采样路径与 Shell disabled 行为保留。
 
 新模块分别在 .NET 10 与 XSOverlay 自带 Unity Mono 中运行 8 次实际切换。两组均交替观察到拼音 `preedit=a`、日语 `preedit=あ` 与普通 `a`，前台始终由独立宿主持有。每次调用返回便发送下一 A，没有等待图像变化；多次记录到图像在恢复点击后才更新。
 

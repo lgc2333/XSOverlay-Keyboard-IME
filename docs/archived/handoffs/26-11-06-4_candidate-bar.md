@@ -1,6 +1,6 @@
 # 候选栏与组字串上屏
 
-接续 [26-11-06-3](./26-11-06-3_ui-mock.md)。这次把界面落地：组字串与候选真正显示到键盘页。候选栏只显示，选候选与翻页交回键盘按键，见 [0018](../adr/0018-candidate-bar-display-only.md)。
+接续 [26-11-06-3](./26-11-06-3_ui-mock.md)。这次把界面落地：组字串与候选真正显示到键盘页。候选栏只显示，选候选与翻页交回键盘按键，见 [0018](../../adr/0018-candidate-bar-display-only.md)。
 
 ## 做了什么
 
@@ -10,7 +10,7 @@
 | 覆写回压   | 页面自己的状态逻辑会重写 `placeholder`，注入脚本盯住该属性并在组字期间重新压回组字串，页面重建后也照样生效                                               |
 | 候选栏     | 注入为 `#keyboard-container` 的直接子节点，位置在 `#keyboard-toolbar-row` 与 `#keyboard-background` 之间，高 64px                                        |
 | 重建补挂   | `buildSkeleton` 每次重建整棵树，注入脚本在容器不再是自己的父节点时把栏插回去                                                                             |
-| 只显示     | 候选栏不响应点击；选候选与翻页用键盘页自己的数字键与 PageUp/PageDown，经接管路径送进组字宿主，见 [0018](../adr/0018-candidate-bar-display-only.md)       |
+| 只显示     | 候选栏不响应点击；选候选与翻页用键盘页自己的数字键与 PageUp/PageDown，经接管路径送进组字宿主，见 [0018](../../adr/0018-candidate-bar-display-only.md)    |
 | 输入法名   | 取 `ITfInputProcessorProfiles` 中当前语言的默认配置描述，用作右侧 chip；取不到时 chip 隐藏                                                               |
 | 页面通道   | 静态 `KeyboardPageBridge` 换成 `Page/KeyboardPage`（页面实例）、`PageScript`（bundle 与注入）与 `CompositionPayload`（组字视图）；页面只回报一条就绪消息 |
 
@@ -43,7 +43,7 @@ XSOverlay 外验证界面靠一套最小的无头浏览器渲染台，不进仓�
 
 ## 下一步
 
-1. 中英键与 chip 下拉，依赖 [0009](../adr/0009-profile-scope.md) 与 [0012](../adr/0012-synthesized-modifier-key.md)。
+1. 中英键与 chip 下拉，依赖 [0009](../../adr/0009-profile-scope.md) 与 [0012](../../adr/0012-synthesized-modifier-key.md)。
 2. 用 `ITfActiveLanguageProfileNotifySink` 旁听真正激活的配置，替掉"默认配置"这个替代品。
 3. 抽 `CompositionService` 与 `SelfCheckRun` 里重复的组字泵。
 4. 在 VR 里按一次回车提交，再按一次数字键选候选，补上真机结论。

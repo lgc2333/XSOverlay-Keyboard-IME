@@ -17,7 +17,7 @@ amended_by: ['0050', '0059']
 
 ## Consequences
 
-- 组字串、候选、提交、输入法模式全部改走回调；候选是 UTF-8 字符串列表，非 BMP 无损。11 类按键与真实控件的行为对照见 [26-11-06-7](../handoffs/26-11-06-7_ingameime-validation.md)。
+- 组字串、候选、提交、输入法模式全部改走回调；候选是 UTF-8 字符串列表，非 BMP 无损。11 类按键与真实控件的行为对照见 [26-11-06-7](../archived/handoffs/26-11-06-7_ingameime-validation.md)。
 - 插件不再实现任何 TSF 接口，也不再读 IMM。`ITfUIElementSink`、候选元素读取、`ImmGetCompositionStringW`、控件文本基线全部删除。
 - 宿主仍需要一个隐藏窗口与 STA 线程：输入上下文绑定在窗口上，按键消息与组字都落在该线程。
 - 喂键仍走全局 `SendInput`，且每次按键前都要断言宿主窗口在前台。抢占前台的行为必须记录并在结束时恢复，[0014](./0014-vr-session-scope.md) 的支持范围不变。

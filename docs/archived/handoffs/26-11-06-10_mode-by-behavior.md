@@ -4,11 +4,11 @@
 
 ## 现状一句话
 
-代码停在 HEAD（旧行为，见下），[0025](../adr/0025-respect-ime-mode.md) 已按新决定改写并提交；实验阶段的实现还没开始。
+代码停在 HEAD（旧行为，见下），[0025](../../adr/0025-respect-ime-mode.md) 已按新决定改写并提交；实验阶段的实现还没开始。
 
 ## 决定
 
-[0025](../adr/0025-respect-ime-mode.md)：**插件不切换中英**。输入法是什么状态，按键就按什么状态走；中英由用户显式切换。判据读 IMM32 的 `ImmGetConversionStatus` + `IME_CMODE_NATIVE`。
+[0025](../../adr/0025-respect-ime-mode.md)：**插件不切换中英**。输入法是什么状态，按键就按什么状态走；中英由用户显式切换。判据读 IMM32 的 `ImmGetConversionStatus` + `IME_CMODE_NATIVE`。
 
 ## 为什么
 
@@ -59,7 +59,7 @@
 ## 未定
 
 - 控件形态：输入法自己的 16px 图标（`ITfLangBarItemButton::GetIcon`，原汁原味但放大糊）还是自绘「中/英」chip（清晰、可主题化）。
-- 与 [0012](../adr/0012-synthesized-modifier-key.md) 的关系：控件若落在页面上，布局里合成中英键就不再必要。
+- 与 [0012](../../adr/0012-synthesized-modifier-key.md) 的关系：控件若落在页面上，布局里合成中英键就不再必要。
 
 ## 环境要点
 

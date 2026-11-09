@@ -1,16 +1,16 @@
 # 宿主替换的落地（2026-11-06）
 
-接续 [26-11-06-8](./26-11-06-8_host-switch-adrs.md)。上一轮只做决策，这一轮按 [0022](../adr/0022-ingameime-host.md) 到 [0025](../adr/0025-respect-ime-mode.md) 把组字宿主换掉，并把分发从三份压到两份。
+接续 [26-11-06-8](./26-11-06-8_host-switch-adrs.md)。上一轮只做决策，这一轮按 [0022](../../adr/0022-ingameime-host.md) 到 [0025](../../adr/0025-respect-ime-mode.md) 把组字宿主换掉，并把分发从三份压到两份。
 
 ## 结论
 
-- 原生侧合并为单个 `IngameIME.dll`：两个上游仓库加自有 C 薄壳编进同一个库，整份按 LGPL 2.1 发布。[0023](../adr/0023-dynamic-link-shim.md) 原地改写，未新增 ADR。
+- 原生侧合并为单个 `IngameIME.dll`：两个上游仓库加自有 C 薄壳编进同一个库，整份按 LGPL 2.1 发布。[0023](../../adr/0023-dynamic-link-shim.md) 原地改写，未新增 ADR。
 - 托管侧按「XSOverlay 接入 / 接管判定 / 组字宿主 / 页面」重排；自检、组字会话状态机、COM sink、候选读取、IMM 读取全部删除。
 - 本地校验全绿；**VR 里的组字、候选与写回尚未实测**。
 
 ## 原生层
 
-- 两个上游仓库作子模块，提交与许可证见 [THIRD-PARTY-NOTICES.md](../../THIRD-PARTY-NOTICES.md)。
+- 两个上游仓库作子模块，提交与许可证见 [THIRD-PARTY-NOTICES.md](../../../THIRD-PARTY-NOTICES.md)。
 - `native/CMakeLists.txt` 按路径直接编上游源码，不走上游自己的 CMakeLists：那份把运行库写死为静态 `/MT`，命令行覆盖不掉，而且它经 SSH 拉取自己那份 Common，普通克隆取不到。
 - 合库之后不再需要 `CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS`：C++ 符号在模块内解析，导出表只剩薄壳的 7 个 C 函数。仍保留 `CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL`，免得多带一份 CRT 状态。
 - 加载路径：插件先按自身目录以 `LOAD_WITH_ALTERED_SEARCH_PATH` 预载，随后按名导入命中同一模块——插件目录不在加载器搜索路径上，XSOverlay 根目录却在。
@@ -40,7 +40,7 @@ Interop/              原始声明
 
 ## 术语
 
-「输入法」升为规范词，`IME` 不再列在避免词里；`TIP` 改为「输入法在 Windows 上的一种实现形态」。代码里的 `Ime*` 由此与词表一致，见 [CONTEXT.md](../../CONTEXT.md)。
+「输入法」升为规范词，`IME` 不再列在避免词里；`TIP` 改为「输入法在 Windows 上的一种实现形态」。代码里的 `Ime*` 由此与词表一致，见 [CONTEXT.md](../../../CONTEXT.md)。
 
 ## 验证
 
@@ -53,5 +53,5 @@ Interop/              原始声明
 
 - 真机验证上面那四项。
 - 失焦与关页时取消组字：属 [26-11-06-7](./26-11-06-7_ingameime-validation.md) 留下的下一步，本轮不在执行顺序内。
-- [0025](../adr/0025-respect-ime-mode.md) 里的合成 Shift 只写作降级兜底，本轮未实现。
+- [0025](../../adr/0025-respect-ime-mode.md) 里的合成 Shift 只写作降级兜底，本轮未实现。
 - 直通时若用户始终不按空格或回车，会话会继续握着前台；旧实现同样如此，尚未收口。

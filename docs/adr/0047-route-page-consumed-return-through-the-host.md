@@ -5,7 +5,7 @@ amends: ['0016']
 
 # 原页提前消费的回车先交给宿主判定
 
-[VR 问题调查](../handoffs/26-11-07-4_confirmed-vr-defects.md#回车丢焦) 已确认，VR RETURN 与 composer 输入框的 DOM Enter 会在网页内直接发送文本并释放焦点，不经过 `HandleKeypress`。[0016](./0016-key-interception-point.md) 的宿主补丁无法接到这两个入口，因此只为它们增加页面事件接线，普通按键继续走原补丁。
+[VR 问题调查](../archived/handoffs/26-11-07-4_confirmed-vr-defects.md#回车丢焦) 已确认，VR RETURN 与 composer 输入框的 DOM Enter 会在网页内直接发送文本并释放焦点，不经过 `HandleKeypress`。[0016](./0016-key-interception-point.md) 的宿主补丁无法接到这两个入口，因此只为它们增加页面事件接线，普通按键继续走原补丁。
 
 每次回车先交给宿主已有的“组字中或有待处理组字按键”门控，接管时送进输入法，放行时把事件交回原页处理。页面上一次显示的组字状态不能代替这个门控，否则快速按键仍可能把编码提前发送。页面不把组字串当作提交文本。
 

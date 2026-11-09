@@ -5,7 +5,7 @@ amends: ['0039']
 
 # 键盘输入项激活请求限定在 XSOverlay 进程
 
-[0039](./0039-switch-imes-from-the-bar.md) 的后台线程激活在取得前台时发生真实回退，证据见[输入法状态问题交接](../handoffs/26-11-07-5_confirmed-ime-state-defects.md)。插件发出的激活请求最多作用于 XSOverlay 进程，Windows 共享输入法设置自身造成的桌面联动遵循系统行为。
+[0039](./0039-switch-imes-from-the-bar.md) 的后台线程激活在取得前台时发生真实回退，证据见[输入法状态问题交接](../archived/handoffs/26-11-07-5_confirmed-ime-state-defects.md)。插件发出的激活请求最多作用于 XSOverlay 进程，Windows 共享输入法设置自身造成的桌面联动遵循系统行为。
 
 取得前台后调用 `ITfInputProcessorProfileMgr.ActivateProfile`，使用 `TF_IPPMF_FORPROCESS` 请求进程范围激活。失败时记录并刷新真实状态，不升级为桌面范围的 `TF_IPPMF_FORSESSION`，也不添加等待或重试。API 的作用范围见[官方文档](https://learn.microsoft.com/en-us/windows/win32/api/msctf/nf-msctf-itfinputprocessorprofilemgr-activateprofile)。
 

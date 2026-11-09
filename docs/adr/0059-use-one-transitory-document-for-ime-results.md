@@ -5,7 +5,7 @@ amends: ['0022']
 
 # 用单一 transitory 文档收取输入法结果
 
-现有 IngameIME 结束请求会在异步执行时读取并删除当前全文；受控旧 End 后新组字的实际处理链已复现误收新文本，见[原生清理记录](../handoffs/archived-notes/late-commit.md#原生侧来源身份)。改用一个 STA、一个组字宿主和一个 TSF transitory 文档，通过确定的 result 范围收取提交，消费结果时保留当前组字，删除旧 End 全文清理机制。
+现有 IngameIME 结束请求会在异步执行时读取并删除当前全文；受控旧 End 后新组字的实际处理链已复现误收新文本，见[原生清理记录](../archived/notes/late-commit.md#原生侧来源身份)。改用一个 STA、一个组字宿主和一个 TSF transitory 文档，通过确定的 result 范围收取提交，消费结果时保留当前组字，删除旧 End 全文清理机制。
 
 本决定修订 [0022](./0022-ingameime-host.md) 的原生存储与结果读取路径，候选、档案和语言栏继续使用公开 TSF 能力。不建立每目标文档，不恢复原目标追溯；交付仍遵循 [0057](./0057-apply-ime-results-to-the-current-composer.md)，前台寿命仍遵循 [0050](./0050-hold-the-host-focus-for-the-composer.md)。
 

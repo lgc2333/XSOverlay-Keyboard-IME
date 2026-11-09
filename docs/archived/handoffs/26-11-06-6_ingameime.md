@@ -45,5 +45,5 @@
 
 1. 把 `IngameIME_Win32`（含 Common）引入本仓库，在其上写薄 C 接口 + 一个独立 .NET 控制台探针，验证 .NET 侧能收到同样的四类事件（仍不动插件）。
 2. 决定集成形态：用 IngameIME 替换隐藏 RichEdit 宿主与 IMM 读数；前台租约是否保留另算。
-3. 写 ADR：宿主改为「现成库 + 事件」，并交代它取代 [0006](../adr/0006-composition-host.md) 的读数段落与 [0013](../adr/0013-inline-preedit-dependency.md)。
+3. 写 ADR：宿主改为「现成库 + 事件」，并交代它取代 [0006](../../adr/0006-composition-host.md) 的读数段落与 [0013](../../adr/0013-inline-preedit-dependency.md)。
 4. 回归验收清单：`\`、Tab、回车、空格、英文直通；喂键间隔与 120ms 临界的关系。

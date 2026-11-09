@@ -7,7 +7,7 @@ amends: ['0042']
 
 公开 TSF 输入模式项继续优先，展示与点击均使用该项自身接口。只有公开项明确缺失时，才使用 Shell 读取原图、字形与可见状态，并通过任务栏对应按钮的 UIA Invoke 执行点击。这修订 [0042](./0042-hide-the-switch-without-an-icon.md) 要求展示与点击来自同一来源的规则，按能力选择路径，不按输入法名称分支。
 
-Shell 私有点击缺少可靠完成边界。任务栏 UIA 在独立 Unity Mono 宿主中完成 60 次实际切换，提供了替代点击路径的证据，详见[调查记录](../handoffs/26-11-08-2_taskbar-uia-mode-toggle.md)。因此否决继续将所有 Shell 模式项固定为 disabled，也不将 UIA 替代已有的公开 TSF 点击。原图读取仍遵守[Shell 适配范围](../handoffs/archived-notes/input-mode-shell.md)，未取得可信点击入口时保留原有 disabled 行为。
+Shell 私有点击缺少可靠完成边界。任务栏 UIA 在独立 Unity Mono 宿主中完成 60 次实际切换，提供了替代点击路径的证据，详见[调查记录](../archived/handoffs/26-11-08-2_taskbar-uia-mode-toggle.md)。因此否决继续将所有 Shell 模式项固定为 disabled，也不将 UIA 替代已有的公开 TSF 点击。原图读取仍遵守[Shell 适配范围](../archived/notes/input-mode-shell.md)，未取得可信点击入口时保留原有 disabled 行为。
 
 焦点生命周期沿用 [0050](./0050-hold-the-host-focus-for-the-composer.md)。图标以系统事件为准异步更新，不要求图像变化后才结束点击操作，固定占位不变化也不构成失败。调用返回、图像通知与实际输入结果分别处理，不能用旧图或中英模式读数决定按键归属。
 

@@ -1,21 +1,21 @@
 # 六项输入问题调查（2026-11-08）
 
-本文件归档[路线图](../ROADMAP.md#当前待解决)中六项输入问题的调查，当前状态仍以路线图为准。前期只部署被动诊断和临时消息排空对照，后续按用户授权修复两处原生 COM 缺陷；已确认的 JIS 按键归属与按钮隐藏规则分别记录在 [0048](../adr/0048-route-jis-ime-keys-through-the-host.md) 与 [0049](../adr/0049-hide-the-input-mode-switch-on-jis.md)。
+本文件归档[路线图](../../ROADMAP.md#当前待解决)中六项输入问题的调查，当前状态仍以路线图为准。前期只部署被动诊断和临时消息排空对照，后续按用户授权修复两处原生 COM 缺陷；已确认的 JIS 按键归属与按钮隐藏规则分别记录在 [0048](../../adr/0048-route-jis-ime-keys-through-the-host.md) 与 [0049](../../adr/0049-hide-the-input-mode-switch-on-jis.md)。
 
-生命周期后续决定见 [0050](../adr/0050-hold-the-host-focus-for-the-composer.md)：用户接受 composer 聚焦期间隐藏宿主持有电脑焦点，宿主失焦时同步使 composer 失焦，收尾遵循输入法和系统默认行为。独立原型已核对拼音失焦提交原始编码；后台 Chrome 已找到保留原生撤销的写回路径，真实 Vuplex 和小狼毫组字失焦基线仍待核对。本调查未实施该生命周期。
+生命周期后续决定见 [0050](../../adr/0050-hold-the-host-focus-for-the-composer.md)：用户接受 composer 聚焦期间隐藏宿主持有电脑焦点，宿主失焦时同步使 composer 失焦，收尾遵循输入法和系统默认行为。独立原型已核对拼音失焦提交原始编码；后台 Chrome 已找到保留原生撤销的写回路径，真实 Vuplex 和小狼毫组字失焦基线仍待核对。本调查未实施该生命周期。
 
 ## 微软拼音与日语输入法无输入
 
 调查初期来源尚未确定。现有 XSOverlay 日志中，日语送键 12 次、拼音 2 次，均没有组字、提交、普通字符或写回回报，也没有焦点获取与 SendInput 失败记录。目标档案与 Win32 前台、焦点正确，故障范围在宿主送键之后、页面写回之前。
 
-[KeyFeeder](../../XSOverlayKeyboardIme/Ime/KeyFeeder.cs) 送键后只排空键消息，[CompositionSession](../../XSOverlayKeyboardIme/Ime/CompositionSession.cs) 随即按组字状态结束会话。先记录实际键消息、TSF 文档焦点与回调次序，再判断是否提前归还前台；现有证据不支持直接增加等待。
+[KeyFeeder](../../../XSOverlayKeyboardIme/Ime/KeyFeeder.cs) 送键后只排空键消息，[CompositionSession](../../../XSOverlayKeyboardIme/Ime/CompositionSession.cs) 随即按组字状态结束会话。先记录实际键消息、TSF 文档焦点与回调次序，再判断是否提前归还前台；现有证据不支持直接增加等待。
 
 进一步隔离验证确认两件事：
 
 - 原生 TSF 空上下文的异步 edit session 返回 `TF_S_ASYNC` 后，键消息排空没有触发回调，进入完整消息泵后才执行。实验未抢前台或发送按键，证明键消息排空不保证异步 TSF 工作完成，但不证明微软输入法现场的具体断点。
 - 直接编译生产窗口与会话源码，替换输入法、送键与前台操作。同步 `WM_CHAR` 能立即写回；在 `Send` 返回后再执行相同窗口过程时，字符留在缓冲区，直到下一次 `Send` 才交付。这是插件处理迟到普通字符的确定缺陷，现场关联仍待验证；迟到原生 commit 的对照能立即交付。
 
-原因可由源码复核：[HostWindow](../../XSOverlayKeyboardIme/Ime/HostWindow.cs) 的 `Collect` 只追加缓冲，唯一消费者是 [CompositionSession.WriteThroughTyped](../../XSOverlayKeyboardIme/Ime/CompositionSession.cs)，它仅在 `Send` 内调用。[0032](../adr/0032-deliver-a-late-commit.md) 已覆盖迟到原生提交，普通字符尚没有对应的到达通知。
+原因可由源码复核：[HostWindow](../../../XSOverlayKeyboardIme/Ime/HostWindow.cs) 的 `Collect` 只追加缓冲，唯一消费者是 [CompositionSession.WriteThroughTyped](../../../XSOverlayKeyboardIme/Ime/CompositionSession.cs)，它仅在 `Send` 内调用。[0032](../../adr/0032-deliver-a-late-commit.md) 已覆盖迟到原生提交，普通字符尚没有对应的到达通知。
 
 另发现宿主将全部 `WM_APP` 及以上窗口消息吞掉，包括未知消息。尚未证明输入法依赖这些宿主窗口消息；异步 edit session 实验观察到的是线程消息，不能直接把两者关联为根因。
 
@@ -79,7 +79,7 @@ VR Shift 保持宿主前台后的物理按键对照已成功，两款都能把�
 
 该干预支持将独立宿主的首键丢失归为插件过早归还前台。它与游戏中的空队列现象一致，但尚未在提权 Mono 游戏进程中重复干预，不能宣称真实 XSOverlay 已修复，也不能把永久保留前台作为修复。
 
-[SendInput 的契约](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput)只保证事件插入输入流。原生 [OnEndComposition](../../native/IngameIME_Win32/src/TfCompositionHandler.cpp) 还会先报告组字结束，再异步请求读取提交文本。因此，`Composing=false`、单次队列为空、抬键或已投递消息均不足以证明该键的异步处理已完成。
+[SendInput 的契约](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput)只保证事件插入输入流。原生 [OnEndComposition](../../../native/IngameIME_Win32/src/TfCompositionHandler.cpp) 还会先报告组字结束，再异步请求读取提交文本。因此，`Composing=false`、单次队列为空、抬键或已投递消息均不足以证明该键的异步处理已完成。
 
 ### 按实际结果收尾的受限实验
 
@@ -90,7 +90,7 @@ VR Shift 保持宿主前台后的物理按键对照已成功，两款都能把�
 
 早先一次前台获取失败、一次回车请求前已经提交，以及日语样本在送键时变回拼音的区间均已剔除。实验与另一输入法调查任务错开桌面操作。实验服务器结束后，子进程经标准输入 EOF 清理宿主，未留下持有前台的实验进程。
 
-这些结果验证了两条输出路径的可行方向，尚未解决无输出按键、异步取消、多字符及 UTF-16 代理对边界。同步 trace 输出也可能影响时序，因此不能直接将该实验副本作为产品修复。实现计划见[六项修复方案](archived-notes/README.md)。
+这些结果验证了两条输出路径的可行方向，尚未解决无输出按键、异步取消、多字符及 UTF-16 代理对边界。同步 trace 输出也可能影响时序，因此不能直接将该实验副本作为产品修复。实现计划见[六项修复方案](../notes/README.md)。
 
 ### 同一上下文的直接 TSF 固定键对照
 
@@ -108,7 +108,7 @@ VR Shift 保持宿主前台后的物理按键对照已成功，两款都能把�
 
 ### 聚焦期租约与原生失焦的独立原型
 
-按 [0050](../adr/0050-hold-the-host-focus-for-the-composer.md) 新建普通权限 .NET STA 原型，复用生产输入上下文、会话、档案和送键代码。源码副本只调整租约检查、字符到达通知与焦点观察。`WM_KILLFOCUS` 立即撤销资格并放弃旧前台，随后保留原窗口处理；不发送 Escape，不修改输入法模式，也不调用激活开关代替失焦。该原型没有 Unity、Vuplex 或真实 composer，页面只是实验控制面板。
+按 [0050](../../adr/0050-hold-the-host-focus-for-the-composer.md) 新建普通权限 .NET STA 原型，复用生产输入上下文、会话、档案和送键代码。源码副本只调整租约检查、字符到达通知与焦点观察。`WM_KILLFOCUS` 立即撤销资格并放弃旧前台，随后保留原窗口处理；不发送 Escape，不修改输入法模式，也不调用激活开关代替失焦。该原型没有 Unity、Vuplex 或真实 composer，页面只是实验控制面板。
 
 微软拼音的有效对照先确认档案激活成功，再送固定 A。后续快照为组字长度 1、宿主持有前台、尚未交付。通过桌面点击实验进程的另一个窗口使宿主真实失焦，随后记录资格已撤销、组字结束、原生提交与交付各增加一次，交付内容与固定 `a` 相等；最终宿主不在前台。没有发送 Return 或 Escape，该结果符合用户报告的拼音失焦提交原始编码。
 
@@ -124,7 +124,7 @@ VR Shift 保持宿主前台后的物理按键对照已成功，两款都能把�
 
 使用当前生产页面源码在内存中构建 bundle，在隔离 Chromium 158 中加载。组字后使输入框真正失去 DOM 焦点，`insertText` 返回 `focus-lost`，随后页面发出取消请求。模拟旧文本回调时，重新聚焦后的新预编辑 `b` 被旧文本 `a` 替换；重建同名输入框后，旧回调也会写入新节点。这些固定回调注入只证明接口未携带来源身份，没有模拟真实 TSF 调度。
 
-普通文档中的对照显示，`setRangeText` 可在另一个输入框获焦时写入原框，也不自动发出 input 事件，但 Ctrl+Z 无法撤销这次改动。用户拒绝这一撤销例外，要求继续调查；只有保留撤销确实不可行时，才考虑统一丢弃失焦预编辑。没有新增 ADR，也未修订 [0008](../adr/0008-inserttext-writeback.md) 或 [0050](../adr/0050-hold-the-host-focus-for-the-composer.md)。
+普通文档中的对照显示，`setRangeText` 可在另一个输入框获焦时写入原框，也不自动发出 input 事件，但 Ctrl+Z 无法撤销这次改动。用户拒绝这一撤销例外，要求继续调查；只有保留撤销确实不可行时，才考虑统一丢弃失焦预编辑。没有新增 ADR，也未修订 [0008](../../adr/0008-inserttext-writeback.md) 或 [0050](../../adr/0050-hold-the-host-focus-for-the-composer.md)。
 
 最初的多页面测试中，两页均报告 `document.hasFocus()=true`，不能充当后台样本。后续改用独立 Chrome 156 窗口，并通过 [CDP](https://github.com/ChromeDevTools/devtools-protocol/blob/master/pdl/domains/Emulation.pdl) 显式关闭 `setFocusEmulationEnabled`。五种对照均确认 A 的 document 焦点为 false、B 为 true，然后检查写入目标、input 事件和撤销、重做。
 
@@ -146,7 +146,7 @@ VR Shift 保持宿主前台后的物理按键对照已成功，两款都能把�
 
 ### TSF 迟到提交的来源与范围对照
 
-生产 [CompositionHandler](../../native/IngameIME_Win32/src/TfCompositionHandler.cpp) 未保留开始组字时的 composition 身份。结束后将同一 edit-session 对象排队，执行时读取并清空整个持久上下文。shim 与托管回调只保留字符串，根入口再排到 Unity 队列，写回时重新寻找当前页面。给回调发生时的当前输入期编号不能恢复原来源。
+生产 [CompositionHandler](../../../native/IngameIME_Win32/src/TfCompositionHandler.cpp) 未保留开始组字时的 composition 身份。结束后将同一 edit-session 对象排队，执行时读取并清空整个持久上下文。shim 与托管回调只保留字符串，根入口再排到 Unity 队列，写回时重新寻找当前页面。给回调发生时的当前输入期编号不能恢复原来源。
 
 独立原生探针创建合成 TSF 上下文，不显式创建窗口，不获取前台，不发送按键，也不选择输入项或查询模式。旧组字的固定文字为 `a`，来源编号为 1；旧组字结束后，在同一上下文启动文字为 `b` 的新组字，将当前编号改为 2，随后执行旧的异步读取请求。
 
@@ -186,7 +186,7 @@ VR Shift 保持宿主前台后的物理按键对照已成功，两款都能把�
 
 [KEYBDINPUT](https://learn.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-keybdinput) 的标记只明确关联按键，[GetMessageTime](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getmessagetime) 只给最后取出消息的时间，均未提供 composer 身份。无标记的物理输入、多对多转换、IME 后续字符与跨来源代理对仍待处理，完整代理对缓冲本身不能解决归属。实验完成后窗口自行关闭、进程退出码为 0，未修改游戏或系统设置。
 
-代码核对还发现，[HostWindow](../../XSOverlayKeyboardIme/Ime/HostWindow.cs) 的窗口过程通过静态当前对象路由，未按传入 HWND 找接收对象，销毁任意宿主窗口又会结束 STA 消息泵。原生 TSF context owner 返回构造时固定的 HWND，激活关联也沿用它；提交则从共享上下文异步读取，回调只有字符串。因此增加窗口编号本身不能解决来源，轮换窗口也不是已有上下文的直接替换操作。公共 [AssociateFocus](https://learn.microsoft.com/en-us/windows/win32/api/msctf/nf-msctf-itfthreadmgr-associatefocus) 只规定窗口与 document manager 的关联，不保证旧窗口或旧上下文已经没有结果；[IsWindow](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-iswindow) 还明确提醒 HWND 会复用。该结构方案尚未选用。
+代码核对还发现，[HostWindow](../../../XSOverlayKeyboardIme/Ime/HostWindow.cs) 的窗口过程通过静态当前对象路由，未按传入 HWND 找接收对象，销毁任意宿主窗口又会结束 STA 消息泵。原生 TSF context owner 返回构造时固定的 HWND，激活关联也沿用它；提交则从共享上下文异步读取，回调只有字符串。因此增加窗口编号本身不能解决来源，轮换窗口也不是已有上下文的直接替换操作。公共 [AssociateFocus](https://learn.microsoft.com/en-us/windows/win32/api/msctf/nf-msctf-itfthreadmgr-associatefocus) 只规定窗口与 document manager 的关联，不保证旧窗口或旧上下文已经没有结果；[IsWindow](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-iswindow) 还明确提醒 HWND 会复用。该结构方案尚未选用。
 
 无交互的独立 Win32 对照创建两个隐藏且不可激活的窗口，不显示、不聚焦、不注入系统输入，也不创建 TSF 上下文。明确投给旧窗口的字符，在应用逻辑目标变成新窗口后仍派发到旧 HWND。翻译手动投递的 keydown，以及默认处理手动投递的 `WM_IME_CHAR`，本机也将衍生字符派发到旧 HWND；同一个 HWND 内改变逻辑输入期则无法从字符恢复旧编号。销毁旧窗口后，该样本不再取出已投递字符，不能据此建立安全销毁或完成契约。两窗口始终不可见，运行前后桌面前台未变。第一次合成 keyup 缺少过渡位，产生重复字符，已排除；补齐 keyup 的过渡、先前状态及扫描码位后采用结果。该对照只验证接收身份，不能代替真实键盘目标选择、失焦或 TSF 迟到提交。
 
@@ -212,7 +212,7 @@ VR Shift 保持宿主前台后的物理按键对照已成功，两款都能把�
 
 日语固定 A 的组字、结束与提交均回到来源 2，但它在焦点转移前已经自行结束，不计入组字失焦验证。拼音也出现过仅交付普通字符的样本，按实际回调分类。小狼毫固定 A 仅交付普通字符，没有进入组字，仍不能验证用户报告的不提交基线。焦点离开实验后的两次请求被拒绝，没有补发或重新获取前台。
 
-原生源码还暴露了两个候选方案约束。[候选列表监听](../../native/IngameIME_Win32/src/TfCompositionHandler.cpp)订阅共享线程管理器的 UI-element source，未按所属文档过滤，多个存活上下文可能重复收到同一候选通知；此次没有使用候选回调证明来源。[销毁路径](../../native/IngameIME_Win32/src/TfInputContextImpl.cpp)也没有待处理会话的完成屏障，组字结束并不等于可释放。原型将窗口、原生对象、回调及来源记录保活到独立进程退出，没有用固定等待决定回收，也没有验证产品内安全回收。
+原生源码还暴露了两个候选方案约束。[候选列表监听](../../../native/IngameIME_Win32/src/TfCompositionHandler.cpp)订阅共享线程管理器的 UI-element source，未按所属文档过滤，多个存活上下文可能重复收到同一候选通知；此次没有使用候选回调证明来源。[销毁路径](../../../native/IngameIME_Win32/src/TfInputContextImpl.cpp)也没有待处理会话的完成屏障，组字结束并不等于可释放。原型将窗口、原生对象、回调及来源记录保活到独立进程退出，没有用固定等待决定回收，也没有验证产品内安全回收。
 
 所有带线程字段的原生追踪事件均在同一托管 STA 线程回报。实验退出前核验活动档案恢复为初始小狼毫，子进程退出码为 0，临时服务和窗口已清理。没有测量已使用真实输入法上下文的长期保留成本，没有验证模式保持、物理编辑键、Vuplex 或 Unity；双窗口与文本存储仍是候选，尚未形成产品决定。
 
@@ -230,7 +230,7 @@ VR Shift 保持宿主前台后的物理按键对照已成功，两款都能把�
 
 第二处是 `InternalRelease`：计数归零时 `delete this`，随后返回已释放对象内的 `ref`。直接编译上游实现的 AddressSanitizer 对照检出第 13 行的四字节 `heap-use-after-free`。临时对照改为选择明确的 COM 接口身份，并在删除前保存剩余计数后，两项检查通过，最后一次 Release 返回 0。
 
-用户授权 fork、修复并验证后，已发布 [fork 修复提交](https://github.com/lgc2333/IngameIME_Win32/commit/a95d660c1d5b2ba0b0e933266df4e23e5f6c7232)。三个生产 handler 明确选择自己的标准 COM 接口身份；C ABI、输入处理及 TSF 会话策略保持原有行为。新增[原生回归](../../native/IngameIME_Win32/tests/ComObjectBaseTests.cpp)覆盖多接口身份、通过查询所得接口调用、失败查询、引用保活及恰好一次销毁，普通与 AddressSanitizer 构建均通过。根构建和 CI 接入 CTest，子模块源与许可证来源记录指向 fork，并保留上游基点。
+用户授权 fork、修复并验证后，已发布 [fork 修复提交](https://github.com/lgc2333/IngameIME_Win32/commit/a95d660c1d5b2ba0b0e933266df4e23e5f6c7232)。三个生产 handler 明确选择自己的标准 COM 接口身份；C ABI、输入处理及 TSF 会话策略保持原有行为。新增[原生回归](../../../native/IngameIME_Win32/tests/ComObjectBaseTests.cpp)覆盖多接口身份、通过查询所得接口调用、失败查询、引用保活及恰好一次销毁，普通与 AddressSanitizer 构建均通过。根构建和 CI 接入 CTest，子模块源与许可证来源记录指向 fork，并保留上游基点。
 
 修复库还通过原有独立 TSF 合成对照：旧来源只提交 `a`，新来源保留活动组字 `b`，随后独立提交；窗口始终不可见，前台未变。它验证修改后的库仍支持该原生路径，不覆盖真实按键、Vuplex 或提权 XSOverlay。尚未部署到 XSOverlay，也未证明这两处缺陷导致前述六项现场症状；它们不解决 raw owner 的异步存活期、候选归属或上下文回收契约。
 
@@ -249,7 +249,7 @@ VR Shift 保持宿主前台后的物理按键对照已成功，两款都能把�
 | 2        | 0      | 43 / 无 / 46                     | Begin 41、42；End 44、45                |
 | 2        | 1      | 49 / 52 / 64                     | Begin 47、48；Update 50、51；End 62、63 |
 
-全部实时归属查询为 `S_OK`、非空，并分别匹配窗口 1、2。两个上下文却始终都收到同一候选的 Begin、Update 和 End，确认[原生监听](../../native/IngameIME_Win32/src/TfCompositionHandler.cpp)缺少文档归属过滤。C ABI 没有候选 ID，本轮用单活动元素、紧邻的双份回调及源码共同确认，不能外推到多元素重叠时的逐条关联。该缺陷影响多上下文方案，尚未证明它导致当前单上下文产品的无输入问题。
+全部实时归属查询为 `S_OK`、非空，并分别匹配窗口 1、2。两个上下文却始终都收到同一候选的 Begin、Update 和 End，确认[原生监听](../../../native/IngameIME_Win32/src/TfCompositionHandler.cpp)缺少文档归属过滤。C ABI 没有候选 ID，本轮用单活动元素、紧邻的双份回调及源码共同确认，不能外推到多元素重叠时的逐条关联。该缺陷影响多上下文方案，尚未证明它导致当前单上下文产品的无输入问题。
 
 ID `0` 在 End 后复用，且可转属另一窗口。序号 31 的旧候选 End 发生时，实际前台和键盘焦点已经属于窗口 2，缓存的候选归属仍为窗口 1；按当前前台猜测 End 归属会误路由。所有事件均在同一 STA，观察器原生线程号一致。
 
@@ -261,13 +261,13 @@ ID `0` 在 End 后复用，且可转属另一窗口。序号 31 的旧候选 End
 
 后续真实三键采样与来源归类见[键码来源](./26-11-08-5_vuplex-background-undo.md#jis-键码来源与两条送键路径)。已确认的 XSOverlay `70/79` 错误仅记录，停止修复调查；下文保留当时的调查过程。
 
-[KeyStrokeReader](../../XSOverlayKeyboardIme/Takeover/KeyStrokeReader.cs) 在组字期间按键名白名单映射，无映射时吞掉，空闲时只接管单字符。有效的 JIS 专用键因此也无法按 [0048](../adr/0048-route-jis-ime-keys-through-the-host.md) 的目标规则送达。
+[KeyStrokeReader](../../../XSOverlayKeyboardIme/Takeover/KeyStrokeReader.cs) 在组字期间按键名白名单映射，无映射时吞掉，空闲时只接管单字符。有效的 JIS 专用键因此也无法按 [0048](../../adr/0048-route-jis-ime-keys-through-the-host.md) 的目标规则送达。
 
 安装版布局注明 `Keycodes are actually ScanCodes`，三键原始值分别为無変換 `7B`、変換 `79`、平/片假 `70`。XSOverlay 将这些值按十六进制扫描码转换，失败时保留原值。当前系统已加载的日语与美式布局均将扫描码 `0x7B` 映射为 `235`，`0x79` 与 `0x70` 返回零。真实页面模块沿用宿主给出的数值，`webValue` 则沿用日文标签，包括平/片假的 `<br>`。
 
 历史现场已捕获無変換 `values=[235] web=無変換` 和平/片假 `values=[70] web=カタカナ<br>ひらがな`。変換尚无现场事件，`values=[79]` 来自当前系统映射与真实模块的离线重建。直接运行 XSOverlay 枚举解析可复核 `70 → VK_F`、`79 → VK_O`、`235 → 未命名数值 235`，但页面焦点路径优先使用 `webValue`，因此尚未闭合现场 `f` 的完整输出路径，無変換的 `a` 更不能用 `7B` 的十进制猜测解释。
 
-插件漏接管有效专用键与上游原码转换是两层问题。[0048](../adr/0048-route-jis-ime-keys-through-the-host.md) 只修前者，不能使当前安装的 `70/79/235` 自动成为 `KANA=0x15`、`CONVERT=0x1C`、`NONCONVERT=0x1D`。`70/79` 已有转换失败后保留原值的证据；`235` 是系统实际映射，尚未验证其 OS 事件与输入法解释，不能直接判错。实现应按有效原生键码识别，避免 `KANA/HANGUL` 同值枚举别名影响，保留原有组合键规则，不按标签猜测并补键。
+插件漏接管有效专用键与上游原码转换是两层问题。[0048](../../adr/0048-route-jis-ime-keys-through-the-host.md) 只修前者，不能使当前安装的 `70/79/235` 自动成为 `KANA=0x15`、`CONVERT=0x1C`、`NONCONVERT=0x1D`。`70/79` 已有转换失败后保留原值的证据；`235` 是系统实际映射，尚未验证其 OS 事件与输入法解释，不能直接判错。实现应按有效原生键码识别，避免 `KANA/HANGUL` 同值枚举别名影响，保留原有组合键规则，不按标签猜测并补键。
 
 后续被动诊断 0.7.0 整合前台观察与 JIS 来源追踪，尚未部署。原诊断没有记录原模拟器的普通键，也没有将 `235` 列入页面原值的安全分类。新版补齐这些分类，观察插件判定和 `KeyboardInputFocusManager.SendKey` 的固定参数类别；所有其他文本仅记长度或 other。
 
@@ -279,7 +279,7 @@ ID `0` 在 End 后复用，且可转属另一窗口。序号 31 的旧候选 End
 
 ## 失焦时 Alt+Shift+F
 
-最后三次对照已将 Alt 快捷键失效定位到 XSOverlay 原始模拟器的按键编码与目标程序解释的边界；用户另报的状态反转尚未再次复现。[KeyboardOverlayScope](../../XSOverlayKeyboardIme/Game/KeyboardOverlayScope.cs) 使用 XSOverlay 的键盘焦点与所属浮窗判定接管，[页面焦点](../../web/src/composer-focus.ts)是另一状态。仅凭 composer 外观失焦，不能证明插件已退出接管。
+最后三次对照已将 Alt 快捷键失效定位到 XSOverlay 原始模拟器的按键编码与目标程序解释的边界；用户另报的状态反转尚未再次复现。[KeyboardOverlayScope](../../../XSOverlayKeyboardIme/Game/KeyboardOverlayScope.cs) 使用 XSOverlay 的键盘焦点与所属浮窗判定接管，[页面焦点](../../../web/src/composer-focus.ts)是另一状态。仅凭 composer 外观失焦，不能证明插件已退出接管。
 
 下一步同时记录两种焦点与目标收到的按键，并对照物理键盘、插件停用和插件启用。确认未接管后，再调查 XSOverlay 原始修饰键链路、系统语言热键与目标快捷键配置。
 
@@ -313,11 +313,11 @@ Chromium 的[扫描码解释](https://github.com/chromium/chromium/blob/main/ui/
 
 ## 回车无反应
 
-旧的组字回车丢焦已定位为插件遗漏原页提前发送入口，见 [0047](../adr/0047-route-page-consumed-return-through-the-host.md)。本次无反应已确认另有插件路径错误。
+旧的组字回车丢焦已定位为插件遗漏原页提前发送入口，见 [0047](../../adr/0047-route-page-consumed-return-through-the-host.md)。本次无反应已确认另有插件路径错误。
 
-[回车路由](../../web/src/composer-return.ts)先阻止 VR 原始按压，再加载原页按键模块，成功后才请求宿主。[模块地址](../../web/src/native-keyboard-input.ts)使用 `/UserInterface/Default/Keyboard/js/keyboard-input.js`，而真实键盘页从 `/apps/UserInterface/Default/Keyboard/Keyboard.html` 加载。现场只读 GET 已确认前者返回 404，补上 `/apps` 后返回 200。加载失败后没有请求宿主，已阻止的原事件也不会重放；缓存的失败 Promise 让后续 VR 回车继续失败。[回车音效模块](../../web/src/return-feedback.ts)也有相同地址错误。
+[回车路由](../../../web/src/composer-return.ts)先阻止 VR 原始按压，再加载原页按键模块，成功后才请求宿主。[模块地址](../../../web/src/native-keyboard-input.ts)使用 `/UserInterface/Default/Keyboard/js/keyboard-input.js`，而真实键盘页从 `/apps/UserInterface/Default/Keyboard/Keyboard.html` 加载。现场只读 GET 已确认前者返回 404，补上 `/apps` 后返回 200。加载失败后没有请求宿主，已阻止的原事件也不会重放；缓存的失败 Promise 让后续 VR 回车继续失败。[回车音效模块](../../../web/src/return-feedback.ts)也有相同地址错误。
 
-三项[回车浏览器测试](../../web/tests/composer-return.spec.ts)通过；[测试服务器](../../web/tests/server.mjs)仅复用安装版按键与音效模块，发送仍为 mock，不覆盖真实宿主往返和原页发送链路。
+三项[回车浏览器测试](../../../web/tests/composer-return.spec.ts)通过；[测试服务器](../../../web/tests/server.mjs)仅复用安装版按键与音效模块，发送仍为 mock，不覆盖真实宿主往返和原页发送链路。
 
 进一步隔离验证直接加载安装版按键、语音输入框视图与发送模块，再注入生产页面脚本。最初 DOM Enter、pointer、touch 各验证空闲与组字，共六项通过，但该服务器同样错误地提供了无 `/apps` 的地址。按真实路由重跑后，DOM Enter 两项通过，pointer 与 touch 四项均返回零请求、零发送，并记录 `Return input failed`。只在调查脚本的内存 bundle 中补全模块地址，六项全部通过。宿主答复、焦点释放与最终发送端仍为模拟边界，产品代码尚未修改，修复后仍需 VR 验证。
 
@@ -327,27 +327,27 @@ Chromium 的[扫描码解释](https://github.com/chromium/chromium/blob/main/ui/
 
 ## 输入法列表重排
 
-来源为插件。[ImeProfiles.ListChoices](../../XSOverlayKeyboardIme/Ime/ImeProfiles.cs)每次先枚举当前语言，再枚举其他语言；[页面](../../web/src/candidate-bar.ts)沿用收到的次序。
+来源为插件。[ImeProfiles.ListChoices](../../../XSOverlayKeyboardIme/Ime/ImeProfiles.cs)每次先枚举当前语言，再枚举其他语言；[页面](../../../web/src/candidate-bar.ts)沿用收到的次序。
 
 目标为尽量维持系统枚举顺序，切换只改变选中标记。删除当前语言优先分支后，需比较同语言和跨语言切换前后的身份序列，不新增固定排序或缓存顺序。
 
 ## JIS 出现中英切换按钮
 
-来源为插件页面。[switch-key](../../web/src/switch-key.ts)只判断焦点、图标与按键结构，没有物理布局条件。[0012](../adr/0012-synthesized-modifier-key.md)明确要求 JIS 不插入按钮；取代它的 [0028](../adr/0028-mirror-the-ime-language-bar-item.md)没有保留该限制，[0042](../adr/0042-hide-the-switch-without-an-icon.md)和 [0046](../adr/0046-place-the-switch-beside-left-alt.md)也未补回。
+来源为插件页面。[switch-key](../../../web/src/switch-key.ts)只判断焦点、图标与按键结构，没有物理布局条件。[0012](../../adr/0012-synthesized-modifier-key.md)明确要求 JIS 不插入按钮；取代它的 [0028](../../adr/0028-mirror-the-ime-language-bar-item.md)没有保留该限制，[0042](../../adr/0042-hide-the-switch-without-an-icon.md)和 [0046](../../adr/0046-place-the-switch-beside-left-alt.md)也未补回。
 
 历史提交 `f64c1f9` 将按钮改为语言栏项并移除术语表中的 JIS 限制，`cbb0d06` 随后新增布局按钮脚本，自首次实现就没有 JIS 判断。没有找到明确要求 JIS 显示的独立决策，也不能从提交记录判断是否经过用户确认。
 
-XSOverlay 布局数据的 `keyboardFormat` 区分 ANSI、ISO、JIS；这是页面的物理布局，不是当前输入法的语言。已确认通过 [0049](../adr/0049-hide-the-input-mode-switch-on-jis.md) 修订 0042 与 0046 的可见性范围，保留后续决定的其他机制。恢复限制时应分别验证 JIS 配中文输入项、ANSI 配日语输入项，以及布局重建后的按钮数量和空格宽度。
+XSOverlay 布局数据的 `keyboardFormat` 区分 ANSI、ISO、JIS；这是页面的物理布局，不是当前输入法的语言。已确认通过 [0049](../../adr/0049-hide-the-input-mode-switch-on-jis.md) 修订 0042 与 0046 的可见性范围，保留后续决定的其他机制。恢复限制时应分别验证 JIS 配中文输入项、ANSI 配日语输入项，以及布局重建后的按钮数量和空格宽度。
 
 ## 首次聚焦后切换无效
 
 新增问题已完成初步来源定位。真实会话 `seq=47–48` 首次聚焦 composer，`seq=58/62` 的档案请求已到页面入口与宿主 STA；`seq=63–65` 取前台失败，前台线程仍为 `24148`，宿主线程为 `32992`。第二次 `seq=75/79/82–84` 同样失败，实际输入项仍为小狼毫。
 
-`seq=88–104` 发生 composer 失焦、游戏释放键盘焦点与再次聚焦，随后第三次相同请求在 `seq=122–123` 取得宿主前台与焦点，`seq=135` 确认微软拼音已激活。失败发生在 [ActivateProfile](../../XSOverlayKeyboardIme/Ime/CompositionSession.cs) 的前台门槛，尚未调用输入法档案激活 API，不能归为输入法拒绝切换。
+`seq=88–104` 发生 composer 失焦、游戏释放键盘焦点与再次聚焦，随后第三次相同请求在 `seq=122–123` 取得宿主前台与焦点，`seq=135` 确认微软拼音已激活。失败发生在 [ActivateProfile](../../../XSOverlayKeyboardIme/Ime/CompositionSession.cs) 的前台门槛，尚未调用输入法档案激活 API，不能归为输入法拒绝切换。
 
 该记录没有桌面点击标记、`SetForegroundWindow` 原始返回值、前台窗口所属进程或最后输入时间，因此只能证明取前台失败，不能区分系统拒绝与其他窗口立即夺回，也不能证明桌面点击的因果作用。下一轮只补这些安全字段与前台变化事件，对比冷启动第一次请求、点击桌面浮窗、再次选择同一项；继续保留一次正常尝试策略。
 
-本阶段尚未采纳覆盖 composer 聚焦期的租约。后续已接受 [0050](../adr/0050-hold-the-host-focus-for-the-composer.md)，但它仍不能保证第一次聚焦取得前台，不能代替此项诊断。
+本阶段尚未采纳覆盖 composer 聚焦期的租约。后续已接受 [0050](../../adr/0050-hold-the-host-focus-for-the-composer.md)，但它仍不能保证第一次聚焦取得前台，不能代替此项诊断。
 
 后续准备被动诊断 0.6.0，在 `ForegroundLease.Take` 现有 `SetForegroundWindow` 调用旁插入参数和返回值读取，保留原调用、次数与返回值。记录目标及前台 HWND/PID/class、调用线程焦点、最后输入 tick，并用进程外前台事件关联变化。没有增加前台操作、输入合成或重试，产物仅构建，尚未安装。
 

@@ -1,6 +1,6 @@
 # 真实 Vuplex 后台撤销与桌面前台请求调查（2026-11-08）
 
-接续 [TSF 收尾调查](./26-11-08-4_tsf-retirement-investigation.md)。本轮恢复 SteamVR，在真实 XSOverlay 页面验证后台写回与撤销，没有修改产品代码或选择新的上下文架构。当前方案见[落地方案](archived-notes/README.md)，宿主生命周期继续遵循 [0050](../adr/0050-hold-the-host-focus-for-the-composer.md)。
+接续 [TSF 收尾调查](./26-11-08-4_tsf-retirement-investigation.md)。本轮恢复 SteamVR，在真实 XSOverlay 页面验证后台写回与撤销，没有修改产品代码或选择新的上下文架构。当前方案见[落地方案](../notes/README.md)，宿主生命周期继续遵循 [0050](../../adr/0050-hold-the-host-focus-for-the-composer.md)。
 
 ## 环境与诊断
 
@@ -27,7 +27,7 @@ XSOverlay 进程为 `25096`，宿主 STA 为 `1704`，Unity 主线程为 `18452`
 
 三个编辑命令均返回 true，未观察到外部 input。诊断 `seq=61–63` 记录相应 DOM input，期间没有新的 composer-active 消息；操作前后的游戏 scope 均未获得焦点。后台动作没有调用 `IWebView.SetFocused(true)`、`SendKey` 或重新授予游戏键盘焦点。
 
-该样本证明真实 Vuplex 的后台 composer 可以通过浏览器编辑命令保留和使用原生撤销记录，支持继续保留 [0008](../adr/0008-inserttext-writeback.md) 的撤销通道。它没有验证物理 Ctrl+Z、真实 IME 迟到提交、宿主到页面的完整往返，或另一个 input 持有 DOM 焦点的情形。每次命令开始与回调时的 Windows 前台 HWND 相同，但没有覆盖中间时刻；不能据此断言区间没有前台变化。清理文字不等于清空浏览器撤销栈。
+该样本证明真实 Vuplex 的后台 composer 可以通过浏览器编辑命令保留和使用原生撤销记录，支持继续保留 [0008](../../adr/0008-inserttext-writeback.md) 的撤销通道。它没有验证物理 Ctrl+Z、真实 IME 迟到提交、宿主到页面的完整往返，或另一个 input 持有 DOM 焦点的情形。每次命令开始与回调时的 Windows 前台 HWND 相同，但没有覆盖中间时刻；不能据此断言区间没有前台变化。清理文字不等于清空浏览器撤销栈。
 
 ## 桌面请求的前台失败
 
@@ -66,7 +66,7 @@ XSOverlay 进程为 `25096`，宿主 STA 为 `1704`，Unity 主线程为 `18452`
 
 该版本的插件自身 `Update` 没有运行，主线程答复滞留，未请求用户按物理测试键。固定停止命令在 STA 正常归还前台，确认宿主缓冲与 composer 均为空。后续快照记录 `FrameCount=0`、`ListenerUpdates=5283`、`runInBackground=true`；这证明观察期间 Vuplex 的键盘监听仍在更新，不能把启动答复超时解释为整个 Unity 停止运行。页面最终收尾仍滞留，未计为完成。
 
-项目原有 [UpdatePumpPatch](../../XSOverlayKeyboardIme/Game/Patches/UpdatePumpPatch.cs) 已注明游戏会销毁加载器对象。`0.1.1` 修正探针，沿同一 `InputManager.Update` 入口派发主线程工作，并要求已观察到帧计数后才允许取得前台。构建与隔离检查通过后，用户停止游戏，替换探针并经 Steam 启动进程 `25156`。其宿主 STA 为 `25448`，Unity 主线程为 `24888`，首次快照记录 `pumpTicks=6815`，确认真实游戏帧入口已运行。该 DLL 的 SHA256 为 `32206D601A28BF256E494061584D6D5A66D6E0E19B37184F63E46CFFE6A3EF75`。
+项目原有 [UpdatePumpPatch](../../../XSOverlayKeyboardIme/Game/Patches/UpdatePumpPatch.cs) 已注明游戏会销毁加载器对象。`0.1.1` 修正探针，沿同一 `InputManager.Update` 入口派发主线程工作，并要求已观察到帧计数后才允许取得前台。构建与隔离检查通过后，用户停止游戏，替换探针并经 Steam 启动进程 `25156`。其宿主 STA 为 `25448`，Unity 主线程为 `24888`，首次快照记录 `pumpTicks=6815`，确认真实游戏帧入口已运行。该 DLL 的 SHA256 为 `32206D601A28BF256E494061584D6D5A66D6E0E19B37184F63E46CFFE6A3EF75`。
 
 22:36:37 在真实 US 档案下成功开始观察，composer 聚焦且为空，隐藏宿主持有前台，样本有效。用户依次按实体键盘 `A → Backspace → Left → Ctrl+Z`，每步均松开。
 
@@ -98,9 +98,9 @@ XSOverlay 进程为 `25096`，宿主 STA 为 `1704`，Unity 主线程为 `18452`
 
 三次结果一致，关联变更、显式设焦及窗口查询均为 `S_OK`，进程正常退出。结束前恢复原窗口关联和 TSF 文档焦点，释放实验接口，再销毁上下文与隐藏窗口。前台 HWND 仅比较起终点相同，没有区间保证。所载独立 DLL 的 SHA256 为 `6EBD10021C909D34CB3DE5A89CC513E24C2C139A90F0117F5214670E9A8507C5`，包含此前的 COM 修复，没有部署到游戏。
 
-源码与观察一致：[原生上下文](../../native/IngameIME_Win32/include/tf/TfInputContextImpl.hpp)把创建 HWND 保存为 `const`，[ContextOwner](../../native/IngameIME_Win32/src/TfContextOwner.cpp)的窗口查询、文字坐标映射与屏幕范围仍使用它，现有公共接口和 shim 没有更新 owner HWND 的入口。[AssociateFocus](https://learn.microsoft.com/en-us/windows/win32/api/msctf/nf-msctf-itfthreadmgr-associatefocus) 提供窗口与文档的焦点关联；多窗口共享文档时要求应用显式设焦。[GetWnd](https://learn.microsoft.com/en-us/windows/win32/api/msctf/nf-msctf-itfcontextowner-getwnd) 则报告当前文档对应的窗口，两者不是同一项状态。
+源码与观察一致：[原生上下文](../../../native/IngameIME_Win32/include/tf/TfInputContextImpl.hpp)把创建 HWND 保存为 `const`，[ContextOwner](../../../native/IngameIME_Win32/src/TfContextOwner.cpp)的窗口查询、文字坐标映射与屏幕范围仍使用它，现有公共接口和 shim 没有更新 owner HWND 的入口。[AssociateFocus](https://learn.microsoft.com/en-us/windows/win32/api/msctf/nf-msctf-itfthreadmgr-associatefocus) 提供窗口与文档的焦点关联；多窗口共享文档时要求应用显式设焦。[GetWnd](https://learn.microsoft.com/en-us/windows/win32/api/msctf/nf-msctf-itfcontextowner-getwnd) 则报告当前文档对应的窗口，两者不是同一项状态。
 
-因此，若要求保留同一上下文却让它报告窗口 B，仅改焦点关联不足，还需验证明确更新 owner 窗口的路径。托管 [HostWindow](../../XSOverlayKeyboardIme/Ime/HostWindow.cs) 也把 `WM_CHAR` 交给静态当前实例，任意宿主窗口销毁都会投递 `WM_QUIT`。轮换方案还须分别处理字符来源与线程退出，不能只替换窗口句柄。原生 `setActivated` 会调用 `TerminateComposition`，不能把激活开关用作默认失焦的替代。
+因此，若要求保留同一上下文却让它报告窗口 B，仅改焦点关联不足，还需验证明确更新 owner 窗口的路径。托管 [HostWindow](../../../XSOverlayKeyboardIme/Ime/HostWindow.cs) 也把 `WM_CHAR` 交给静态当前实例，任意宿主窗口销毁都会投递 `WM_QUIT`。轮换方案还须分别处理字符来源与线程退出，不能只替换窗口句柄。原生 `setActivated` 会调用 `TerminateComposition`，不能把激活开关用作默认失焦的替代。
 
 该对照没有送键、消息循环、实际 Win32 焦点切换或真实输入法结果，未验证候选、模式保持、新旧组字隔离或回收。它仅确认现有实现中焦点关联与 owner 窗口报告的边界，没有选用窗口轮换方案。
 
@@ -128,7 +128,7 @@ XSOverlay 进程为 `25096`，宿主 STA 为 `1704`，Unity 主线程为 `18452`
 2. 页面 `keyboard-layout.js` 的 `hexMaybe` 仅执行 `String(code)`，`keyboard-view-keys.js` 原样形成按钮 ID 和事件值，另携带日文标签。实际事件已确认是 `70/79/235`，不是标准专用虚拟键码 `21/28/29`。
 3. `InputManager.HandleKeypress` 使用 `Enum.TryParse<VirtualKeyCode>`，将数值字符串按十进制解释。没有游戏 WebView 焦点时，原模拟器按该虚拟键码调用 `SendInput`；有焦点时，`HandleFocusedWebViewKeypress` 优先使用 `webValue`，发送标签。
 
-因此，转换失败后残留的扫描码 `70/79` 被再解释为 `F/O`，是 XSOverlay 自己的键码处理缺陷。真实事件在插件判定前已带这些值，插件未接管，原游戏继续处理；插件没有生成或纠正这些键码。按用户要求，此上游缺陷仅记入路线图，不修复，也不继续调查修复方案。[0048](../adr/0048-route-jis-ime-keys-through-the-host.md) 的标准码接管是另一层已实现行为，不能修复这些上游值。
+因此，转换失败后残留的扫描码 `70/79` 被再解释为 `F/O`，是 XSOverlay 自己的键码处理缺陷。真实事件在插件判定前已带这些值，插件未接管，原游戏继续处理；插件没有生成或纠正这些键码。按用户要求，此上游缺陷仅记入路线图，不修复，也不继续调查修复方案。[0048](../../adr/0048-route-jis-ime-keys-through-the-host.md) 的标准码接管是另一层已实现行为，不能修复这些上游值。
 
 本轮没有在布局生成当时记录 `MapVirtualKeyExW` 的返回值与 HKL，`70/79` 对应转换失败分支的判断来自安装版源码、既有映射对照和实际事件，不能据此确定 Windows 为何没有返回标准专用码。`235` 的实际 OS 事件与输入法解释也未闭合，不将它一起定为上述错误。
 

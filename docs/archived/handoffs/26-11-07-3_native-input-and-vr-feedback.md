@@ -1,19 +1,19 @@
 # 原生输入简化与真机反馈（2026-11-07）
 
-本文件归档本轮状态，下一轮继续处理用户的 VR 测试反馈。最新问题与逐项结果见 [路线图](../ROADMAP.md) 的「当前待解决」与「待真机验证」，本文件不重复问题清单。
+本文件归档本轮状态，下一轮继续处理用户的 VR 测试反馈。最新问题与逐项结果见 [路线图](../../ROADMAP.md) 的「当前待解决」与「待真机验证」，本文件不重复问题清单。
 
 ## 接手入口
 
-- 先读 [AGENTS.md](../../AGENTS.md) 的放行规则与运行时约束，用词按 [CONTEXT.md](../../CONTEXT.md)。
-- 本轮决定见 [0040](../adr/0040-modifiers-follow-the-game.md)、[0041](../adr/0041-no-recovery-for-native-ime-results.md)、[0042](../adr/0042-hide-the-switch-without-an-icon.md)。
+- 先读 [AGENTS.md](../../../AGENTS.md) 的放行规则与运行时约束，用词按 [CONTEXT.md](../../../CONTEXT.md)。
+- 本轮决定见 [0040](../../adr/0040-modifiers-follow-the-game.md)、[0041](../../adr/0041-no-recovery-for-native-ime-results.md)、[0042](../../adr/0042-hide-the-switch-without-an-icon.md)。
 - 上一份 [兜底排查交接](./26-11-07-2_fallback-audit.md) 是历史。它的待修建议与本轮决定冲突时，以本轮 ADR 为准。
 
 ## 代码与部署
 
 - `ce68c56`：原生输入简化、修饰键接线、无图标隐藏、ADR 与 README 同步；具体改动看该提交。
-- `d3f3f02`：修复脚本注入前 composer 输入框已聚焦时，首次页面重建丢焦点的问题。代码在 [composer.ts](../../web/src/composer.ts) 的 `keepComposerFocus`，初始化补记已有焦点。
+- `d3f3f02`：修复脚本注入前 composer 输入框已聚焦时，首次页面重建丢焦点的问题。代码在 [composer.ts](../../../web/src/composer.ts) 的 `keepComposerFocus`，初始化补记已有焦点。
 - 写交接时，源码 HEAD 为 `d3f3f02`。安装目录仍是先部署的 `ce68c56`，XSOverlay 正在运行，焦点修复尚未部署。
-- 已重新核对 SHA-256：安装目录插件 DLL 以 `F1BC91535166ACE4` 开头，本地修复版以 `FCE84EFD71A05591` 开头；原生 DLL 两处相同。安装位置与部署命令见 [AGENTS.md](../../AGENTS.md)。
+- 已重新核对 SHA-256：安装目录插件 DLL 以 `F1BC91535166ACE4` 开头，本地修复版以 `FCE84EFD71A05591` 开头；原生 DLL 两处相同。安装位置与部署命令见 [AGENTS.md](../../../AGENTS.md)。
 
 ## 真机反馈的读法
 
@@ -22,7 +22,7 @@
 - 路线图的「已实现」表示代码已写，不代表真机验收通过。当前失败记录优先于之前的自动化检查结论。
 - 「初始焦点保留」虽已由用户标记通过，但测试版本仍是 `ce68c56`，不能据此认定 `d3f3f02` 已经真机验证。
 - 「提交晚于组字结束」注明无法营造环境、跳过测试。其勾选不构成已验证的证据。
-- 用户要求清空时主动取消组字，属于 [0041](../adr/0041-no-recovery-for-native-ime-results.md) 已保留的用户操作取消路径。先核对页面取消通知与宿主送键是否到达，再判断失败来源。
+- 用户要求清空时主动取消组字，属于 [0041](../../adr/0041-no-recovery-for-native-ime-results.md) 已保留的用户操作取消路径。先核对页面取消通知与宿主送键是否到达，再判断失败来源。
 
 ## 已做验证
 

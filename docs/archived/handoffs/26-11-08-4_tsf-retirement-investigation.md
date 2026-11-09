@@ -1,6 +1,6 @@
 # TSF 排队提交与上下文收尾调查（2026-11-08）
 
-接续[六项输入问题调查](./26-11-08-1_roadmap-input-defects.md)，核对旧上下文回收是否同时保留迟到提交。当前状态见[落地方案](archived-notes/README.md)，本轮未选择新架构，未修改或部署产品代码。
+接续[六项输入问题调查](./26-11-08-1_roadmap-input-defects.md)，核对旧上下文回收是否同时保留迟到提交。当前状态见[落地方案](../notes/README.md)，本轮未选择新架构，未修改或部署产品代码。
 
 ## 实验范围
 
@@ -53,7 +53,7 @@
 
 销毁前释放了实验取得的上下文与组字接口，之后不再调用该对象，回调来源记录保活至进程退出。该对照证明“保留上下文等待已知提交”与“直接销毁”的结果不同，不证明任意销毁都内存安全或真实输入法的未来提交完整。
 
-`iime_set_activated(0)` 会终止组字，本对照不能代替 [0050](../adr/0050-hold-the-host-focus-for-the-composer.md) 要求的默认窗口失焦。各项等待和异步标记也只覆盖已知合成请求。
+`iime_set_activated(0)` 会终止组字，本对照不能代替 [0050](../../adr/0050-hold-the-host-focus-for-the-composer.md) 要求的默认窗口失焦。各项等待和异步标记也只覆盖已知合成请求。
 
 ## 公共契约与源码约束
 
@@ -63,7 +63,7 @@
 
 已查阅的 [Deactivate](https://learn.microsoft.com/en-us/windows/win32/api/msctf/nf-msctf-itfthreadmgr-deactivate)、[Pop](https://learn.microsoft.com/en-us/windows/win32/api/msctf/nf-msctf-itfdocumentmgr-pop) 和 [UnadviseSink](https://learn.microsoft.com/en-us/windows/win32/api/msctf/nf-msctf-itfsource-unadvisesink) 文档没有建立未来 IME 结果的完成屏障。这是本次证据范围，不是所有公共接口均无此能力的证明。
 
-当前[原生提交处理器](../../native/IngameIME_Win32/src/TfCompositionHandler.cpp) 把自身作为异步 session，执行时通过裸 `inputCtx` 取得上下文并调用提交回调。[原生析构](../../native/IngameIME_Win32/src/TfInputContextImpl.cpp) 依次停用、解除通知、移出上下文和停用线程，没有本地待处理请求记录。COM 引用能保活处理器，不能自动保活其父对象；本轮正常退出不能代替该项验证。
+当前[原生提交处理器](../../../native/IngameIME_Win32/src/TfCompositionHandler.cpp) 把自身作为异步 session，执行时通过裸 `inputCtx` 取得上下文并调用提交回调。[原生析构](../../../native/IngameIME_Win32/src/TfInputContextImpl.cpp) 依次停用、解除通知、移出上下文和停用线程，没有本地待处理请求记录。COM 引用能保活处理器，不能自动保活其父对象；本轮正常退出不能代替该项验证。
 
 ## 候选事件的线程作用域
 

@@ -2,7 +2,7 @@
 
 本次已确认行为约定并完成实现，桌面 OSC 实测与本地自动化验证通过，XSOverlay 完整 VR 验收待完成。
 
-当前决策见 [0052](../adr/0052-broadcast-chatbox-previews-and-keep-native-submission.md)，以下保留调查与实测记录。
+当前决策见 [0052](../../adr/0052-broadcast-chatbox-previews-and-keep-native-submission.md)，以下保留调查与实测记录。
 
 ## 已确认的行为
 

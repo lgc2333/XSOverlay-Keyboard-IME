@@ -14,7 +14,7 @@ amended_by: ['0027', '0031']
 - 显示在候选栏：候选栏是候选的位置，编码挤在那里会被误认为候选；放弃。
 - 临时拼进输入框再还原：采纳。
 
-本 ADR 取代 [26-11-05-1](../handoffs/26-11-05-1_keyboard-ime.md) 第 6 节"组字串走 placeholder、`value` 不动"那条界面决定。那条只写在交接文档里，没有对应的 ADR，因此本文件不设 `amends` 关系。
+本 ADR 取代 [26-11-05-1](../archived/handoffs/26-11-05-1_keyboard-ime.md) 第 6 节"组字串走 placeholder、`value` 不动"那条界面决定。那条只写在交接文档里，没有对应的 ADR，因此本文件不设 `amends` 关系。
 
 ## Consequences
 
