@@ -1,6 +1,6 @@
 # 真实 Vuplex 后台撤销与桌面前台请求调查（2026-11-08）
 
-接续 [TSF 收尾调查](./26-11-08-4_tsf-retirement-investigation.md)。本轮恢复 SteamVR，在真实 XSOverlay 页面验证后台写回与撤销，没有修改产品代码或选择新的上下文架构。当前方案见[落地方案](../notes/README.md)，宿主生命周期继续遵循 [0050](../adr/0050-hold-the-host-focus-for-the-composer.md)。
+接续 [TSF 收尾调查](./26-11-08-4_tsf-retirement-investigation.md)。本轮恢复 SteamVR，在真实 XSOverlay 页面验证后台写回与撤销，没有修改产品代码或选择新的上下文架构。当前方案见[落地方案](archived-notes/README.md)，宿主生命周期继续遵循 [0050](../adr/0050-hold-the-host-focus-for-the-composer.md)。
 
 ## 环境与诊断
 

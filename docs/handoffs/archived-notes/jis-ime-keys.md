@@ -1,10 +1,12 @@
 # JIS 专用键
 
-规则见 [0048](../adr/0048-route-jis-ime-keys-through-the-host.md)。这里记实现、安装版证据与验收边界。安装版三颗按键的键码错误属于 XSOverlay，见 [upstream-xs-overlay](upstream-xs-overlay.md)。
+> 历史归档（2026-11-10）：保留调查时的事实、方案与待验证项。当前实现以源码、测试、已接受的 [ADR](../../adr/) 和[路线图](../../ROADMAP.md)为准。
+
+规则见 [0048](../../adr/0048-route-jis-ime-keys-through-the-host.md)。这里记实现、安装版证据与验收边界。安装版三颗按键的键码错误属于 XSOverlay，见 [upstream-xs-overlay](upstream-xs-overlay.md)。
 
 ## 实现
 
-- 扩展 [VirtualKey](../../XSOverlayKeyboardIme/Input/VirtualKey.cs) 与 [KeyStrokeReader](../../XSOverlayKeyboardIme/Takeover/KeyStrokeReader.cs)：有效专用原生码在单字符判断之前生成一个原码 stroke。
+- 扩展 [VirtualKey](../../../XSOverlayKeyboardIme/Input/VirtualKey.cs) 与 [KeyStrokeReader](../../../XSOverlayKeyboardIme/Takeover/KeyStrokeReader.cs)：有效专用原生码在单字符判断之前生成一个原码 stroke。
 - 以数值身份识别 `KANA=0x15`、`CONVERT=0x1C`、`NONCONVERT=0x1D`，兼容同值枚举别名；不按日文标签推断键码或行为。
 - 保持 Standard 样式、Shift、Ctrl/Alt、Win+Space 与其他 Win 组合的现有规则。
 - 0048 只修插件漏接管；它不让安装版的实际键码自动变成标准码。

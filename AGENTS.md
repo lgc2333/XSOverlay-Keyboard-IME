@@ -24,8 +24,7 @@ Directory.Build.props              共享编译设置
 Directory.Build.targets            可选的部署目标
 docs/                              公开文档目录
   adr/                             一个决定一个文件，按编号
-  handoffs/                        归档的带日期的会话交接，一次会话一个文件
-  notes/                           按主题拆开的输入修复笔记；只记现状、证据与待验证项
+  handoffs/                        历史交接；archived-notes/ 保存已结束的主题调查
   ROADMAP.md                       临时的路线图笔记，v1 完成后删除
 CONTEXT.md                         领域词汇表
 temp/                              本地草稿与探针工程；已被 git 忽略
@@ -107,8 +106,8 @@ pnpm --dir web test
 - 两者都遵循 `domain-modeling` Skill。
 
 - `AGENTS.md` 只承载约束与指针；ADR 已经记下的论证留在 ADR 里。
-- `docs/handoffs/` 记录一次会话当时谈了什么。它是归档的历史，不是当前事实：交接可能过时，后来的 ADR 或后来的文档会盖过它。
-- `docs/notes/` 按主题记现状、证据与待验证项；不链接 handoffs（文件过大），ADR 已覆盖的规则只链接。
+- 当前实现以源码、测试、已接受的 ADR 和 `docs/ROADMAP.md` 为准。
+- `docs/handoffs/` 与其 `archived-notes/` 均为历史资料，仅在追查旧证据时读取；其中的方案、状态和待办可能已失效。
 
 - 除非用户明确要求，不要改旧的 ADR（front-matter 除外）。
 - 每个 ADR 最顶上、标题之上先写 YAML front-matter：`status`（例如 `accepted` | `proposed` | `deprecated` | `superseded`），再加可选的关系键 `supersedes` / `superseded_by` 与 `amends` / `amended_by`，每个键都放带引号的 id（`['0001']`，绝不裸写 `0001`，YAML 会把它读成八进制）。
@@ -129,7 +128,7 @@ pnpm --dir web test
 
 输入法说了算。键盘做它没有插件时也会做的事：键进去，输入法拿它怎么处理，就是用户看到的答案。只用公共 API（例如 TSF，IME），不做按输入法的特例。
 
-修改模式项来源前读 [0042](docs/adr/0042-hide-the-switch-without-an-icon.md) 与 [0051](docs/adr/0051-use-taskbar-uia-for-shell-mode-clicks.md)：公开 TSF 优先，缺项时允许 InputSwitch 原图与任务栏 UIA 点击。修改 Shell ABI 或生命周期前读[适配约束](docs/notes/input-mode-shell.md)。
+修改模式项来源前读 [0042](docs/adr/0042-hide-the-switch-without-an-icon.md) 与 [0051](docs/adr/0051-use-taskbar-uia-for-shell-mode-clicks.md)：公开 TSF 优先，缺项时允许 InputSwitch 原图与任务栏 UIA 点击。Shell ABI 的历史适配证据见[归档记录](docs/handoffs/archived-notes/input-mode-shell.md)。
 
 - 先按来源给缺陷分类：插件、XSOverlay、输入法，还是系统。说出来源，以及把它归到那里的证据。
 - 由输入法或系统产生的结果是预期行为：切换时被丢下的组字、组字结束后才到的提交、布局打不出的字符、把编码当原文提交。记为基线，别去动它。

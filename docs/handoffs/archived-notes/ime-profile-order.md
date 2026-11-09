@@ -1,6 +1,8 @@
 # 输入法列表顺序
 
-页面按宿主给出的次序显示，顺序由 [ImeProfiles.ListChoices](../../XSOverlayKeyboardIme/Ime/ImeProfiles.cs) 决定。该函数原先每次先枚举当前语言，再枚举其他语言，[candidate-bar](../../web/src/candidate-bar.ts) 沿用收到的次序。
+> 历史归档（2026-11-10）：保留调查时的事实、方案与待验证项。当前实现以源码、测试、已接受的 [ADR](../../adr/) 和[路线图](../../ROADMAP.md)为准。
+
+页面按宿主给出的次序显示，顺序由 [ImeProfiles.ListChoices](../../../XSOverlayKeyboardIme/Ime/ImeProfiles.cs) 决定。该函数原先每次先枚举当前语言，再枚举其他语言，[candidate-bar](../../../web/src/candidate-bar.ts) 沿用收到的次序。
 
 目标：尽量维持系统枚举顺序，切换只改变选中标记。不新增固定排序，也不缓存自定义顺序。
 

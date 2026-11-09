@@ -1,10 +1,12 @@
 # JIS 物理布局不显示切换按钮
 
-规则与依据见 [0049](../adr/0049-hide-the-input-mode-switch-on-jis.md)。这里记来源、实现要点与验收。
+> 历史归档（2026-11-10）：保留调查时的事实、方案与待验证项。当前实现以源码、测试、已接受的 [ADR](../../adr/) 和[路线图](../../ROADMAP.md)为准。
+
+规则与依据见 [0049](../../adr/0049-hide-the-input-mode-switch-on-jis.md)。这里记来源、实现要点与验收。
 
 ## 来源
 
-- [switch-key](../../web/src/switch-key.ts) 只判断焦点、图标与按键结构，没有物理布局条件。
+- [switch-key](../../../web/src/switch-key.ts) 只判断焦点、图标与按键结构，没有物理布局条件。
 - 历史提交 `f64c1f9` 把按钮改为语言栏项时移除了术语表里的 JIS 限制，`cbb0d06` 随后新增布局按钮脚本，自首次实现就没有 JIS 判断；没有找到要求 JIS 显示的独立决策。
 - XSOverlay 布局数据的 `keyboardFormat` 表示 ANSI、ISO、JIS，是页面物理布局，不是当前输入法语言。`userSettings.format` 表示键区大小，不能替代。
 

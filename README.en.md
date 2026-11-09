@@ -82,17 +82,19 @@ The keyboard page uses Win only for Win+Space. Pressing Win alone does not open 
 
 The cost is that the IME's own faults land on the keyboard unchanged. Take Weasel: pressing the 中/英 switch during a composition (the same as clicking the language bar icon, not pressing Shift) leaves the composition open but drops the candidates; switching back to Chinese lets you compose again. Microsoft Pinyin, on the other hand, commits the raw code as it is. This is confusing, but it is the IME's own business, and the plugin does not clean up after it.
 
+### Switching IMEs and input modes
+
+The bar shows the name and dropdown on the right. The switch sits to the right of left Alt. Space becomes narrower while the switch is visible. Hiding the switch restores Space's full width. The keyboard row keeps the same width.
+
+The dropdown lists enabled IMEs and ordinary keyboard layouts across all languages. Select an entry to switch, or use Win+Space. Windows shared input settings can also change the IME in desktop windows. An unreadable current IME shows a dimmed “未知输入法” label, with no old icon or selection mark. You can still open the dropdown when its list is available.
+
+Microsoft Pinyin and Japanese Microsoft IME show their original mode glyphs. Click the button to switch input modes, or use the IME's switching shortcut on the keyboard (for example, tap Shift three times quickly: two taps enable its held state, then the third releases it to simulate one physical Shift press and release). Some older systems may have compatibility issues. See the [archived compatibility tests](docs/handoffs/archived-notes/input-mode-shell.md#支持范围).
+
 ### Why the IME name and the 中/英 switch are hidden while the input box has no focus
 
 Once the input box loses the focus, the IME information has no stable source. The plugin cannot get a value that stays true, so whatever it showed could stop matching reality at any moment. Hiding it is better than showing an unreliable name.
 
 The name identifies the IME that receives your next key. It appears while the input box has focus. The 中/英 switch appears when the language bar has an additional mode icon. An unreadable image uses a fixed placeholder. The US layout hides the switch.
-
-Microsoft Pinyin and Japanese Microsoft IME currently show their original mode glyphs with a disabled button. Use the switching key configured in your IME. See the [system compatibility limits](docs/notes/input-mode-shell.md#支持范围).
-
-The bar shows the name and dropdown on the right. The switch sits to the right of left Alt. Space becomes narrower while the switch is visible. Hiding the switch restores Space's full width. The keyboard row keeps the same width.
-
-The dropdown lists enabled IMEs and ordinary keyboard layouts across all languages. Select an entry to switch, or use Win+Space. Windows shared input settings can also change the IME in desktop windows. An unreadable current IME shows a dimmed “未知输入法” label, with no old icon or selection mark. You can still open the dropdown when its list is available.
 
 ### Why it only works in the input box on the keyboard page
 

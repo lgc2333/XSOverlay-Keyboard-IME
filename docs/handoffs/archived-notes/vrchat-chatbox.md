@@ -1,10 +1,12 @@
 # VRC ChatBox 实时广播
 
-行为约定与理由见 [0052](../adr/0052-broadcast-chatbox-previews-and-keep-native-submission.md)。这里记实现线索、桌面实测与验收状态。
+> 历史归档（2026-11-10）：保留调查时的事实、方案与待验证项。当前实现以源码、测试、已接受的 [ADR](../../adr/) 和[路线图](../../ROADMAP.md)为准。
+
+行为约定与理由见 [0052](../../adr/0052-broadcast-chatbox-previews-and-keep-native-submission.md)。这里记实现线索、桌面实测与验收状态。
 
 ## 实现
 
-- 页面观察 VRC 开关（`#keyboard-toolbar-button-vrc` 的 `aria-pressed`）、composer 焦点、已提交正文与原生发送状态；宿主复用 XSOverlay 发现的 VRChat OSC 目标与安装版编码器，由[帧泵](../../XSOverlayKeyboardIme/Game/Patches/UpdatePumpPatch.cs)按最长 1 秒一次合并发送。
+- 页面观察 VRC 开关（`#keyboard-toolbar-button-vrc` 的 `aria-pressed`）、composer 焦点、已提交正文与原生发送状态；宿主复用 XSOverlay 发现的 VRChat OSC 目标与安装版编码器，由[帧泵](../../../XSOverlayKeyboardIme/Game/Patches/UpdatePumpPatch.cs)按最长 1 秒一次合并发送。
 - 正式发送仍由 XSOverlay 执行。发送开始时丢弃待发预览并递增版本；完成后向页面索取新状态，阻止跨 Vuplex 与原生 WebSocket 通道迟到的旧预览覆盖正式消息。
 - 自动化覆盖页面操作到宿主消息、宿主广播接口到 OSC 地址与参数；浏览器测试复用安装版 composer 与 view 模块，核对临时语音、回车发送、成功清空与超限拒绝。宿主答复仍是模拟。
 

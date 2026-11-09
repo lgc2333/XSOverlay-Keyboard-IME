@@ -1,5 +1,7 @@
 # XSOverlay 侧缺陷
 
+> 历史归档（2026-11-10）：保留调查时的事实、方案与待验证项。当前实现以源码、测试、已接受的 [ADR](../../adr/) 和[路线图](../../ROADMAP.md)为准。
+
 以下两处来源都在 XSOverlay 自身，插件不修，只记录证据，也不继续调查修复方案。JIS 专用键的插件侧接管见 [jis-ime-keys](jis-ime-keys.md)。
 
 ## JIS 残留扫描码被当成虚拟键码
@@ -8,7 +10,7 @@
 - `KeyboardHelper.TryResolveKeycode` 按十六进制解析扫描码，再调 `MapVirtualKeyExW(..., 3, hkl)`；转换失败时保留原字符串。当前系统的日语与美式布局把 `0x7B` 映射为 `235`，`0x79` 与 `0x70` 返回零，残留的 `70/79` 随后在 `InputManager.HandleKeypress` 被按十进制解释为虚拟键码 `F`/`O`。
 - 页面 `hexMaybe` 只做 `String(code)`，按钮事件值与日文标签各自保留。真实页面事件已确认是 `70/79/235`，不是标准专用虚拟键码 `15/1C/1D`。
 - 没有游戏 WebView 焦点时，原模拟器按虚拟键码 `SendInput`；有焦点时优先使用 `webValue` 日文标签。因此桌面路径把平／片假注入为 `F`、変換注入为 `O`，能解释 VSCode 里看到的 `f`；無変換的 `a` 不能由 `235` 或 `79 → O` 推出，完整链路未确认。`235` 是系统实际映射，其 OS 事件与输入法解释未验证，不一起判错。
-- 插件能做的只有按标准原生键码接管（[0048](../adr/0048-route-jis-ime-keys-through-the-host.md)），不能让安装版三颗按键自动变成标准码。
+- 插件能做的只有按标准原生键码接管（[0048](../../adr/0048-route-jis-ime-keys-through-the-host.md)），不能让安装版三颗按键自动变成标准码。
 - 证据版本：`Keyboard.json` SHA-256 `DF90A2CFFDF45A731B502EA52BBC6C3716C2555F1B71C53329BDB64CB1454282`，`Assembly-CSharp.dll` SHA-256 `88584707BAD341D0247E8AF1277CC86296DF3B2B796972E5CAEF03EF214B6F93`。未修改安装布局或游戏程序集。
 
 ## 失焦时 Alt+Shift+F 只打出大写 F

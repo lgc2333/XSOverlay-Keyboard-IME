@@ -1,7 +1,7 @@
 ---
 status: accepted
 supersedes: ['0006']
-amended_by: ['0050']
+amended_by: ['0050', '0059']
 ---
 
 # 组字宿主改用 IngameIME
