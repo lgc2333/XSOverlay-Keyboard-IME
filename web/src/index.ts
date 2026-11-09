@@ -1,3 +1,4 @@
+import { nativeKeyOperations } from './native-key-operation'
 import { createCandidateBar } from './candidate-bar'
 import { observeChatbox } from './chatbox'
 import { routeComposerReturn } from './composer-return'
@@ -30,20 +31,23 @@ function install(): void {
   const switchKey = createSwitchKey()
   const returnRouting = routeComposerReturn()
   const refreshChatbox = observeChatbox(committedComposerText)
-  // Cancelled codes may still have queued views; the host's idle view ends that stream.
-  let cancelledComposition = false
   keepComposerFocus((active) => {
+    if (!active) {
+      setImeComposing(false)
+      clearPreedit()
+      bar.render(null)
+    }
     switchKey.setActive(active)
     refreshChatbox()
   })
   onCompositionCancel(() => {
-    cancelledComposition = true
     bar.render(null)
     requestCancel()
   })
+  const nativeOperations = nativeKeyOperations()
   const admission = installComposerAdmission(() => {
+    nativeOperations.cancelNativeKey()
     returnRouting.cancel()
-    cancelledComposition = false
     setImeComposing(false)
     clearPreedit()
     bar.render(null)
@@ -53,17 +57,19 @@ function install(): void {
 
   window.__xsoKeyboardIme = {
     ...admission,
+    ...nativeOperations,
     refreshChatbox,
     setKeyboardFormat: switchKey.setKeyboardFormat,
     resolveReturn: returnRouting.resolve,
     playReturnSound: returnRouting.sound,
-    insertText,
+    insertText: (text: string) => hasComposerFocus() ? insertText(text) : 'focus-lost',
     showComposition: (view: CompositionView) => {
-      if (cancelledComposition) {
-        if (view.composing) return
-        cancelledComposition = false
+      if (!hasComposerFocus()) {
+        setImeComposing(false)
+        clearPreedit()
+        bar.render(null)
+        return
       }
-      if (!hasComposerFocus()) return
       setImeComposing(view.composing)
       if (view.preedit.length > 0) {
         showPreedit(view.preedit, view.selectionStart, view.selectionEnd)
@@ -71,7 +77,7 @@ function install(): void {
         clearPreedit()
       }
 
-      bar.render(cancelledComposition ? null : view)
+      bar.render(view)
     },
     showSwitchIcon: (view: SwitchIconView | null) => {
       switchKey.show(view)

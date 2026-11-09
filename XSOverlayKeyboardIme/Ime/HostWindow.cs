@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using System.Text;
 using XSOverlayKeyboardIme.Diagnostics;
+using XSOverlayKeyboardIme.Input;
 using XSOverlayKeyboardIme.Interop;
 
 namespace XSOverlayKeyboardIme.Ime
@@ -34,10 +34,13 @@ namespace XSOverlayKeyboardIme.Ime
         private static HostWindow _current;
 
         private readonly Action<uint> _onHostMessage;
-        private readonly StringBuilder _typed = new StringBuilder();
+        private readonly HostTextBuffer _typed = new HostTextBuffer();
         private readonly object _dispatchLock = new object();
         private readonly Queue<Action> _actions = new Queue<Action>();
         private IntPtr _handle;
+        internal Func<Win32Native.Msg, bool> ProcessKeyboard;
+        internal Func<bool> KeyboardPaused;
+        internal Action<string> Typed;
 
         private HostWindow(Action<uint> onHostMessage)
         {
@@ -96,10 +99,18 @@ namespace XSOverlayKeyboardIme.Ime
         internal int PumpMessages()
         {
             int result;
-            while ((result = Win32Native.GetMessageW(out Win32Native.Msg message, IntPtr.Zero, 0, 0)) > 0)
+            while (
+                (
+                    result = Win32Native.GetMessageW(
+                        out Win32Native.Msg message,
+                        IntPtr.Zero,
+                        KeyboardPaused?.Invoke() == true ? Win32Native.WmApp : 0,
+                        KeyboardPaused?.Invoke() == true ? 0xFFFFu : 0
+                    )
+                ) > 0
+            )
             {
-                Win32Native.TranslateMessage(ref message);
-                Win32Native.DispatchMessageW(ref message);
+                Dispatch(ref message);
             }
 
             return result;
@@ -111,14 +122,7 @@ namespace XSOverlayKeyboardIme.Ime
         /// </summary>
         internal string TakeTyped()
         {
-            if (_typed.Length == 0)
-            {
-                return string.Empty;
-            }
-
-            string text = _typed.ToString();
-            _typed.Clear();
-            return text;
+            return _typed.Take();
         }
 
         internal void Close()
@@ -145,17 +149,17 @@ namespace XSOverlayKeyboardIme.Ime
             return DrainMessages(Win32Native.WmKeyFirst, Win32Native.WmKeyLast);
         }
 
-        private static int DrainMessages(uint first, uint last)
+        private int DrainMessages(uint first, uint last)
         {
             const uint PmRemove = 1;
             int count = 0;
             while (
                 count < DrainLimit
+                && KeyboardPaused?.Invoke() != true
                 && Win32Native.PeekMessageW(out Win32Native.Msg message, IntPtr.Zero, first, last, PmRemove)
             )
             {
-                Win32Native.TranslateMessage(ref message);
-                Win32Native.DispatchMessageW(ref message);
+                Dispatch(ref message);
                 count++;
             }
 
@@ -219,6 +223,30 @@ namespace XSOverlayKeyboardIme.Ime
             }
         }
 
+        private void Dispatch(ref Win32Native.Msg message)
+        {
+            if (
+                message.Message >= Win32Native.WmKeyFirst
+                && message.Message <= Win32Native.WmKeyLast
+                && ProcessKeyboard?.Invoke(message) == true
+            )
+                return;
+            Win32Native.TranslateMessage(ref message);
+            Win32Native.DispatchMessageW(ref message);
+            // TranslateMessage posts WM_CHAR behind pending keys. Deliver it before the next edit.
+            while (
+                KeyboardPaused?.Invoke() != true
+                && Win32Native.PeekMessageW(
+                    out Win32Native.Msg character,
+                    IntPtr.Zero,
+                    Win32Native.WmChar,
+                    Win32Native.WmChar,
+                    1
+                )
+            )
+                Win32Native.DispatchMessageW(ref character);
+        }
+
         private static IntPtr WindowProcedure(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam)
         {
             try
@@ -249,6 +277,9 @@ namespace XSOverlayKeyboardIme.Ime
                     if (message == Win32Native.WmChar)
                     {
                         window.Collect(wParam);
+                        string typed = window.TakeTyped();
+                        if (typed.Length > 0)
+                            window.Typed?.Invoke(typed);
                         return IntPtr.Zero;
                     }
 

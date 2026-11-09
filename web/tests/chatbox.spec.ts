@@ -62,7 +62,7 @@ test('excludes inline codes and retains the committed selection until IME writeb
       preedit: 'ni', composing: true, candidates: ['你'], selected: 0, selectionStart: 2, selectionEnd: 2,
     })
   })
-  await expect(page.locator('#keyboard-voice-input')).toHaveValue('before ni after')
+  await expect(page.locator('#keyboard-voice-input')).toHaveValue('before SELECT after')
   expect((await snapshots(page)).at(-1)?.text).toBe('before SELECT after')
   await page.evaluate(() => window.__xsoKeyboardIme!.insertText('你'))
   await expect.poll(async () => (await snapshots(page)).at(-1)?.text).toBe('before 你 after')

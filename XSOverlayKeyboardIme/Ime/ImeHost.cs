@@ -24,7 +24,10 @@ namespace XSOverlayKeyboardIme.Ime
             new Dictionary<VirtualKey, FocusTicket>();
         internal Action<string, FocusTicket> FocusChanged;
 
-        private readonly Action<string> _onCommitted;
+        private readonly Action<string, Action<bool>> _onCommitted;
+        internal Action<string, bool, Action<bool>> NativeKey;
+        private readonly PageOperationQueue _pageOperations;
+        private readonly Dictionary<int, bool> _browserKeys = new Dictionary<int, bool>();
         private readonly Action<CompositionView> _onView;
         private readonly Action<InputModeView> _onLanguageBarIcon;
         private readonly Action<ComposerState> _onComposerState;
@@ -47,7 +50,7 @@ namespace XSOverlayKeyboardIme.Ime
         private FocusTicket? _deferredAcquire;
 
         private ImeHost(
-            Action<string> onCommitted,
+            Action<string, Action<bool>> onCommitted,
             Action<CompositionView> onView,
             Action<InputModeView> onLanguageBarIcon,
             Action<ComposerState> onComposerState
@@ -57,6 +60,11 @@ namespace XSOverlayKeyboardIme.Ime
             _onView = onView;
             _onLanguageBarIcon = onLanguageBarIcon;
             _onComposerState = onComposerState;
+            _pageOperations = new PageOperationQueue(
+                action => _window?.Post(action),
+                RevokeFocus,
+                () => _window?.Post(HostWindow.StrokeMessage)
+            );
         }
 
         internal static ImeHost Current
@@ -91,7 +99,7 @@ namespace XSOverlayKeyboardIme.Ime
         }
 
         internal static void Start(
-            Action<string> onCommitted,
+            Action<string, Action<bool>> onCommitted,
             Action<CompositionView> onView,
             Action<InputModeView> onLanguageBarIcon,
             Action<ComposerState> onComposerState
@@ -109,7 +117,12 @@ namespace XSOverlayKeyboardIme.Ime
         /// Takes a page key when this plugin owns it. Called on Unity's main thread; a
         /// true answer suppresses the page's own handling.
         /// </summary>
-        internal bool TryAcceptKey(PageKey key, Action consumeSticky, FocusTicket? source = null)
+        internal bool TryAcceptKey(
+            PageKey key,
+            Action consumeSticky,
+            FocusTicket? source = null,
+            bool includePageKeys = false
+        )
         {
             CompositionSession session = _session;
             HostWindow window = _window;
@@ -128,7 +141,7 @@ namespace XSOverlayKeyboardIme.Ime
             TakeoverGate gate = session.Composing || inFlight ? TakeoverGate.Composing : TakeoverGate.Idle;
 
             var strokes = new List<KeyStroke>(4);
-            if (KeyStrokeReader.Read(key, gate, strokes) == KeyOwnership.Page)
+            if (KeyStrokeReader.Read(key, gate, strokes, includePageKeys) == KeyOwnership.Page)
             {
                 window.Post(HostWindow.ComposerMessage);
                 return false;
@@ -289,6 +302,8 @@ namespace XSOverlayKeyboardIme.Ime
 
         private void EndFocus()
         {
+            _pageOperations.Cancel();
+            _browserKeys.Clear();
             _composerActive = false;
             if (_acquiringFocus)
                 _endAfterAcquire = true;
@@ -397,7 +412,10 @@ namespace XSOverlayKeyboardIme.Ime
                 _profileNotifications = ImeProfileNotifications.Open(() => _window.Post(HostWindow.LanguageMessage));
 
                 var feeder = new KeyFeeder(_window);
-                var session = new CompositionSession(_ime, _window, _lease, feeder, _onCommitted, _onView);
+                _window.ProcessKeyboard = ProcessKeyboard;
+                _window.KeyboardPaused = () => _pageOperations.Pending;
+                _window.Typed = CommitText;
+                var session = new CompositionSession(_ime, _window, _lease, feeder, CommitText, _onView);
                 session.Start();
                 _session = session;
                 _modeButton = new InputModeButton(_window, session, () => _profiles.ReadActive(), _onLanguageBarIcon);
@@ -577,7 +595,7 @@ namespace XSOverlayKeyboardIme.Ime
                     return;
                 }
 
-                while (TryDequeue(out var queued))
+                while (!_pageOperations.Pending && TryDequeue(out var queued))
                 {
                     KeyStroke stroke = queued.Stroke;
                     try
@@ -615,6 +633,78 @@ namespace XSOverlayKeyboardIme.Ime
             {
                 _drainingStrokes = false;
             }
+        }
+
+        private void CommitText(string text) => QueuePageOperation(done => _onCommitted(text, done));
+
+        private void QueuePageOperation(Action<Action<bool>> operation)
+        {
+            _pageOperations.Enqueue(operation);
+        }
+
+        private bool ProcessKeyboard(Win32Native.Msg message)
+        {
+            uint kind = message.Message;
+            if (kind != 0x100 && kind != 0x101 && kind != 0x104 && kind != 0x105)
+                return false;
+            bool up = kind == 0x101 || kind == 0x105;
+            int key = message.WParam.ToInt32();
+            FocusTicket? owner = _focus.Current;
+            if (!owner.HasValue || !CanSend(owner.Value))
+                return true;
+            bool eaten = _ime.ProcessKey(kind, new UIntPtr(unchecked((uint)key)), message.LParam);
+            if (!_focus.Allows(owner.Value))
+                return true;
+            if (!_browserKeys.TryGetValue(key, out bool browser))
+            {
+                if (up)
+                    return true;
+                bool shortcut =
+                    (Win32Native.GetKeyState(0x11) & 0x8000) != 0 || (Win32Native.GetKeyState(0x12) & 0x8000) != 0;
+                bool layoutText = shortcut && LayoutProducesText(message);
+                browser = NativeKeyRoute.UsesBrowser(key, eaten, shortcut, layoutText);
+                _browserKeys[key] = browser;
+            }
+            if (up)
+                _browserKeys.Remove(key);
+            if (browser)
+            {
+                if (NativeKeyName.TryRead(key, out string name))
+                    QueuePageOperation(done =>
+                    {
+                        if (NativeKey == null)
+                            done(false);
+                        else
+                            NativeKey(name, up, done);
+                    });
+                return true;
+            }
+            return eaten || up || !_focus.Current.HasValue;
+        }
+
+        private static bool LayoutProducesText(Win32Native.Msg message)
+        {
+            var state = new byte[256];
+            if (!Win32Native.GetKeyboardState(state))
+                return false;
+            var text = new char[8];
+            uint scan = (uint)((message.LParam.ToInt64() >> 16) & 0xFF);
+            // Flag 4 probes translation without changing the keyboard's dead-key state.
+            int count = Win32Native.ToUnicodeEx(
+                unchecked((uint)message.WParam.ToInt32()),
+                scan,
+                state,
+                text,
+                text.Length,
+                4,
+                Win32Native.GetKeyboardLayout(0)
+            );
+            if (count < 0)
+                return true;
+            for (int index = 0; index < Math.Min(count, text.Length); index++)
+                if (!char.IsControl(text[index]))
+                    return true;
+            return false;
         }
 
         private void Enqueue(KeyStroke stroke, FocusTicket owner)

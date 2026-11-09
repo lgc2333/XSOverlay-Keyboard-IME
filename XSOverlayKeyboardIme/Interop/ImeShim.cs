@@ -99,6 +99,9 @@ namespace XSOverlayKeyboardIme.Interop
         internal static extern void iime_set_preedit_rect(IntPtr handle, int x, int y, int width, int height);
 
         [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int iime_process_key(IntPtr handle, uint message, UIntPtr wParam, IntPtr lParam);
+
+        [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
         internal static extern IntPtr iime_version();
     }
 }

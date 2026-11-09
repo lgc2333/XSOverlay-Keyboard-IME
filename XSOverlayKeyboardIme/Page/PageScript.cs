@@ -44,6 +44,28 @@ namespace XSOverlayKeyboardIme.Page
             return _source;
         }
 
+        internal static string CallReturning(string method, string arguments)
+        {
+            return Wrap(method, "return a." + method + "(" + arguments + ")");
+        }
+
+        /// <summary>Calls a page function that answers nothing; the sentinel means the bundle is gone.</summary>
+        internal static string CallVoid(string method, string arguments)
+        {
+            return Wrap(method, "try{a." + method + "(" + arguments + ");return 'ok'}catch(e){return 'error:' + e}");
+        }
+
+        internal static string Wrap(string method, string body)
+        {
+            return "(function(){var a=window.__xsoKeyboardIme;if(!a||!a."
+                + method
+                + ")return '"
+                + PageScript.Missing
+                + "';"
+                + body
+                + "})()";
+        }
+
         /// <summary>Puts the bundle into a page that has not run it yet.</summary>
         internal static void Inject(IWebView webView, Action<string> onOutcome)
         {

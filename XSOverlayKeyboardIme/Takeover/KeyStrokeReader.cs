@@ -22,7 +22,12 @@ namespace XSOverlayKeyboardIme.Takeover
         /// Reads one press. The strokes list holds what the IME receives; a decision that
         /// leaves the list empty still means the plugin keeps the key when it says so.
         /// </summary>
-        internal static KeyOwnership Read(PageKey key, TakeoverGate gate, List<KeyStroke> strokes)
+        internal static KeyOwnership Read(
+            PageKey key,
+            TakeoverGate gate,
+            List<KeyStroke> strokes,
+            bool includePageKeys = false
+        )
         {
             strokes.Clear();
 
@@ -44,7 +49,7 @@ namespace XSOverlayKeyboardIme.Takeover
                 return KeyOwnership.Swallow;
             }
 
-            if (HoldsCombination(key))
+            if (HoldsCombination(key) && !includePageKeys)
             {
                 return KeyOwnership.Page;
             }
@@ -61,7 +66,7 @@ namespace XSOverlayKeyboardIme.Takeover
                 return ReadComposing(key, strokes);
             }
 
-            return ReadIdle(key, strokes);
+            return includePageKeys ? ReadComposing(key, strokes) : ReadIdle(key, strokes);
         }
 
         /// <summary>
@@ -71,7 +76,12 @@ namespace XSOverlayKeyboardIme.Takeover
         private static KeyOwnership ReadComposing(PageKey key, List<KeyStroke> strokes)
         {
             string text = key.Text;
-            if (text.Length == 1 && text[0] != ' ')
+            if (text == " ")
+            {
+                strokes.Add(KeyStroke.FromKey(VirtualKey.Space, HasShift(key)));
+                return KeyOwnership.Ime;
+            }
+            if (text.Length == 1)
             {
                 strokes.Add(KeyStroke.FromText(text[0], key.NativeKey, HasShift(key)));
                 return KeyOwnership.Ime;
@@ -80,13 +90,19 @@ namespace XSOverlayKeyboardIme.Takeover
             bool shift = HasAnyMarker(key.Names, ShiftMarkers) || (key.Modifiers & PageModifiers.Shift) != 0;
             foreach (string name in key.Names)
             {
-                if (HasMarker(name, ShiftMarkers))
+                if (HasMarker(name, ShiftMarkers) || HasMarker(name, ControlMarkers) || HasMarker(name, AltMarkers))
                 {
                     continue;
                 }
 
                 if (!TryMapNamedKey(name, out VirtualKey mapped))
                 {
+                    if (key.NativeKey != 0)
+                    {
+                        strokes.Clear();
+                        strokes.Add(KeyStroke.FromKey(key.NativeKey, shift));
+                        return KeyOwnership.Ime;
+                    }
                     strokes.Clear();
                     return KeyOwnership.Swallow;
                 }
@@ -106,11 +122,14 @@ namespace XSOverlayKeyboardIme.Takeover
         /// <summary>While the IME composes nothing, only a key that can start it is taken.</summary>
         private static KeyOwnership ReadIdle(PageKey key, List<KeyStroke> strokes)
         {
-            // The page already resolved the character, including the shift state. A space
-            // never starts a composition, so it stays with the page. A lone modifier has no
-            // character, so it falls through to the page like every other key.
+            // Ordinary text, including Space, uses the host result channel. See ADR 0054.
             string text = key.Text;
-            if (text.Length == 1 && text[0] != ' ')
+            if (text == " ")
+            {
+                strokes.Add(KeyStroke.FromKey(VirtualKey.Space, HasShift(key)));
+                return KeyOwnership.Ime;
+            }
+            if (text.Length == 1)
             {
                 strokes.Add(KeyStroke.FromText(text[0], key.NativeKey, HasShift(key)));
                 return KeyOwnership.Ime;

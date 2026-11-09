@@ -102,11 +102,13 @@ namespace XSOverlayKeyboardIme
             KeyboardPage.FocusMessageReceived = message => ImeHost.Current?.HandleFocusMessage(message);
 
             ImeHost.Start(
-                text => MainThreadDispatcher.Post(() => KeyboardPage.WriteBack(text)),
+                (text, done) => MainThreadDispatcher.Post(() => KeyboardPage.WriteBack(text, done)),
                 view => MainThreadDispatcher.Post(() => KeyboardPage.Show(view)),
                 icon => MainThreadDispatcher.Post(() => KeyboardPage.ShowSwitchIcon(icon)),
                 state => MainThreadDispatcher.Post(() => KeyboardPage.ShowComposerState(state))
             );
+            ImeHost.Current.NativeKey = (key, up, done) =>
+                MainThreadDispatcher.Post(() => KeyboardPage.SendNativeKey(key, up, done));
             ImeHost.Current.FocusChanged = (kind, ticket) =>
                 MainThreadDispatcher.Post(() => KeyboardPage.ShowFocus(kind, ticket));
             MainThreadDispatcher.Post(KeyboardPage.Attach);

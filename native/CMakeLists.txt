@@ -51,6 +51,7 @@ file(GLOB INGAMEIME_SOURCES "${INGAMEIME_WIN32}/src/*.cpp")
 list(APPEND INGAMEIME_SOURCES
   "${CMAKE_CURRENT_BINARY_DIR}/version.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/shim/shim.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/shim/transitory-context.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/shim/profile-notifications.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/shim/keyboard-layout-name.cpp")
 list(APPEND INGAMEIME_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/shim/shell-mode-button.cpp")
@@ -67,4 +68,7 @@ target_include_directories(IngameIME
 include(CTest)
 if(BUILD_TESTING)
   add_subdirectory("${INGAMEIME_WIN32}/tests" "${CMAKE_BINARY_DIR}/tests")
+  add_executable(TransitoryContextTests tests/transitory-context-tests.cpp)
+  target_link_libraries(TransitoryContextTests PRIVATE ole32 oleaut32 uuid)
+  add_test(NAME TransitoryContext COMMAND TransitoryContextTests)
 endif()

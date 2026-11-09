@@ -1,8 +1,5 @@
-import { resolve } from 'node:path'
-import process from 'node:process'
 import { expect, test } from './browser-test'
 
-const bundle = resolve(process.env.IME_TEST_BUNDLE || 'dist/keyboard-ime.js')
 const composing = {
   preedit: 'ni', candidates: ['你'], selected: 0, composing: true,
   selectionStart: 2, selectionEnd: 2,
@@ -12,156 +9,185 @@ const idle = {
   selectionStart: 0, selectionEnd: 0,
 }
 
-test.beforeEach(async ({ page }) => {
-  await page.setContent(`
-    <style>
-      :root { --theme-dark: #20252c; --theme-mid: #343b44; --theme-hi: #485260;
-        --theme-contrasting: #eef2f5; --theme-accent: #5cfbe9;
-        --keyboard-control-size: 44px; --keyboard-toolbar-inset: 8px; }
-      #keyboard-container { width: 700px; }
-      #keyboard-voice-input { width: 400px; }
-    </style>
-    <div id="keyboard-container">
-      <input id="keyboard-voice-input" value="你好">
-      <button id="keyboard-voice-send">发送</button>
-      <button id="clear">清空</button>
-      <button id="elsewhere">其他控件</button>
-      <div id="keyboard-background"></div>
-    </div>
-  `)
-  await page.evaluate(() => {
-    window.hostMessages = []
-    window.vuplex = { postMessage: message => window.hostMessages.push(message) }
-    document.getElementById('clear').addEventListener('pointerdown', (event) => {
-      event.preventDefault()
-      document.getElementById('keyboard-voice-input').value = ''
-      window.dispatchEvent(new Event('blur'))
+test.beforeEach(async ({ page, request }) => {
+  test.skip(!await (await request.get('/native-keyboard-available')).json(), 'Requires installed XSOverlay modules.')
+  await page.goto('/')
+  await page.evaluate(async () => {
+    const prefix = '/apps/UserInterface/Default/Keyboard/js/'
+    const { createKeyboardState } = await import(`${prefix}keyboard-state.js`)
+    const { createKeyboardSpeechView } = await import(`${prefix}keyboard-speech-view.js`)
+    document.getElementById('keyboard-voice-input').remove()
+    document.getElementById('keyboard-voice-send').remove()
+    const row = document.createElement('div')
+    row.id = 'keyboard-toolbar-row'
+    document.getElementById('keyboard-container').prepend(row)
+    const style = document.createElement('style')
+    style.textContent = `#keyboard-container {width:700px} #keyboard-toolbar-row {display:flex;gap:10px;height:64px} .keyboard-toolbar-bubble {position:relative;display:flex;align-items:center;box-sizing:border-box;height:64px;padding:8px;background:var(--theme-dark)} #keyboard-composer-wrap {flex:1;min-width:0;gap:8px} #keyboard-voice-input {min-width:0;flex:1}`
+    document.head.append(style)
+    const view = createKeyboardSpeechView({
+      state: createKeyboardState(),
+      createControl: id => Object.assign(document.createElement('button'), { id, textContent: id }),
+      bindPress: (button, callback) => button.addEventListener('click', callback),
+      bindLocalizedTooltip: () => {},
     })
-    const composer = document.getElementById('keyboard-voice-input')
-    composer.focus()
-    composer.setSelectionRange(2, 2)
+    view.render(row)
+    const input = document.getElementById('keyboard-voice-input')
+    input.focus()
   })
-  await page.addScriptTag({ path: bundle })
 })
 
-test('清空后旧组字回放不能恢复内容，重新聚焦可开始新组字', async ({ page }) => {
-  await page.evaluate(view => window.__xsoKeyboardIme.showComposition(view), composing)
-  await expect(page.locator('#keyboard-voice-input')).toHaveValue('你好ni')
-  await page.locator('#clear').click()
-  // Reproduce the inactive state refresh that used to replay the cached composition.
-  await page.evaluate((view) => {
-    window.__xsoKeyboardIme.showComposerState({ active: false, ime: '', profiles: [], activeProfile: -1 })
+test('preedit keeps the native value, selection, input events and toolbar unchanged', async ({ page }) => {
+  await page.locator('#keyboard-voice-input').fill('before SELECT after')
+  const before = await page.evaluate(() => {
+    const input = document.getElementById('keyboard-voice-input')
+    input.setSelectionRange(7, 13)
+    window.events = 0
+    input.addEventListener('input', () => window.events++)
+    return document.getElementById('keyboard-toolbar-row').getBoundingClientRect().toJSON()
+  })
+  for (const view of [composing, { ...composing, selectionStart: 0, selectionEnd: 0 }, idle]) {
+    await page.evaluate(view => window.__xsoKeyboardIme.showComposition(view), view)
+    await expect(page.locator('#keyboard-voice-input')).toHaveValue('before SELECT after')
+    expect(await page.evaluate(() => {
+      const input = document.getElementById('keyboard-voice-input')
+      return [input.selectionStart, input.selectionEnd, window.events]
+    })).toEqual([7, 13, 0])
+    expect(await page.locator('#keyboard-toolbar-row').evaluate(row => row.getBoundingClientRect().toJSON())).toEqual(before)
+  }
+})
+
+test('whole text shaping and tab width remain fixed as the independent caret moves', async ({ page }) => {
+  const dimensions = []
+  for (const selectionStart of [0, 2, 5]) {
+    await page.evaluate(view => window.__xsoKeyboardIme.showComposition(view), { ...composing, preedit: 'office', selectionStart, selectionEnd: selectionStart })
+    dimensions.push(await page.locator('#keyboard-ime-preedit').evaluate(tab => ({
+      width: tab.getBoundingClientRect().width,
+      height: tab.getBoundingClientRect().height,
+      paddingLeft: getComputedStyle(tab).paddingLeft,
+      paddingRight: getComputedStyle(tab).paddingRight,
+      nodes: tab.querySelector('.ime-preedit-content').childNodes.length,
+    })))
+  }
+  expect(dimensions[1]).toEqual(dimensions[0])
+  expect(dimensions[2]).toEqual(dimensions[0])
+  expect(dimensions[0]).toMatchObject({ height: 34, paddingLeft: '10px', paddingRight: '11px', nodes: 2 })
+})
+
+test('long preedit clips only its content and scrolls to the reported caret', async ({ page }) => {
+  await page.evaluate(view => window.__xsoKeyboardIme.showComposition(view), { ...composing, preedit: 'abcdefghijklmnop'.repeat(20), selectionStart: 320, selectionEnd: 320 })
+  const end = await page.locator('#keyboard-ime-preedit').evaluate(tab => ({
+    width: tab.offsetWidth, scroll: tab.firstElementChild.scrollLeft,
+  }))
+  expect(end.scroll).toBeGreaterThan(0)
+  expect(end.width).toBeLessThan(650)
+  await page.evaluate(view => window.__xsoKeyboardIme.showComposition(view), { ...composing, preedit: 'abcdefghijklmnop'.repeat(20), selectionStart: 0, selectionEnd: 0 })
+  expect(await page.locator('.ime-preedit-viewport').evaluate(node => node.scrollLeft)).toBe(0)
+})
+
+test('a result replaces the current native selection while newer preedit remains active', async ({ page }) => {
+  await page.locator('#keyboard-voice-input').fill('before SELECT after')
+  await page.evaluate(view => {
+    document.getElementById('keyboard-voice-input').setSelectionRange(7, 13)
     window.__xsoKeyboardIme.showComposition(view)
   }, composing)
-  await expect(page.locator('#keyboard-voice-input')).toHaveValue('')
-  await expect.poll(() => page.evaluate(() => window.hostMessages)).toContain('xso-keyboard-ime cancel')
+  expect(await page.evaluate(() => window.__xsoKeyboardIme.insertText('你'))).toBe('inserted')
+  await expect(page.locator('#keyboard-voice-input')).toHaveValue('before 你 after')
+  await expect(page.locator('#keyboard-ime-preedit')).toBeVisible()
+  await page.evaluate(view => window.__xsoKeyboardIme.showComposition(view), { ...composing, preedit: 'hao' })
+  await expect(page.locator('#keyboard-ime-preedit')).toHaveText('hao')
+  expect(await page.evaluate(() => window.messages)).not.toContain('xso-keyboard-ime cancel')
+})
+
+test('blur clears immediately and drops results without replay after refocus', async ({ page }) => {
+  await page.evaluate(view => {
+    window.__xsoKeyboardIme.showComposition(view)
+    document.getElementById('keyboard-voice-input').blur()
+  }, composing)
+  await expect(page.locator('#keyboard-ime-preedit')).toBeHidden()
   expect(await page.evaluate(() => window.__xsoKeyboardIme.insertText('旧提交'))).toBe('focus-lost')
+  await page.locator('#keyboard-voice-input').focus()
+  await expect(page.locator('#keyboard-ime-preedit')).toBeHidden()
   await expect(page.locator('#keyboard-voice-input')).toHaveValue('')
-  await page.evaluate((view) => {
+  expect(await page.evaluate(() => window.__xsoKeyboardIme.insertText('当前'))).toBe('inserted')
+})
+
+test('native input reentry cannot turn an external clear into acknowledged insertion', async ({ page }) => {
+  await page.evaluate(view => {
     window.__xsoKeyboardIme.showComposition(view)
-    window.dispatchEvent(new Event('focus'))
-    document.getElementById('keyboard-voice-input').focus()
-  }, idle)
+    document.getElementById('keyboard-voice-input').addEventListener('input', event => {
+      event.target.value = ''
+    }, { once: true })
+  }, composing)
+  expect(await page.evaluate(() => window.__xsoKeyboardIme.insertText('被清空'))).toBe('rejected')
+  await expect(page.locator('#keyboard-voice-input')).toHaveValue('')
+  await expect(page.locator('#keyboard-ime-preedit')).toBeHidden()
+})
+
+test('external caret movement cancels without restoring an old selection', async ({ page }) => {
+  await page.locator('#keyboard-voice-input').fill('abcdef')
   await page.evaluate(view => window.__xsoKeyboardIme.showComposition(view), composing)
-  await expect(page.locator('#keyboard-voice-input')).toHaveValue('ni')
+  await page.keyboard.press('ArrowLeft')
+  await expect(page.locator('#keyboard-ime-preedit')).toBeHidden()
+  expect(await page.locator('#keyboard-voice-input').evaluate(input => input.selectionStart)).toBe(5)
+  expect(await page.evaluate(() => window.messages)).toContain('xso-keyboard-ime cancel')
 })
 
-test('清空早于组字结束回调时不会恢复基础文本', async ({ page }) => {
-  await page.evaluate((views) => {
-    window.__xsoKeyboardIme.showComposition(views.composing)
-    document.getElementById('keyboard-voice-input').value = ''
-    window.__xsoKeyboardIme.showComposition(views.idle)
-  }, { composing, idle })
-  await expect(page.locator('#keyboard-voice-input')).toHaveValue('')
+test('preedit updates preserve undo through repeated native commits', async ({ page }) => {
+  await page.keyboard.type('base')
+  for (const text of ['你', '好', '啊']) {
+    await page.evaluate(view => window.__xsoKeyboardIme.showComposition(view), composing)
+    await page.evaluate(view => window.__xsoKeyboardIme.showComposition(view), { ...composing, preedit: 'next' })
+    await page.evaluate(view => window.__xsoKeyboardIme.showComposition(view), idle)
+    expect(await page.evaluate(text => window.__xsoKeyboardIme.insertText(text), text)).toBe('inserted')
+  }
+  await expect(page.locator('#keyboard-voice-input')).toHaveValue('base你好啊')
+  await page.keyboard.press('Control+z')
+  expect(await page.locator('#keyboard-voice-input').inputValue()).not.toBe('base你好啊')
+  expect(await page.locator('#keyboard-voice-input').inputValue()).not.toContain('ni')
+  await page.keyboard.press('Control+Shift+z')
+  await expect(page.locator('#keyboard-voice-input')).toHaveValue('base你好啊')
 })
 
-for (const baseValue of ['', '你好']) {
-  test(`清空${baseValue === '' ? '空框' : '已有文本'}后，焦点释放前的连续组字回调不恢复旧编码`, async ({ page }) => {
-    await page.evaluate(({ baseValue, view }) => {
-      const composer = document.getElementById('keyboard-voice-input')
-      composer.value = baseValue
-      composer.setSelectionRange(baseValue.length, baseValue.length)
-      window.__xsoKeyboardIme.showComposition(view)
-      composer.value = ''
-      // The original page requests focus release asynchronously; the DOM still has focus.
-      window.__xsoKeyboardIme.showComposition(view)
-      window.__xsoKeyboardIme.showComposition(view)
-    }, { baseValue, view: composing })
-    await expect(page.locator('#keyboard-voice-input')).toBeFocused()
-    await expect(page.locator('#keyboard-voice-input')).toHaveValue('')
-    await expect(page.locator('.ime-candidate')).toHaveCount(0)
-    expect(await page.evaluate(() => window.hostMessages.filter(message => message === 'xso-keyboard-ime cancel'))).toHaveLength(1)
-
-    // Genuine late commits remain deliverable while the cancelled view is discarded.
-    expect(await page.evaluate(() => window.__xsoKeyboardIme.insertText('迟到提交'))).toBe('inserted')
-    await page.evaluate(({ idle, composing }) => {
-      window.__xsoKeyboardIme.showComposition(idle)
-      window.__xsoKeyboardIme.showComposition(composing)
-    }, { idle, composing })
-    await expect(page.locator('#keyboard-voice-input')).toHaveValue('迟到提交ni')
-    await expect(page.locator('.ime-candidate')).toHaveText(['1你'])
-  })
-}
-
-test('输入框仍聚焦时，布局重建保留组字并正确写回提交', async ({ page }) => {
-  await page.evaluate((view) => {
+test('missing or replaced composers drop results and never restore cached preedit', async ({ page }) => {
+  const outcomes = await page.evaluate(view => {
     window.__xsoKeyboardIme.showComposition(view)
-    const composer = document.getElementById('keyboard-voice-input')
-    const replacement = composer.cloneNode()
-    replacement.value = '你好'
-    composer.replaceWith(replacement)
+    const old = document.getElementById('keyboard-voice-input')
+    const replacement = old.cloneNode()
+    replacement.value = 'current'
+    old.remove()
+    const missing = window.__xsoKeyboardIme.insertText('lost')
+    document.getElementById('keyboard-composer-wrap').prepend(replacement)
+    replacement.focus()
+    replacement.setSelectionRange(3, 3)
+    const current = window.__xsoKeyboardIme.insertText('新')
+    return [missing, current, old.value]
   }, composing)
-  const composer = page.locator('#keyboard-voice-input')
-  await expect(composer).toBeFocused()
-  await expect(composer).toHaveValue('你好ni')
-  await page.evaluate(() => window.__xsoKeyboardIme.insertText('你'))
-  await expect(composer).toHaveValue('你好你')
-  expect(await page.evaluate(() => window.hostMessages)).not.toContain('xso-keyboard-ime cancel')
+  expect(outcomes).toEqual(['focus-lost', 'inserted', ''])
+  await expect(page.locator('#keyboard-voice-input')).toHaveValue('cur新rent')
+  await expect(page.locator('#keyboard-ime-preedit')).toBeHidden()
 })
 
-test('真正失焦后，布局重建不能抢回其他控件的焦点', async ({ page }) => {
-  await page.locator('#elsewhere').click()
-  await page.evaluate(() => {
-    const composer = document.getElementById('keyboard-voice-input')
-    composer.replaceWith(composer.cloneNode())
+test('execCommand claiming success without an exact native value and caret is rejected', async ({ page }) => {
+  await page.locator('#keyboard-voice-input').fill('keep')
+  const outcome = await page.evaluate(() => {
+    document.execCommand = () => true
+    return window.__xsoKeyboardIme.insertText('missing')
   })
-  await expect(page.locator('#elsewhere')).toBeFocused()
+  expect(outcome).toBe('rejected')
+  await expect(page.locator('#keyboard-voice-input')).toHaveValue('keep')
 })
 
-test('组字中整页失活后，重建不抢焦并取消旧组字', async ({ page }) => {
-  await page.evaluate((view) => {
+test('input-handler focus loss rejects acknowledgement without restoring focus or overwriting its edit', async ({ page }) => {
+  await page.locator('#keyboard-voice-input').fill('keep')
+  await page.evaluate(view => {
     window.__xsoKeyboardIme.showComposition(view)
-    window.dispatchEvent(new Event('blur'))
-    const composer = document.getElementById('keyboard-voice-input')
-    const replacement = composer.cloneNode()
-    replacement.setSelectionRange(composer.selectionStart, composer.selectionEnd)
-    composer.replaceWith(replacement)
+    document.getElementById('keyboard-voice-input').addEventListener('input', event => {
+      event.target.value = 'external'
+      document.getElementById('key-F1').focus()
+    }, { once: true })
   }, composing)
-  await expect(page.locator('#keyboard-voice-input')).not.toBeFocused()
-  await expect.poll(() => page.evaluate(() => window.hostMessages)).toContain('xso-keyboard-ime cancel')
-  await expect(page.locator('#keyboard-voice-input')).toHaveValue('你好')
-})
-
-test('未知输入法降低亮度，保留下拉选择且不移动输入框焦点', async ({ page }, testInfo) => {
-  await page.evaluate(() => window.__xsoKeyboardIme.showComposerState({
-    active: true, ime: '小狼毫',
-    profiles: [{ name: '小狼毫', language: '中文' }, { name: '美式键盘', language: '英语' }],
-    activeProfile: 0,
-  }))
-  const chip = page.locator('.ime-chip')
-  const knownColor = await chip.evaluate(element => getComputedStyle(element).color)
-  await page.evaluate(() => window.__xsoKeyboardIme.showComposerState({
-    active: true, ime: '',
-    profiles: [{ name: '小狼毫', language: '中文' }, { name: '美式键盘', language: '英语' }],
-    activeProfile: -1,
-  }))
-  await expect(chip).toHaveText('未知输入法')
-  expect(await chip.evaluate(element => getComputedStyle(element).color)).not.toBe(knownColor)
-  await chip.click()
-  await expect(page.getByRole('menu')).toBeVisible()
-  await expect(page.locator('.ime-profile-check')).toHaveCount(0)
-  await page.screenshot({ path: testInfo.outputPath('unknown-ime-menu.png') })
-  await page.getByRole('menuitem').filter({ hasText: '美式键盘' }).click()
-  expect(await page.evaluate(() => window.hostMessages)).toContain('xso-keyboard-ime profile 1')
-  await expect(page.locator('#keyboard-voice-input')).toBeFocused()
+  expect(await page.evaluate(() => window.__xsoKeyboardIme.insertText('result'))).toBe('rejected')
+  await expect(page.locator('#keyboard-voice-input')).toHaveValue('external')
+  await expect(page.locator('#key-F1')).toBeFocused()
+  await expect(page.locator('#keyboard-ime-preedit')).toBeHidden()
 })

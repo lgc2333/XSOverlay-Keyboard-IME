@@ -96,6 +96,26 @@ namespace XSOverlayKeyboardIme.Interop
         internal static extern void PostQuitMessage(int code);
 
         [DllImport("user32.dll")]
+        internal static extern short GetKeyState(int key);
+
+        [DllImport("user32.dll")]
+        internal static extern bool GetKeyboardState([Out] byte[] state);
+
+        [DllImport("user32.dll")]
+        internal static extern IntPtr GetKeyboardLayout(uint thread);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        internal static extern int ToUnicodeEx(
+            uint key,
+            uint scan,
+            byte[] state,
+            [Out] char[] text,
+            int count,
+            uint flags,
+            IntPtr layout
+        );
+
+        [DllImport("user32.dll")]
         internal static extern bool SetForegroundWindow(IntPtr hwnd);
 
         [DllImport("user32.dll")]

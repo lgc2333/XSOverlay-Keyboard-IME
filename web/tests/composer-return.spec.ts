@@ -41,7 +41,7 @@ for (const input of ['DOM', 'pointer', 'touch']) {
       expect(await requests()).toHaveLength(1)
       if (composing) {
         await expect(page.locator('#keyboard-voice-input')).toBeFocused()
-        await expect(page.locator('#keyboard-voice-input')).toHaveValue('draftni')
+        await expect(page.locator('#keyboard-voice-input')).toHaveValue('draft')
       }
     })
   }

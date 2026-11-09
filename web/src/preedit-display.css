@@ -1,0 +1,52 @@
+/* Reserve space once, including while preedit is hidden. See ADR 0056. */
+#keyboard-container {
+  padding-top: 26px !important;
+}
+
+#keyboard-composer-wrap {
+  position: relative;
+}
+
+#keyboard-ime-preedit {
+  position: absolute;
+  left: 10px;
+  bottom: 100%;
+  display: flex;
+  align-items: center;
+  height: 34px;
+  max-width: calc(100% - 20px);
+  box-sizing: border-box;
+  padding: 0 11px 0 10px;
+  border-radius: 10px 10px 0 0;
+  background: var(--theme-dark);
+  color: #bfbfbf;
+  font:
+    20px 'Roboto Flex',
+    'Noto Sans',
+    sans-serif;
+  pointer-events: none;
+}
+
+#keyboard-ime-preedit[hidden] {
+  display: none;
+}
+
+#keyboard-ime-preedit .ime-preedit-viewport {
+  min-width: 0;
+  overflow: hidden;
+}
+
+#keyboard-ime-preedit .ime-preedit-content {
+  display: inline-block;
+  position: relative;
+  padding-right: 1px;
+  white-space: pre;
+}
+
+#keyboard-ime-preedit .ime-preedit-caret {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  width: 1px;
+  background: var(--theme-accent);
+}

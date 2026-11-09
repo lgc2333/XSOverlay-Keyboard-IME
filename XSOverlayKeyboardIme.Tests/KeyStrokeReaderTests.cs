@@ -91,14 +91,14 @@ namespace XSOverlayKeyboardIme.Tests
         }
 
         [Fact]
-        public void Idle_leaves_a_space_with_the_page()
+        public void Idle_space_uses_the_host_text_channel()
         {
-            // A space never starts a composition.
+            // Ordinary text, including Space, has one writeback channel.
             Assert.Equal(
-                KeyOwnership.Page,
+                KeyOwnership.Ime,
                 ReadText(" ", VirtualKey.Space, TakeoverGate.Idle, out List<KeyStroke> strokes)
             );
-            Assert.Empty(strokes);
+            Assert.Equal(VirtualKey.Space, Assert.Single(strokes).Key);
         }
 
         [Fact]

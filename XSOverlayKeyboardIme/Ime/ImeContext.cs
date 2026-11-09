@@ -68,6 +68,11 @@ namespace XSOverlayKeyboardIme.Ime
             get { return _composing; }
         }
 
+        internal bool ProcessKey(uint message, UIntPtr wParam, IntPtr lParam)
+        {
+            return !_disposed && ImeShim.iime_process_key(_handle, message, wParam, lParam) != 0;
+        }
+
         public void Dispose()
         {
             if (_disposed)
@@ -112,8 +117,6 @@ namespace XSOverlayKeyboardIme.Ime
         private void HandleCommit(IntPtr text)
         {
             string committed = Decode(text);
-            _composing = false;
-
             Action<string> handler = Committed;
             if (handler != null)
             {

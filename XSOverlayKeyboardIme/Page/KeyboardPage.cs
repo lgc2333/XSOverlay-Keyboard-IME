@@ -26,6 +26,7 @@ namespace XSOverlayKeyboardIme.Page
         private static bool _bindingFocus;
         private static bool _focusBound;
         private static bool _visible = true;
+        private static readonly NativeKeyDelivery NativeKeys = new NativeKeyDelivery(BusinessPage);
 
         internal static CandidateScrollArea ScrollAreaFor(IWebView page) =>
             page != null && !page.IsDisposed && ReferenceEquals(page, _listening) ? _scrollArea : null;
@@ -34,9 +35,6 @@ namespace XSOverlayKeyboardIme.Page
         internal static Action<string> FocusDocumentBound;
         internal static Action<ChatboxState> ChatboxChanged;
         internal static Action PageUnavailable;
-
-        /// <summary>What the bar shows right now, replayed onto a page that appears later.</summary>
-        private static CompositionView _view = CompositionView.Idle();
 
         /// <summary>Whether the composer holds the focus, and which IME it composes with. See ADR 0035.</summary>
         private static ComposerState _composerState = ComposerState.Hidden;
@@ -66,11 +64,10 @@ namespace XSOverlayKeyboardIme.Page
             }
         }
 
-        /// <summary>Shows a composition or the idle bar, and remembers it for a later page.</summary>
+        /// <summary>Shows a composition only on the current page, without caching or replay.</summary>
         internal static void Show(CompositionView view)
         {
-            _view = view;
-            IWebView page = EnsureInjected();
+            IWebView page = BusinessPage();
             if (page != null)
             {
                 ShowBar(page, view);
@@ -103,7 +100,6 @@ namespace XSOverlayKeyboardIme.Page
             }
 
             PushKeyboardFormat(page);
-            ShowBar(page, _view);
             PushSwitchIcon(page);
             PushComposerState(page);
             RefreshChatbox(ChatboxIntegration.Revision);
@@ -119,6 +115,8 @@ namespace XSOverlayKeyboardIme.Page
 
         private static void InvalidateFocus()
         {
+            NativeKeys.Finish(false);
+            NativeKeys.ReleaseKeys();
             string previous = _focusDocument;
             _focusGeneration++;
             _focusDocument = Guid.NewGuid().ToString("N");
@@ -126,7 +124,10 @@ namespace XSOverlayKeyboardIme.Page
             _focusBound = false;
             PageUnavailable?.Invoke();
             if (previous != null && _listening != null && !_listening.IsDisposed)
-                _listening.ExecuteJavaScript(CallVoid("unbindFocus", JavaScriptJson.Serialize(previous)), _ => { });
+                _listening.ExecuteJavaScript(
+                    PageScript.CallVoid("unbindFocus", JavaScriptJson.Serialize(previous)),
+                    _ => { }
+                );
         }
 
         private static void BindFocus(IWebView page)
@@ -152,7 +153,7 @@ namespace XSOverlayKeyboardIme.Page
                     string arguments =
                         JavaScriptJson.Serialize(document) + "," + generation + "," + JavaScriptJson.Serialize(nonce);
                     page.ExecuteJavaScript(
-                        Wrap("bindFocus", "return a.bindFocus(" + arguments + ")?'bound':'stale'"),
+                        PageScript.Wrap("bindFocus", "return a.bindFocus(" + arguments + ")?'bound':'stale'"),
                         outcome =>
                         {
                             if (!CurrentBinding(page, document, generation))
@@ -177,12 +178,17 @@ namespace XSOverlayKeyboardIme.Page
 
         internal static void ShowFocus(string kind, FocusTicket ticket)
         {
+            if (kind == "clear")
+            {
+                NativeKeys.Cancel();
+                NativeKeys.ReleaseKeys();
+            }
             IWebView page = _listening;
             if (!_visible || !_focusBound || page == null || page.IsDisposed || ticket.Document != _focusDocument)
                 return;
             // Never reinject or replay admission operations onto a different document.
             page.ExecuteJavaScript(
-                CallVoid(
+                PageScript.CallVoid(
                     "applyFocus",
                     JavaScriptJson.Serialize(
                         new
@@ -204,65 +210,43 @@ namespace XSOverlayKeyboardIme.Page
                 Call(
                     _listening,
                     "ChatBox state",
-                    CallVoid("refreshChatbox", JavaScriptJson.Serialize(revision)),
+                    PageScript.CallVoid("refreshChatbox", JavaScriptJson.Serialize(revision)),
                     _ => { }
                 );
         }
 
         /// <summary>Writes committed text into the composer. See ADR 0008.</summary>
-        internal static void WriteBack(string text)
+        internal static void WriteBack(string text, Action<bool> completed)
         {
-            if (text.Length == 0)
+            IWebView page = BusinessPage();
+            if (page == null || text.Length == 0)
             {
+                completed(page != null);
                 return;
             }
-
-            IWebView page = EnsureInjected();
-            if (page == null)
+            try
             {
-                HostLog.Warn("the keyboard page is gone; dropping the writeback '" + text + "'");
-                return;
+                page.ExecuteJavaScript(
+                    PageScript.CallReturning("insertText", JavaScriptJson.Serialize(text)),
+                    result =>
+                        completed(
+                            ReferenceEquals(page, BusinessPage())
+                                && result != null
+                                && (result == "inserted" || result == "empty")
+                        )
+                );
             }
-
-            Call(
-                page,
-                "writeback",
-                CallReturning("insertText", JavaScriptJson.Serialize(text)),
-                outcome =>
-                {
-                    if (outcome == null || outcome.StartsWith("error", StringComparison.Ordinal))
-                    {
-                        HostLog.Warn("writeback '" + text + "' -> " + outcome);
-                        return;
-                    }
-
-                    HostLog.Info("writeback '" + text + "' -> " + outcome);
-                }
-            );
+            catch (Exception)
+            {
+                completed(false);
+            }
         }
 
-        /// <summary>Calls a page function whose result matters; the sentinel means the bundle is gone.</summary>
-        private static string CallReturning(string method, string arguments)
-        {
-            return Wrap(method, "return a." + method + "(" + arguments + ")");
-        }
+        internal static void SendNativeKey(string key, bool up, Action<bool> completed) =>
+            NativeKeys.Send(key, up, completed);
 
-        /// <summary>Calls a page function that answers nothing; the sentinel means the bundle is gone.</summary>
-        private static string CallVoid(string method, string arguments)
-        {
-            return Wrap(method, "try{a." + method + "(" + arguments + ");return 'ok'}catch(e){return 'error:' + e}");
-        }
-
-        private static string Wrap(string method, string body)
-        {
-            return "(function(){var a=window.__xsoKeyboardIme;if(!a||!a."
-                + method
-                + ")return '"
-                + PageScript.Missing
-                + "';"
-                + body
-                + "})()";
-        }
+        private static IWebView BusinessPage() =>
+            _visible && _confirmed && _focusBound && _listening != null && !_listening.IsDisposed ? _listening : null;
 
         /// <summary>Finds the page and makes sure it runs the bundle; null while it does not exist.</summary>
         private static IWebView EnsureInjected()
@@ -320,7 +304,7 @@ namespace XSOverlayKeyboardIme.Page
             Call(
                 page,
                 "keyboard layout",
-                CallVoid("setKeyboardFormat", JavaScriptJson.Serialize(_keyboardFormat)),
+                PageScript.CallVoid("setKeyboardFormat", JavaScriptJson.Serialize(_keyboardFormat)),
                 outcome =>
                 {
                     if (outcome != "ok")
@@ -337,7 +321,7 @@ namespace XSOverlayKeyboardIme.Page
             Call(
                 page,
                 "input mode",
-                CallVoid("showSwitchIcon", SwitchIconPayload.Build(icon)),
+                PageScript.CallVoid("showSwitchIcon", SwitchIconPayload.Build(icon)),
                 outcome =>
                 {
                     if (outcome != "ok")
@@ -353,7 +337,7 @@ namespace XSOverlayKeyboardIme.Page
             Call(
                 page,
                 "composer state",
-                CallVoid("showComposerState", ComposerStatePayload.Build(_composerState)),
+                PageScript.CallVoid("showComposerState", ComposerStatePayload.Build(_composerState)),
                 outcome =>
                 {
                     if (outcome != "ok")
@@ -366,18 +350,9 @@ namespace XSOverlayKeyboardIme.Page
 
         private static void ShowBar(IWebView page, CompositionView view)
         {
-            Call(
-                page,
-                "composition",
-                CallVoid("showComposition", CompositionPayload.Build(view)),
-                outcome =>
-                {
-                    if (outcome != "ok")
-                    {
-                        HostLog.Warn("the composition did not reach the page: " + outcome);
-                    }
-                }
-            );
+            if (!ReferenceEquals(page, BusinessPage()))
+                return;
+            page.ExecuteJavaScript(PageScript.CallVoid("showComposition", CompositionPayload.Build(view)), _ => { });
         }
 
         /// <summary>Calls one page function, injecting the bundle when the page lost it.</summary>
@@ -457,6 +432,14 @@ namespace XSOverlayKeyboardIme.Page
             if (!ReferenceEquals(sender, _listening))
                 return;
             string message = args.Value;
+            const string nativePrefix = "xso-keyboard-ime native ";
+            if (message.StartsWith(nativePrefix, StringComparison.Ordinal))
+            {
+                string[] parts = message.Substring(nativePrefix.Length).Split(' ');
+                if (parts.Length == 2)
+                    NativeKeys.Acknowledge(parts[0], parts[1] == "ok");
+                return;
+            }
             FocusTicket? source = null;
             const string focusPrefix = "xso-keyboard-ime focus ";
             if (message.StartsWith(focusPrefix, StringComparison.Ordinal))
@@ -517,7 +500,7 @@ namespace XSOverlayKeyboardIme.Page
                     Call(
                         _listening,
                         "Return sound",
-                        CallVoid("playReturnSound", JavaScriptJson.Serialize(feedback)),
+                        PageScript.CallVoid("playReturnSound", JavaScriptJson.Serialize(feedback)),
                         outcome =>
                         {
                             if (outcome != "ok")
@@ -542,7 +525,7 @@ namespace XSOverlayKeyboardIme.Page
                 IWebView page = sender as IWebView;
                 if (page != null && ReferenceEquals(page, _listening))
                     page.ExecuteJavaScript(
-                        Wrap(
+                        PageScript.Wrap(
                             "resolveReturn",
                             "if(a.ownsFocus("
                                 + JavaScriptJson.Serialize(

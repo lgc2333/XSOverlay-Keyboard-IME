@@ -1,3 +1,4 @@
+import type { nativeKeyOperations } from './native-key-operation'
 import type { insertText } from './composer'
 import type { ComposerStateView, CompositionView, SwitchIconView } from './ime-view'
 import type { ReturnSound } from './return-feedback'
@@ -16,7 +17,7 @@ interface VuplexHost {
   postMessage: (message: string) => void
 }
 
-interface KeyboardPageApi extends ReturnType<typeof installComposerAdmission> {
+interface KeyboardPageApi extends ReturnType<typeof installComposerAdmission>, ReturnType<typeof nativeKeyOperations> {
   refreshChatbox: (revision: number) => void
   setKeyboardFormat: (format: string | null) => void
   resolveReturn: (id: number, taken: boolean) => void

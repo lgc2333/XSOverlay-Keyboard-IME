@@ -179,7 +179,8 @@ namespace XSOverlayKeyboardIme.Ime
         private void HandleCommit(string text)
         {
             HostLog.Info("committed '" + text + "'");
-            End();
+            if (!_ime.Composing)
+                End();
             if (text.Length > 0)
             {
                 _onCommitted(text);

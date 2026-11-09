@@ -47,7 +47,13 @@ namespace XSOverlayKeyboardIme.Game.Patches
                     KeyboardModifierInput.ReadNativeKey(__0?.value)
                 );
 
-                if (!host.TryAcceptKey(key, () => KeyboardModifierInput.ConsumeSticky(__instance)))
+                if (
+                    !host.TryAcceptKey(
+                        key,
+                        () => KeyboardModifierInput.ConsumeSticky(__instance),
+                        includePageKeys: true
+                    )
+                )
                 {
                     Refuse("the key was not taken: " + DescribeKey(__0, modifiers));
                     return true;

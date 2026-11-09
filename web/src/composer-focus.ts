@@ -71,7 +71,10 @@ export function observeComposerFocus(
     }
     reportActiveLater()
   }, true)
-  document.addEventListener('focusout', reportActiveLater, true)
+  document.addEventListener('focusout', () => {
+    applyActive(false)
+    reportActiveLater()
+  }, true)
   window.addEventListener('blur', () => setViewActive(false))
   window.addEventListener('focus', () => setViewActive(true))
   document.addEventListener('visibilitychange', () => setViewActive(!document.hidden))
