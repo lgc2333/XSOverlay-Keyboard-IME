@@ -8,16 +8,20 @@ namespace XSOverlayKeyboardIme.Ime
     {
         private readonly HostWindow _window;
         private readonly Func<LanguageProfile?> _readProfile;
+        private readonly Func<bool> _ownsAdmission;
 
-        internal InputModePlatform(HostWindow window, Func<LanguageProfile?> readProfile)
+        internal InputModePlatform(HostWindow window, Func<LanguageProfile?> readProfile, Func<bool> ownsAdmission)
         {
             _window = window;
             _readProfile = readProfile;
+            _ownsAdmission = ownsAdmission;
         }
 
         public LanguageProfile? ActiveProfile => _readProfile();
         public bool OwnsFocus =>
-            Win32Native.GetForegroundWindow() == _window.Handle && Win32Native.GetFocus() == _window.Handle;
+            _ownsAdmission()
+            && Win32Native.GetForegroundWindow() == _window.Handle
+            && Win32Native.GetFocus() == _window.Handle;
 
         public IInputModeSource OpenPublic(out bool absent) => LanguageBarButton.Open(out absent);
 

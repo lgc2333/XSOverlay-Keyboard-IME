@@ -35,14 +35,22 @@ namespace XSOverlayKeyboardIme.Chatbox
         {
             Revision++;
             _nativeSubmission = true;
-            _active = false;
-            _text = string.Empty;
         }
 
-        internal void EndSubmission(long nowMilliseconds)
+        internal void EndSubmission(long nowMilliseconds, bool success)
         {
             _nativeSubmission = false;
             _lastSent = nowMilliseconds;
+            _sentText = string.Empty;
+            if (success)
+                EndEditing();
+        }
+
+        internal void EndEditing()
+        {
+            _active = false;
+            _text = string.Empty;
+            _submitting = false;
             _sentText = string.Empty;
         }
 
@@ -54,7 +62,7 @@ namespace XSOverlayKeyboardIme.Chatbox
 
         internal void Pump(long nowMilliseconds)
         {
-            bool typing = _active && !_submitting;
+            bool typing = _active && !_submitting && !_nativeSubmission;
             bool typingChanged = _typing != typing;
             if (typingChanged)
             {

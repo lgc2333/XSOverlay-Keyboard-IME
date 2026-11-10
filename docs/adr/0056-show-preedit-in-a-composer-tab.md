@@ -1,6 +1,7 @@
 ---
 status: accepted
 supersedes: ['0019']
+amended_by: ['0061']
 ---
 
 # 组字独立显示在正文外容器上沿

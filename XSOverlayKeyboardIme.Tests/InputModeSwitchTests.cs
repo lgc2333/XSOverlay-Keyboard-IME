@@ -7,6 +7,51 @@ namespace XSOverlayKeyboardIme.Tests;
 public sealed class InputModeSwitchTests
 {
     [Fact]
+    public void ShellSubscriptionSurvivesRefreshUntilItsFirstPictureArrives()
+    {
+        var platform = new ModePlatform { Shell = new ModeSource { View = null } };
+        InputModeView shown = null;
+        using var button = new InputModeSwitch(platform, view => shown = view);
+        button.Refresh(platform.ActiveProfile);
+        button.Refresh(platform.ActiveProfile);
+        Assert.Null(shown);
+        Assert.Equal(1, platform.ShellOpens);
+        Assert.Equal(0, platform.Shell.Disposals);
+
+        platform.Shell.View = new InputModeView(glyph: "中");
+        platform.Changed();
+
+        Assert.Equal("中", shown.Glyph);
+        Assert.True(shown.Enabled);
+    }
+
+    [Fact]
+    public void RevokedFocusCannotPublishIntoANewLeaseWithTheSameProfile()
+    {
+        var platform = new ModePlatform();
+        InputModeView shown = null;
+        using var button = new InputModeSwitch(platform, view => shown = view);
+        button.Refresh(platform.ActiveProfile);
+        button.Click();
+        ModeSource old = platform.Shell;
+        Action oldChanged = platform.Changed;
+        button.Reset();
+        Assert.Equal(1, old.Disposals);
+
+        platform.Shell = new ModeSource { View = new InputModeView(glyph: "英") };
+        button.Refresh(platform.ActiveProfile);
+        button.Click();
+        old.View = new InputModeView(glyph: "旧");
+        old.Complete();
+        oldChanged();
+
+        Assert.Equal("英", shown.Glyph);
+        Assert.False(shown.Enabled);
+        platform.Shell.Complete();
+        Assert.True(shown.Enabled);
+    }
+
+    [Fact]
     public void ShellClickDisablesOnlyUntilTheCallReturnsWithoutWaitingForANewPicture()
     {
         var platform = new ModePlatform();
@@ -198,6 +243,7 @@ public sealed class InputModeSwitchTests
         private Action _complete;
         internal Action Completion => _complete;
         internal int Clicks { get; private set; }
+        internal int Disposals { get; private set; }
         internal InputModeView View { get; set; } = new InputModeView(glyph: "中");
         internal bool FailClick { get; set; }
 
@@ -213,6 +259,6 @@ public sealed class InputModeSwitchTests
 
         internal void Complete() => _complete();
 
-        public void Dispose() { }
+        public void Dispose() => Disposals++;
     }
 }

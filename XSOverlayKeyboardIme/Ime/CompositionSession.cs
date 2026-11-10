@@ -114,11 +114,6 @@ namespace XSOverlayKeyboardIme.Ime
             return valid() && activated;
         }
 
-        internal bool BeginModeAction()
-        {
-            return _lease.Ensure();
-        }
-
         /// <summary>
         /// Hands over the characters the IME chose not to compose. While it composes it
         /// keeps the keys, so the buffer belongs to no composition and is left alone.

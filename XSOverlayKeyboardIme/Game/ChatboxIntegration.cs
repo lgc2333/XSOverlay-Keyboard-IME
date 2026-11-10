@@ -54,7 +54,7 @@ namespace XSOverlayKeyboardIme.Game
         {
             lock (Gate)
             {
-                Broadcast.Update(false, string.Empty, false, Broadcast.Revision);
+                Broadcast.EndEditing();
                 Broadcast.Pump(Clock.ElapsedMilliseconds);
             }
         }
@@ -104,19 +104,22 @@ namespace XSOverlayKeyboardIme.Game
 
         internal static async Task<VRChatChatboxSendResult> CompleteSubmission(Task<VRChatChatboxSendResult> result)
         {
+            bool success = false;
             try
             {
-                return await result.ConfigureAwait(false);
+                VRChatChatboxSendResult completed = await result.ConfigureAwait(false);
+                success = completed?.Success == true;
+                return completed;
             }
             finally
             {
                 lock (Gate)
                     if (--_submissions == 0)
                     {
-                        Broadcast.EndSubmission(Clock.ElapsedMilliseconds);
+                        Broadcast.EndSubmission(Clock.ElapsedMilliseconds, success);
                         int revision = Broadcast.Revision;
                         // Pre-submit Vuplex snapshots can arrive after the WebSocket send.
-                        MainThreadDispatcher.Post(() => KeyboardPage.RefreshChatbox(revision));
+                        MainThreadDispatcher.Post(() => KeyboardPage.RefreshChatbox(revision, success));
                     }
             }
         }

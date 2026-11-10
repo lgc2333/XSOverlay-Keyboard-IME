@@ -63,7 +63,7 @@ namespace XSOverlayKeyboardIme.Tests
             broadcast.BeginSubmission();
             broadcast.Update(true, "stale queued page update", false);
             broadcast.Pump(1000);
-            broadcast.EndSubmission(1200);
+            broadcast.EndSubmission(1200, true);
             broadcast.Update(true, "late pre-submit page update", false);
             broadcast.Pump(2000);
             Assert.Equal("preview", Assert.Single(Texts(messages)));
@@ -76,6 +76,44 @@ namespace XSOverlayKeyboardIme.Tests
             Assert.Single(Texts(messages));
             broadcast.Pump(2200);
             Assert.Equal("next draft", Texts(messages)[1]);
+        }
+
+        [Fact]
+        public void Failed_submission_restores_the_previous_draft_without_a_new_page_snapshot()
+        {
+            var messages = new List<(string Address, object[] Arguments)>();
+            var broadcast = new ChatboxBroadcast((address, arguments) => messages.Add((address, arguments)));
+            broadcast.Update(true, "draft", false);
+            broadcast.Pump(0);
+            broadcast.BeginSubmission();
+            broadcast.Pump(100);
+            Assert.False((bool)messages[^1].Arguments[0]);
+
+            broadcast.EndSubmission(200, false);
+            broadcast.Pump(200);
+            Assert.True((bool)messages[^1].Arguments[0]);
+            broadcast.Pump(1200);
+            Assert.Collection(
+                Texts(messages),
+                text => Assert.Equal("draft", text),
+                text => Assert.Equal("draft", text)
+            );
+        }
+
+        [Fact]
+        public void Closing_during_a_failed_submission_does_not_restore_the_old_draft()
+        {
+            var messages = new List<(string Address, object[] Arguments)>();
+            var broadcast = new ChatboxBroadcast((address, arguments) => messages.Add((address, arguments)));
+            broadcast.Update(true, "draft", false);
+            broadcast.Pump(0);
+            broadcast.BeginSubmission();
+            broadcast.EndEditing();
+            broadcast.Pump(100);
+            broadcast.EndSubmission(200, false);
+            broadcast.Pump(1200);
+            Assert.Equal("draft", Assert.Single(Texts(messages)));
+            Assert.False((bool)messages[^1].Arguments[0]);
         }
 
         [Fact]

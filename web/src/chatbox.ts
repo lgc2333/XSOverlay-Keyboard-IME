@@ -3,10 +3,11 @@ import { reportChatbox } from './native-bridge'
 import { createChatboxOverflow } from './chatbox-overflow'
 
 /** Observe native toolbar updates too: speech and clear do not emit input events. */
-export function observeChatbox(readText: () => string): (revision?: number) => void {
+export function observeChatbox(readText: () => string) {
   let previous = ''
   let scheduled = false
   let revision = 0
+  let completed = false
   const showOverflow = createChatboxOverflow()
 
   function sync(): void {
@@ -18,7 +19,7 @@ export function observeChatbox(readText: () => string): (revision?: number) => v
     showOverflow(enabled && text.length > 144)
     const state = {
       revision,
-      active: hasComposerFocus() && enabled,
+      active: !completed && hasComposerFocus() && enabled,
       text,
       submitting: composer?.getAttribute('aria-busy') === 'true',
     }
@@ -47,12 +48,20 @@ export function observeChatbox(readText: () => string): (revision?: number) => v
     attributeFilter: ['aria-pressed', 'aria-busy', 'placeholder', 'hidden'],
   })
   refresh()
-  return (nextRevision) => {
-    if (nextRevision != null) {
-      if (nextRevision < revision) return
-      revision = nextRevision
-      previous = ''
-    }
-    refresh()
+  return {
+    beginEditing: () => {
+      completed = false
+      refresh()
+    },
+    refresh: (nextRevision?: number, success = false) => {
+      if (nextRevision != null) {
+        if (nextRevision < revision) return
+        revision = nextRevision
+        previous = ''
+        // Success precedes native blur. A fresh snapshot must not reopen this edit.
+        if (success) completed = true
+      }
+      refresh()
+    },
   }
 }

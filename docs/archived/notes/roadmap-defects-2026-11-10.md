@@ -1,6 +1,6 @@
 # 2026-11-10 路线图缺陷调查
 
-本次调查覆盖[路线图](../../ROADMAP.md)的五项报告，产品代码未修改，五项均未标记修复。
+本次调查覆盖[路线图](../../ROADMAP.md)的五项报告，调查时产品代码未修改，五项均未标记修复，后续状态以路线图为准。
 
 运行环境为 Windows、SteamVR 与 XSOverlay Beta。安装版和本地产品 DLL 的 SHA256 均为 `E3C9CEFDFC69EBE329E6922929167ECAA1248694804B18EFD51FD4E9B026FE10`，产品程序集 MVID 为 `065b31a6-7cb3-4fc1-948d-3dec8126908a`。
 
@@ -62,7 +62,7 @@
 
 ## 微软拼音：禁用和丢图标属于同一条旧链路
 
-[宿主](../../../XSOverlayKeyboardIme/Ime/ImeHost.cs)仍实例化 [InputModeButton](../../../XSOverlayKeyboardIme/Ime/InputModeButton.cs)。该类只实现公共语言栏点击，Shell 读数被 `view?.Disabled()` 强制禁用。现有 [InputModeSwitch](../../../XSOverlayKeyboardIme/Ime/InputModeSwitch.cs) 与 UIA 平台尚未进入生产构造链；与 [0051](../../adr/0051-use-taskbar-uia-for-shell-mode-clicks.md)记载一致。
+调查时[宿主](../../../XSOverlayKeyboardIme/Ime/ImeHost.cs)仍实例化 `InputModeButton`，旧源码可用 `git show 06c7890:XSOverlayKeyboardIme/Ime/InputModeButton.cs` 查看。该类只实现公共语言栏点击，Shell 读数被 `view?.Disabled()` 强制禁用。当时已有的 [InputModeSwitch](../../../XSOverlayKeyboardIme/Ime/InputModeSwitch.cs) 与 UIA 平台尚未进入生产构造链；与 [0051](../../adr/0051-use-taskbar-uia-for-shell-mode-clicks.md)记载一致。
 
 真机从小狼毫切到微软拼音后，产品记录 `publicItem=false, shell=true, enabled=false`，页面为 `aria-disabled=true`，提示为“英语模式”。因此禁用来自插件限制，不能归为 UIA 点击失败。
 

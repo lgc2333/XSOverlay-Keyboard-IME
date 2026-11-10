@@ -34,7 +34,8 @@ namespace XSOverlayKeyboardIme.Ime
 
         private volatile HostWindow _window;
         private volatile CompositionSession _session;
-        private InputModeButton _modeButton;
+        private InputModeSwitch _modeButton;
+        private FocusTicket? _modeOwner;
         private ForegroundLease _lease;
         private ImeContext _ime;
         private ImeProfiles _profiles;
@@ -418,7 +419,14 @@ namespace XSOverlayKeyboardIme.Ime
                 var session = new CompositionSession(_ime, _window, _lease, feeder, CommitText, _onView);
                 session.Start();
                 _session = session;
-                _modeButton = new InputModeButton(_window, session, () => _profiles.ReadActive(), _onLanguageBarIcon);
+                _modeButton = new InputModeSwitch(
+                    new InputModePlatform(
+                        _window,
+                        () => _profiles.ReadActive(),
+                        () => _modeOwner.HasValue && _focus.Allows(_modeOwner.Value)
+                    ),
+                    _onLanguageBarIcon
+                );
                 FocusTicket? initialClear = _focus.PendingClear;
                 if (initialClear.HasValue)
                     ClearFocus(initialClear.Value);
@@ -457,12 +465,10 @@ namespace XSOverlayKeyboardIme.Ime
                     break;
                 case HostWindow.SwitchMessage:
                     break;
-                case HostWindow.ModeCompleteMessage:
-                    _modeButton?.Complete();
-                    break;
                 case HostWindow.ProfileMessage:
                     break;
                 case HostWindow.FocusLostMessage:
+                    ClearLanguageBar();
                     RevokeFocus();
                     break;
             }
@@ -509,10 +515,16 @@ namespace XSOverlayKeyboardIme.Ime
                     }
                 }
 
-                if (nameChanged || !Nullable.Equals(profile, _switchProfile))
+                if (
+                    nameChanged
+                    || !Nullable.Equals(profile, _switchProfile)
+                    || !_modeOwner.HasValue
+                    || !_modeOwner.Value.SameRequest(owner.Value)
+                )
                 {
                     _switchProfile = profile;
                     ClearLanguageBar();
+                    _modeOwner = owner;
                 }
 
                 PublishSwitchIcon();
@@ -568,10 +580,14 @@ namespace XSOverlayKeyboardIme.Ime
         private void PressSwitch(FocusTicket owner)
         {
             if (CanSend(owner))
-                _modeButton?.Click(() => CanSend(owner));
+                _modeButton?.Click();
         }
 
-        private void ClearLanguageBar() => _modeButton?.Reset();
+        private void ClearLanguageBar()
+        {
+            _modeOwner = null;
+            _modeButton?.Reset();
+        }
 
         private void PublishSwitchIcon() => _modeButton?.Refresh(_switchProfile);
 

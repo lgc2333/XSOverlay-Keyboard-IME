@@ -2,7 +2,7 @@
 
 > 历史归档（2026-11-10）：保留调查时的事实、方案与待验证项。当前实现以源码、测试、已接受的 [ADR](../../adr/) 和[路线图](../../ROADMAP.md)为准。
 
-实现入口：[原生适配](../../../native/shim/shell-mode-button.cpp)、[宿主按钮](../../../XSOverlayKeyboardIme/Ime/InputModeButton.cs)。原图规则见 [0042](../../adr/0042-hide-the-switch-without-an-icon.md)，已接受的 UIA 点击路径见 [0051](../../adr/0051-use-taskbar-uia-for-shell-mode-clicks.md)，尚未接入生产。
+实现入口：[原生适配](../../../native/shim/shell-mode-button.cpp)、[当前宿主按钮](../../../XSOverlayKeyboardIme/Ime/InputModeSwitch.cs)。原图规则见 [0042](../../adr/0042-hide-the-switch-without-an-icon.md)，已接受的 UIA 点击路径见 [0051](../../adr/0051-use-taskbar-uia-for-shell-mode-clicks.md)，调查时尚未接入生产。
 
 ## 支持范围
 

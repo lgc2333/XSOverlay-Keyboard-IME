@@ -30,7 +30,8 @@ function install(): void {
   const bar = createCandidateBar()
   const switchKey = createSwitchKey()
   const returnRouting = routeComposerReturn()
-  const refreshChatbox = observeChatbox(committedComposerText)
+  const chatbox = observeChatbox(committedComposerText)
+  const refreshChatbox = chatbox.refresh
   keepComposerFocus((active) => {
     if (!active) {
       setImeComposing(false)
@@ -53,7 +54,7 @@ function install(): void {
     bar.render(null)
     switchKey.setActive(false)
     releaseComposerFocus()
-  })
+  }, chatbox.beginEditing)
 
   window.__xsoKeyboardIme = {
     ...admission,

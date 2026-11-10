@@ -154,7 +154,7 @@ UIA 的公开调用不依赖新增私有 Shell ABI；原图读取仍受现有精
 
 1. 先完成独立的宿主输入生命周期修复及验收，避免 UIA 已成功却仍因每键过早归还前台而无输入。此项由[输入修复方案](../notes/host-lifecycle.md)跟踪。
 2. 将 UIA 定位和 Invoke 封装为独立 MTA 动作，STA 只接收准备、返回和失败结果，不跨 apartment 传递 TSF、Shell 或 UIA 对象。检查设置 API 的返回值并读回自动设焦与超时配置；定位完成后由 STA 再校验档案、composer 和动作代次，允许执行前再检查前台。
-3. 将 [InputModeButton](../../../XSOverlayKeyboardIme/Ime/InputModeButton.cs) 的同步 pending 计数改为有身份的请求生命周期。每个请求保存宿主档案、代次与处理中状态，只收尾一次，通过宿主消息处理迟到结果。Shell 图像订阅沿前台租约存续，不以图像变化决定点击是否结束。
+3. 将原 `InputModeButton` 的同步 pending 计数改为有身份的请求生命周期，当前入口见 [InputModeSwitch](../../../XSOverlayKeyboardIme/Ime/InputModeSwitch.cs)。每个请求保存宿主档案、代次与处理中状态，只收尾一次，通过宿主消息处理迟到结果。Shell 图像订阅沿前台租约存续，不以图像变化决定点击是否结束。
 4. [ImeHost](../../../XSOverlayKeyboardIme/Ime/ImeHost.cs) 不因 UIA 点击暂存或延迟后续输入，点击期间到达的普通键仍立即走既有送键路径。失焦或关闭后不再恢复普通键，修饰键释放继续遵循既有不抢前台规则。失效前尚未 Invoke 的请求取消，已进入 Invoke 的动作不能宣称已撤回。
 5. 档案改变、composer 失焦或退出时使代次失效，废弃旧图与迟到结果。先停止接受工作，等 worker 不再访问宿主后释放资源，期间 STA 继续泵消息，不能同步 Join。
 6. 验收失败目标、匹配不唯一、无图像变化、快速重复点击、点击中立即输入或切档案、外部夺焦、composer 关闭及退出。确认找不到可信目标与单次点击失败的禁用行为不同，失败不自动重试或补发切换键。旧请求的迟到完成结果不得更新新请求，当前宿主与输入项的可信系统事件仍正常更新图标；不能撤销已投递给 Explorer 的动作。

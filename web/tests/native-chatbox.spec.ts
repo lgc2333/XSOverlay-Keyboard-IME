@@ -3,6 +3,7 @@ import { expect, test } from './browser-test'
 declare global {
   interface Window {
     nativeChatbox: {
+      deferBlur?: boolean
       speech: {
         captureVoiceInsertion: () => void
         applyVoiceTranscript: () => void
@@ -36,7 +37,9 @@ test.beforeEach(async ({ page, request }) => {
       state,
       commands: { SendVRChatChatboxText: 'SendVRChatChatboxText' },
       send: (command: string, json: string) => window.messages.push(`${command}:${json}`),
-      releaseKeyboardInputFocus: () => document.getElementById('keyboard-voice-input')!.blur(),
+      releaseKeyboardInputFocus: () => {
+        if (!window.nativeChatbox.deferBlur) document.getElementById('keyboard-voice-input')!.blur()
+      },
       updateToolbar: () => updateToolbar(),
     })
     const view = createKeyboardSpeechView({
@@ -91,3 +94,52 @@ test('native Enter clears only after success and original overflow rejection rem
   await expect(page.locator('#keyboard-voice-input')).toBeFocused()
   expect(await page.evaluate(() => window.messages.filter(message => message.startsWith('SendVRChatChatboxText:')).length)).toBe(1)
 })
+
+for (const refreshFirst of [true, false]) {
+  test(`successful send stays inactive before delayed native blur (refresh first: ${refreshFirst})`, async ({ page }) => {
+    await page.evaluate(() => { window.nativeChatbox.deferBlur = true })
+    await page.locator('#keyboard-voice-input').fill('formal send')
+    await page.keyboard.press('Enter')
+    await page.evaluate(() => {
+      const id = Number(window.messages.filter(message => message.startsWith('xso-keyboard-ime return ')).at(-1)!.split(' ').at(-1))
+      window.__xsoKeyboardIme!.resolveReturn(id, false)
+    })
+    await expect(page.locator('#keyboard-voice-input')).toHaveAttribute('aria-busy', 'true')
+    await page.evaluate(async refreshFirst => {
+      if (refreshFirst) window.__xsoKeyboardIme!.refreshChatbox(1, true)
+      window.nativeChatbox.speech.handleVRChatChatboxTextResult({ success: true })
+      await new Promise(resolve => queueMicrotask(() => resolve(null)))
+      if (!refreshFirst) window.__xsoKeyboardIme!.refreshChatbox(1, true)
+    }, refreshFirst)
+    await expect(page.locator('#keyboard-voice-input')).toBeFocused()
+    await page.locator('#keyboard-voice-input').fill('input before native blur')
+    await page.evaluate(() => window.__xsoKeyboardIme!.refreshChatbox(1))
+    await expect.poll(() => page.evaluate(() => {
+      const snapshots = window.messages
+        .filter(message => message.startsWith('xso-keyboard-ime chatbox '))
+        .map(message => JSON.parse(message.slice('xso-keyboard-ime chatbox '.length)))
+        .filter(state => state.revision === 1)
+      return snapshots.length > 0 && snapshots.every(state => !state.active)
+        && snapshots.at(-1).text === 'input before native blur'
+    })).toBe(true)
+
+    // Programmatic focus and toolbar updates do not begin another edit.
+    await page.evaluate(() => {
+      const api = window.__xsoKeyboardIme!
+      api.bindFocus('chatbox-test', 1, api.focusDocument)
+      api.applyFocus({ document: 'chatbox-test', revision: 1, request: 0, kind: 'clear' })
+      api.applyFocus({ document: 'chatbox-test', revision: 1, request: 0, kind: 'open' })
+      document.getElementById('keyboard-voice-input')!.focus()
+      api.refreshChatbox(1)
+    })
+    await expect.poll(() => page.evaluate(() => window.messages
+      .filter(message => message.startsWith('xso-keyboard-ime chatbox '))
+      .map(message => JSON.parse(message.slice('xso-keyboard-ime chatbox '.length)))
+      .at(-1)?.active)).toBe(false)
+    await page.locator('#keyboard-voice-input').click()
+    await expect.poll(() => page.evaluate(() => window.messages
+      .filter(message => message.startsWith('xso-keyboard-ime chatbox '))
+      .map(message => JSON.parse(message.slice('xso-keyboard-ime chatbox '.length)))
+      .at(-1)?.active)).toBe(true)
+  })
+}

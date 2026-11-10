@@ -102,7 +102,7 @@ namespace XSOverlayKeyboardIme.Page
             PushKeyboardFormat(page);
             PushSwitchIcon(page);
             PushComposerState(page);
-            RefreshChatbox(ChatboxIntegration.Revision);
+            RefreshChatbox(ChatboxIntegration.Revision, false);
             BindFocus(page);
         }
 
@@ -204,13 +204,16 @@ namespace XSOverlayKeyboardIme.Page
             );
         }
 
-        internal static void RefreshChatbox(int revision)
+        internal static void RefreshChatbox(int revision, bool success)
         {
             if (_listening != null && !_listening.IsDisposed)
                 Call(
                     _listening,
                     "ChatBox state",
-                    PageScript.CallVoid("refreshChatbox", JavaScriptJson.Serialize(revision)),
+                    PageScript.CallVoid(
+                        "refreshChatbox",
+                        JavaScriptJson.Serialize(revision) + "," + JavaScriptJson.Serialize(success)
+                    ),
                     _ => { }
                 );
         }

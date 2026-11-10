@@ -7,7 +7,7 @@ export interface FocusUpdate extends FocusIdentity {
 }
 
 /** Admission follows page-event arrival (ADR 0060); native browser input stays untouched. */
-export function installComposerAdmission(clear: () => void) {
+export function installComposerAdmission(clear: () => void, beginEditing: () => void) {
   // Keyboard pages may use a non-secure local origin, where randomUUID is unavailable.
   const focusDocument = Array.from(
     crypto.getRandomValues(new Uint8Array(16)),
@@ -82,6 +82,7 @@ export function installComposerAdmission(clear: () => void) {
     if (phase !== 'open' || documentId == null) return
     request = ++sequence
     phase = 'pending'
+    beginEditing()
     if (!reportFocus('request', identity())) phase = 'closed'
   }
   function cancel(): void {

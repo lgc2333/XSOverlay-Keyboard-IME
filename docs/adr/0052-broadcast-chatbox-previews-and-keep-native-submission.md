@@ -1,6 +1,7 @@
 ---
 status: accepted
 amends: ['0011']
+amended_by: ['0062']
 ---
 
 # VRC ChatBox 静音广播正文，正式发送沿用原页

@@ -18,7 +18,7 @@ interface VuplexHost {
 }
 
 interface KeyboardPageApi extends ReturnType<typeof installComposerAdmission>, ReturnType<typeof nativeKeyOperations> {
-  refreshChatbox: (revision: number) => void
+  refreshChatbox: (revision: number, success?: boolean) => void
   setKeyboardFormat: (format: string | null) => void
   resolveReturn: (id: number, taken: boolean) => void
   playReturnSound: (view: ReturnSound) => void
