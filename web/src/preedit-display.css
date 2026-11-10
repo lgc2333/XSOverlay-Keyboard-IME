@@ -1,6 +1,6 @@
-/* Reserve space once, including while preedit is hidden. See ADR 0061. */
+/* Reserve the 34px tab plus an 8px top margin, even while hidden. See ADR 0061. */
 #keyboard-container {
-  padding-top: 34px !important;
+  padding-top: 42px !important;
 }
 
 #keyboard-composer-wrap {
