@@ -1,17 +1,12 @@
 # 路线图
 
-## 待修复
-
-五项的来源、复现证据与剩余问题见[2026-11-10 调查](./archived/notes/roadmap-defects-2026-11-10.md)。
-
-- [ ] 首次打开键盘时，仍然不能选择输入法，下拉框被隐藏。点击一次桌面浮窗后正常。
-
 ## 已实现，待真机验收
 
-- [x] 组字栏顶部固定预留 34px，两侧避开原生圆角，显示和隐藏不移动布局，见 [0061](./adr/0061-reserve-the-full-preedit-tab-height.md)。安装版素材截图已确认裁切与接缝修复，待确认 VR 缩放和观感。
-- [x] 模式按钮接入公开 TSF 优先、Shell 原图与任务栏 UIA 点击，见 [0051](./adr/0051-use-taskbar-uia-for-shell-mode-clicks.md)。生命周期回归已通过，待微软拼音真实点击验收。
-- [x] Shell 图像订阅沿焦点存续，迟到首图与旧焦点回调已有回归覆盖，待确认真实输入法切换后的图标更新。
-- [x] ChatBox 正式发送成功后关闭本轮 typing，明确重新聚焦才恢复，失败保留广播，见 [0062](./adr/0062-end-chatbox-editing-after-successful-send.md)。安装版页面模块回归覆盖成功与失焦间隙，待 VRChat 实测。
+- [ ] 首开输入法下拉框隐藏：空闲检查排除三个 NLS 模式码，见 [0063](./adr/0063-exclude-nls-mode-keys-from-the-foreground-idle-check.md)。真机保持 `0xF2=8000`，首次原生指针点击已取得前台并显示列表，关闭后归还前台，再打开首次点击成功。根因与验收边界见[前台失败追查](./archived/notes/first-open-foreground-2026-11-10.md)。
+- [ ] 组字栏顶部固定预留 34px，两侧避开原生圆角，显示和隐藏不移动布局，见 [0061](./adr/0061-reserve-the-full-preedit-tab-height.md)。安装版素材截图已确认裁切与接缝修复，待确认 VR 缩放和观感。
+- [ ] 模式按钮接入公开 TSF 优先、Shell 原图与任务栏 UIA 点击，见 [0051](./adr/0051-use-taskbar-uia-for-shell-mode-clicks.md)。生命周期回归已通过，待微软拼音真实点击验收。
+- [ ] Shell 图像订阅沿焦点存续，迟到首图与旧焦点回调已有回归覆盖，待确认真实输入法切换后的图标更新。
+- [ ] ChatBox 正式发送成功后关闭本轮 typing，明确重新聚焦才恢复，失败保留广播，见 [0062](./adr/0062-end-chatbox-editing-after-successful-send.md)。安装版页面模块回归覆盖成功与失焦间隙，待 VRChat 实测。
 
 ## XSOverlay 侧问题，不由本插件修复
 

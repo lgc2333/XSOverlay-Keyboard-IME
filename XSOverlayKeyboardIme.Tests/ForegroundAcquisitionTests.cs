@@ -57,6 +57,30 @@ public sealed class ForegroundAcquisitionTests
         Assert.Equal(0, api.Alt);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void Invalidated_request_during_idle_check_cannot_insert_alt(int change)
+    {
+        bool valid = true;
+        var api = new Platform();
+        api.OnIdle = () =>
+        {
+            if (change == 0)
+                valid = false;
+            else if (change == 1)
+                api.Foreground = (IntPtr)99;
+            else
+                api.OriginalIdentityValid = false;
+        };
+        var lease = new ForegroundAcquisition(api, api.Host);
+
+        Assert.False(lease.Acquire(() => valid));
+        Assert.Equal(0, api.Alt);
+        Assert.Equal(1, api.Requests);
+    }
+
     [Fact]
     public void Restore_is_once_and_only_while_host_foreground_and_original_identity_valid()
     {
@@ -86,6 +110,7 @@ public sealed class ForegroundAcquisitionTests
         internal int Requests;
         internal int Alt;
         internal Action OnRequest;
+        internal Action OnIdle;
 
         public WindowIdentity? Identify(IntPtr window) =>
             window == (IntPtr)1 && !OriginalIdentityValid ? null : new WindowIdentity(window, 10, 20);
@@ -104,7 +129,11 @@ public sealed class ForegroundAcquisitionTests
 
         public void FocusWindow(IntPtr window) => Focus = window;
 
-        public bool KeysAndMenusIdle(IntPtr original) => Idle;
+        public bool KeysAndMenusIdle(IntPtr original)
+        {
+            OnIdle?.Invoke();
+            return Idle;
+        }
 
         public uint InsertAltPair()
         {

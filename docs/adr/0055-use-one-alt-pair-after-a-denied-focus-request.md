@@ -1,7 +1,7 @@
 ---
 status: accepted
 amends: ['0050']
-amended_by: ['0058']
+amended_by: ['0058', '0063']
 ---
 
 # 新聚焦请求被拒后允许一次 Alt 配对

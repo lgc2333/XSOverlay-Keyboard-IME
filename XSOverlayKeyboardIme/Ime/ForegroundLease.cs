@@ -55,9 +55,8 @@ namespace XSOverlayKeyboardIme.Ime
 
             public bool KeysAndMenusIdle(IntPtr original)
             {
-                for (int key = 1; key < 256; key++)
-                    if ((Win32Native.GetAsyncKeyState(key) & 0x8000) != 0)
-                        return false;
+                if (!ForegroundKeyState.IsIdle(Win32Native.GetAsyncKeyState))
+                    return false;
                 uint originalThread = Win32Native.GetWindowThreadProcessId(original, out _);
                 return originalThread != 0 && MenusIdle(originalThread) && MenusIdle(0);
             }
