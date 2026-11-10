@@ -1,3 +1,5 @@
+<!-- markdownlint-disable MD033 MD036 -->
+
 # XSOverlay Keyboard IME
 
 [简体中文](README.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | **English**
@@ -8,6 +10,10 @@
 This plugin connects XSOverlay's VR keyboard to the system IME. Compose text in the input box on the keyboard page. The composing string and the candidates show on the keyboard. Pick a candidate with the keyboard keys. The committed text goes back into the input box.
 
 The plugin also enhances VRC ChatBox. Enable it and focus the input box to update your chat bubble once per second. Updates exclude IME preedit. Clearing the input or removing focus preserves the bubble. A successful send clears the input. An overlong draft stays in the input box. The bubble shows a shortened preview and an error appears.
+
+## Disclaimer
+
+This project was built end to end with AI by a developer who does not know the C# ecosystem. The code may be rough, and it may annoy developers who care about such things. I am sorry about that. If you want to clean it up, I welcome your proposal or pull request. Thank you.
 
 ## Why this plugin
 
@@ -28,7 +34,16 @@ I cannot claim this is the best VR IME solution. With good tools already availab
 
 ## Showcase
 
-TBD
+<table>
+  <tr>
+    <td width="50%"><img width="100%" src="docs/assets/showcase-zh-weasel.png" alt="Weasel composing"></td>
+    <td width="50%"><img width="100%" src="docs/assets/showcase-jp-ms.png" alt="Japanese Microsoft IME composing"></td>
+  </tr>
+  <tr>
+    <td align="center">Weasel</td>
+    <td align="center">Japanese Microsoft IME</td>
+  </tr>
+</table>
 
 ## Requirements
 
@@ -36,7 +51,7 @@ TBD
 
 - Windows 10 or later, 64-bit.
 - XSOverlay Beta 695. Other versions are untested.
-- BepInEx 5.4.23.6, x64. Other versions are untested.
+- BepInEx 5.4.23.6, x64. Other versions are untested. The quick install archive includes it.
 - This plugin makes invasive changes to the keyboard page. Compatibility with other plugins is untested.
 
 ### IME
@@ -47,7 +62,28 @@ TBD
 
 ## Installation
 
-TBD
+### A. Quick install (the plugin loader comes with the plugin)
+
+1. Download `XSOverlayKeyboardIme-<version>+BepInEx.zip` from the [latest release](https://github.com/lgc2333/XSOverlay-Keyboard-IME/releases/latest).
+2. Quit XSOverlay.
+3. In the Steam library, right-click XSOverlay and choose Manage > Browse local files.
+4. Extract every file of the archive into that folder. Overwrite files when asked.
+5. Start XSOverlay.
+
+The archive holds the plugin plus BepInEx 5.4.23.6 x64. If BepInEx was already installed, step 4 overwrites its files of the same name. `BepInEx.cfg` and the settings of other plugins stay unchanged.
+
+### B. Manual install (for users who already have BepInEx)
+
+1. Download BepInEx 5.4.23.6 x64 from [BepInEx Releases](https://github.com/BepInEx/BepInEx/releases) and extract it into the XSOverlay folder.
+2. Download `XSOverlayKeyboardIme-<version>.zip` from the [latest release](https://github.com/lgc2333/XSOverlay-Keyboard-IME/releases/latest).
+3. Extract it into the XSOverlay folder, or copy the extracted `BepInEx\plugins\XSOverlayKeyboardIme\` folder across.
+4. Start XSOverlay.
+
+### After the install
+
+The plugin files are in `BepInEx\plugins\XSOverlayKeyboardIme\`. The log is `BepInEx\LogOutput.log`, and each plugin line starts with `[ime]`.
+
+To uninstall, delete the `BepInEx\plugins\XSOverlayKeyboardIme\` folder. Delete the files that belong to BepInEx (the `BepInEx\` folder, `winhttp.dll`, `doorstop_config.ini` and `.doorstop_version`) only when no other plugin uses them.
 
 ## Design trade-offs
 
@@ -159,6 +195,14 @@ The repository sets the XSOverlay path to `D:\SteamLibrary\steamapps\common\XSOv
 dotnet build -c Release -p:DeployToGame=true -p:GameDir="D:\Steam\steamapps\common\XSOverlay_Beta"
 ```
 
+Build the release archives:
+
+```powershell
+pwsh scripts/pack.ps1
+```
+
+It writes `dist/XSOverlayKeyboardIme-<version>.zip` (plugin only) and `dist/XSOverlayKeyboardIme-<version>+BepInEx.zip` (plugin with BepInEx). The script reads `GameDir` from the project; pass `-GameDir` to build against another folder.
+
 ## Credits
 
 - [Windmill-City/IngameIME-Common](https://github.com/Windmill-City/IngameIME-Common), [Windmill-City/IngameIME_Win32](https://github.com/Windmill-City/IngameIME_Win32): TSF input context and composition callbacks. This dependency is compiled into `IngameIME.dll` together with this repository's C shim. The whole library ships under LGPL 2.1; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
@@ -176,3 +220,13 @@ Thank you all for your support! Your sponsorship keeps me creating.
 - QQ group: [168603371](https://qm.qq.com/q/EikuZ5sP4G)
 - Telegram: [@lgc2333](https://t.me/lgc2333)
 - Email: <lgc2333@126.com>
+
+## License
+
+The plugin code is distributed under the MIT licence. The full text is in [LICENSE](LICENSE).
+
+The plugin ships `IngameIME.dll`. It contains IngameIME and the C layer under `native/shim/`, and the whole file is distributed under the GNU LGPL 2.1. The full text is in [native/LICENSE-LGPL-2.1.txt](native/LICENSE-LGPL-2.1.txt). `IngameIME.dll` is a separate file beside the plugin, so you may rebuild and replace it; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
+---
+
+_Made with ♥️ by LgCuwukii_

@@ -2,6 +2,9 @@
 bin/
 obj/
 
+# Release packages
+dist/
+
 # Local scratch space: game snapshots, downloads, dumps, probe logs
 temp/
 
@@ -20,7 +23,6 @@ AGENTS.local.md
 
 # Web
 node_modules/
-web/dist/
 
 # Native build tree
 native/build/

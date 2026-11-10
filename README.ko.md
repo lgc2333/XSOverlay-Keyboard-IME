@@ -1,3 +1,5 @@
+<!-- markdownlint-disable MD033 MD036 -->
+
 # XSOverlay Keyboard IME
 
 [简体中文](README.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | **한국어** | [English](README.en.md)
@@ -8,6 +10,10 @@
 XSOverlay의 VR 키보드를 시스템 IME에 연결합니다. 키보드 페이지의 입력란에서 조합 중인 문자열을 입력하고, 그 문자열과 후보를 키보드 위에 표시합니다. 후보는 키보드의 키로 고르고, 확정한 텍스트를 입력란에 다시 써 넣습니다.
 
 VRC ChatBox 기능도 개선합니다. 이 기능을 켜고 입력란에 포커스를 두면 본문이 1초에 한 번 머리 위 말풍선에 반영됩니다. IME 조합 중인 문자열은 포함하지 않습니다. 입력란을 비우거나 포커스를 옮겨도 말풍선은 유지됩니다. 전송에 성공하면 입력란을 비웁니다. 글자 수를 초과하면 입력란에 전체 내용을 유지하고, 말풍선에는 줄인 미리보기를 표시하며 오류를 알립니다.
+
+## 고지
+
+이 프로젝트는 C# 생태계를 잘 모르는 개발자가 AI를 써서 처음부터 끝까지 만들었습니다. 코드가 거칠고, 깔끔한 코드를 중시하는 개발자에게는 불편할 수 있습니다. 죄송합니다. 정리할 방법이나 PR이 있다면 환영합니다. 감사합니다.
 
 ## 이 플러그인을 만든 이유
 
@@ -28,7 +34,16 @@ AI 에이전트와 마지막 몇 가지 어려운 버그를 고치면서, 시스
 
 ## 쇼케이스
 
-준비 중
+<table>
+  <tr>
+    <td width="50%"><img width="100%" src="docs/assets/showcase-zh-weasel.png" alt="小狼毫가 조합 중"></td>
+    <td width="50%"><img width="100%" src="docs/assets/showcase-jp-ms.png" alt="일본어 Microsoft IME가 조합 중"></td>
+  </tr>
+  <tr>
+    <td align="center">小狼毫</td>
+    <td align="center">일본어 Microsoft IME</td>
+  </tr>
+</table>
 
 ## 실행 요구 사항
 
@@ -36,7 +51,7 @@ AI 에이전트와 마지막 몇 가지 어려운 버그를 고치면서, 시스
 
 - Windows 10 이상, 64비트.
 - XSOverlay Beta 695. 다른 버전은 검증하지 않았습니다.
-- BepInEx 5.4.23.6, x64 버전. 다른 버전은 검증하지 않았습니다.
+- BepInEx 5.4.23.6, x64 버전. 다른 버전은 검증하지 않았습니다. 빠른 설치 압축 파일에는 포함되어 있습니다.
 - 이 플러그인은 키보드 페이지에 침습적인 변경을 적용합니다. 다른 플러그인과의 호환성은 검증하지 않았습니다.
 
 ### IME
@@ -47,7 +62,28 @@ AI 에이전트와 마지막 몇 가지 어려운 버그를 고치면서, 시스
 
 ## 설치
 
-준비 중
+### A. 빠른 설치 (플러그인 로더까지 함께 설치)
+
+1. [최신 릴리스](https://github.com/lgc2333/XSOverlay-Keyboard-IME/releases/latest)에서 `XSOverlayKeyboardIme-<버전>+BepInEx.zip`을 받습니다.
+2. XSOverlay를 종료합니다.
+3. Steam 라이브러리에서 XSOverlay를 마우스 오른쪽 버튼으로 누르고 관리 > 로컬 파일 보기를 선택합니다.
+4. 압축 파일의 모든 파일을 이 폴더에 풉니다. 덮어쓸지 물으면 덮어씁니다.
+5. XSOverlay를 시작하면 바로 쓸 수 있습니다.
+
+이 압축 파일에는 플러그인과 BepInEx 5.4.23.6 x64가 들어 있습니다. BepInEx를 먼저 설치했다면 4단계는 같은 이름의 파일을 덮어씁니다. `BepInEx.cfg`와 각 플러그인의 설정은 그대로입니다.
+
+### B. 수동 설치 (BepInEx를 설치한 경우)
+
+1. [BepInEx Releases](https://github.com/BepInEx/BepInEx/releases)에서 BepInEx 5.4.23.6 x64를 받아 XSOverlay 폴더에 풉니다.
+2. [최신 릴리스](https://github.com/lgc2333/XSOverlay-Keyboard-IME/releases/latest)에서 `XSOverlayKeyboardIme-<버전>.zip`을 받습니다.
+3. XSOverlay 폴더에 풉니다. 또는 푼 `BepInEx\plugins\XSOverlayKeyboardIme\` 폴더 전체를 복사합니다.
+4. XSOverlay를 시작하면 바로 쓸 수 있습니다.
+
+### 설치 후
+
+플러그인 파일은 `BepInEx\plugins\XSOverlayKeyboardIme\`에 있습니다. 로그는 `BepInEx\LogOutput.log`이고, 이 플러그인의 줄은 `[ime]`로 시작합니다.
+
+삭제하려면 `BepInEx\plugins\XSOverlayKeyboardIme\` 폴더를 지웁니다. BepInEx 자체 파일(`BepInEx\` 폴더, `winhttp.dll`, `doorstop_config.ini`, `.doorstop_version`)은 다른 플러그인이 쓰지 않을 때만 지웁니다.
 
 ## 설계상의 절충
 
@@ -159,6 +195,14 @@ dotnet build -c Release -p:DeployToGame=true
 dotnet build -c Release -p:DeployToGame=true -p:GameDir="D:\Steam\steamapps\common\XSOverlay_Beta"
 ```
 
+배포용 압축 파일을 만듭니다.
+
+```powershell
+pwsh scripts/pack.ps1
+```
+
+`dist/XSOverlayKeyboardIme-<버전>.zip`(플러그인만)과 `dist/XSOverlayKeyboardIme-<버전>+BepInEx.zip`(플러그인과 BepInEx)을 씁니다. 스크립트는 저장소의 `GameDir`을 씁니다. 다른 폴더에서 빌드하려면 `-GameDir`를 넘깁니다.
+
 ## 감사의 말
 
 - [Windmill-City/IngameIME-Common](https://github.com/Windmill-City/IngameIME-Common), [Windmill-City/IngameIME_Win32](https://github.com/Windmill-City/IngameIME_Win32): TSF 입력 컨텍스트와 조합 콜백. 이 의존성은 이 저장소의 C 심과 함께 `IngameIME.dll`로 빌드되며, 전체를 LGPL 2.1로 배포합니다. [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)를 참고하세요.
@@ -176,3 +220,13 @@ dotnet build -c Release -p:DeployToGame=true -p:GameDir="D:\Steam\steamapps\comm
 - QQ 그룹: [168603371](https://qm.qq.com/q/EikuZ5sP4G)
 - Telegram: [@lgc2333](https://t.me/lgc2333)
 - 이메일: <lgc2333@126.com>
+
+## 라이선스
+
+플러그인 코드는 MIT 라이선스로 배포합니다. 전문은 [LICENSE](LICENSE)에 있습니다.
+
+플러그인은 `IngameIME.dll`을 함께 배포합니다. 이 파일에는 IngameIME과 `native/shim/`의 C 레이어가 들어 있고, 파일 전체를 GNU LGPL 2.1로 배포합니다. 전문은 [native/LICENSE-LGPL-2.1.txt](native/LICENSE-LGPL-2.1.txt)에 있습니다. `IngameIME.dll`은 플러그인 옆에 있는 별도 파일이므로 다시 빌드해 바꿔 넣을 수 있습니다. 방법은 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)를 보십시오.
+
+---
+
+_Made with ♥️ by LgCuwukii_

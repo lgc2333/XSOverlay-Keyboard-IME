@@ -1,3 +1,5 @@
+<!-- markdownlint-disable MD033 MD036 -->
+
 # XSOverlay Keyboard IME
 
 **简体中文** | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [English](README.en.md)
@@ -5,6 +7,10 @@
 给 XSOverlay 的 VR 键盘接入系统输入法：在键盘页的输入框里组字，组字串与候选显示在键盘上，用键盘上的按键选候选，提交后写回输入框。
 
 以及 VRC ChatBox 功能增强：开启它并聚焦输入框后，正文每秒更新一次头顶气泡（不包括预编辑），清空或失焦保留气泡，发送成功后清空输入框。正文超限时保留本地全文，气泡显示截短预览并报错。
+
+## 声明
+
+本项目由一个不了解 C# 生态的开发者全程使用 AI 构建。代码实现可能会有些脏，可能对洁癖开发者非常不友好，在这里我说一声抱歉。如果你有清理代码中这类问题的想法的话，也欢迎提出方案或 PR，感谢。
 
 ## 为什么做这个插件
 
@@ -19,13 +25,22 @@ VRChat 里的中文输入，试过的两个方案都不够用。
 
 ### 开发者注
 
-在和 AI Agent 修最后几个疑难 Bug 的时候我才意识到，做出一个通用的接入系统输入法的方案原来要考虑这么多奇奇怪怪的事情——不管是项目初期就冒出来需要向它妥协的问题，亦或是最后出现的一系列复杂边界情况……没办法，为了通用性与实现复杂度，只能牺牲用户体验来换取它们了：具体可以看 README 下的设计取舍一节，以及本仓库的 ADR（懒得看可以让 AI 给你讲）。
+在和 AI Agent 修最后几个疑难 Bug 的时候我才意识到，做出一个依赖公用 API 接入系统输入法的通用方案原来要考虑这么多奇奇怪怪的事情——不管是项目初期就冒出来需要向它妥协的问题（比如候选与翻页），还是最后出现的一系列复杂竞态与边界情况……没办法，为了通用性与工程实现上的复杂度，只能牺牲用户体验来换取它们了：具体可以看 README 下的设计取舍一节，以及本仓库的 ADR（懒得看可以让 AI 给你讲）。
 
-我不敢说本插件是最好的 VR 输入法解决方案，我也有点开始怀疑，明明已经有很好用的东西了，我为什么还要做这么个不伦不类的东西。但既然做都做出来了，如果它看起来能解决你的痛点，你也能接受因这些妥协而带来的不便，不妨装上试试看。如果你对这个插件感兴趣，我会非常感谢你，那是对我莫大的支持和鼓励。
+我不敢说本插件是最好的 VR 输入法解决方案，我也有些开始怀疑，明明已经有很好用的东西了，我为什么还要做这么个不伦不类的东西。但既然做都做出来了，如果它看起来能解决你的痛点，你也能接受因这些妥协而带来的不便，不妨装上试试看。如果你对这个插件感兴趣，我会非常感谢你，你的喜欢是对我莫大的支持和鼓励。
 
 ## 展示
 
-TBD
+<table>
+  <tr>
+    <td width="50%"><img width="100%" src="docs/assets/showcase-zh-weasel.png" alt="小狼毫组字中"></td>
+    <td width="50%"><img width="100%" src="docs/assets/showcase-jp-ms.png" alt="微软日语输入法组字中"></td>
+  </tr>
+  <tr>
+    <td align="center">小狼毫</td>
+    <td align="center">微软日语</td>
+  </tr>
+</table>
 
 ## 运行要求
 
@@ -33,7 +48,7 @@ TBD
 
 - Windows 10 或更高版本，64 位。
 - XSOverlay Beta 695，其他版本未经验证。
-- BepInEx 5.4.23.6，x64 版本，其他版本未经验证。
+- BepInEx 5.4.23.6，x64 版本，其他版本未经验证。（快速安装的压缩包已包含它）
 - 本插件对键盘页做了一些侵入性修改，与其他插件的兼容性未经验证。
 
 ### 输入法
@@ -44,7 +59,28 @@ TBD
 
 ## 安装
 
-TBD
+### A. 快速安装（直接连带插件加载器一同安装）
+
+1. 从 [最新 Release](https://github.com/lgc2333/XSOverlay-Keyboard-IME/releases/latest) 下载 `XSOverlayKeyboardIme-<版本>+BepInEx.zip`。
+2. 退出 XSOverlay。
+3. 在 Steam 库中右键 XSOverlay，选择「管理」→「浏览本地文件」。
+4. 把压缩包里的全部文件解压进这个文件夹，询问覆盖时选择覆盖。
+5. 启动 XSOverlay 即可开始使用。
+
+这个压缩包里是插件加 BepInEx 5.4.23.6 x64。之前装过 BepInEx 的话，第 4 步会覆盖它的同名文件，`BepInEx.cfg` 与各插件的配置不受影响。
+
+### B. 手动安装（如果你安装过 BepInEx）
+
+1. 从 [BepInEx Releases](https://github.com/BepInEx/BepInEx/releases) 下载 BepInEx 5.4.23.6 x64，解压进 XSOverlay 文件夹。
+2. 从 [最新 Release](https://github.com/lgc2333/XSOverlay-Keyboard-IME/releases/latest) 下载 `XSOverlayKeyboardIme-<版本>.zip`。
+3. 把它解压进 XSOverlay 文件夹，或解压后把 `BepInEx\plugins\XSOverlayKeyboardIme\` 整个复制过去。
+4. 启动 XSOverlay 即可开始使用。
+
+### 装好之后
+
+插件文件在 `BepInEx\plugins\XSOverlayKeyboardIme\`。日志在 `BepInEx\LogOutput.log`，本插件写入的行以 `[ime]` 开头。
+
+要卸载，删除 `BepInEx\plugins\XSOverlayKeyboardIme\` 文件夹。BepInEx 自己的文件（`BepInEx\` 文件夹、`winhttp.dll`、`doorstop_config.ini`、`.doorstop_version`）只有在没有其他插件使用它们时才删除。
 
 ## 设计取舍
 
@@ -62,7 +98,7 @@ TBD
 
 候选栏只能看，点它不会有反应，也没有翻页按钮和页码。
 
-#### 为什么这么设计
+#### 设计考量
 
 本插件不按输入法名称做单独适配。这个取舍的弊端就体现在此。
 
@@ -156,9 +192,17 @@ dotnet build -c Release -p:DeployToGame=true
 dotnet build -c Release -p:DeployToGame=true -p:GameDir="D:\Steam\steamapps\common\XSOverlay_Beta"
 ```
 
+出发布包：
+
+```powershell
+pwsh scripts/pack.ps1
+```
+
+它在 `dist/` 写出 `XSOverlayKeyboardIme-<版本>.zip`（只有插件）与 `XSOverlayKeyboardIme-<版本>+BepInEx.zip`（插件加 BepInEx）。脚本用 csproj 里的 `GameDir`，要换路径就传 `-GameDir`。
+
 ## 鸣谢
 
-- [Windmill-City/IngameIME-Common](https://github.com/Windmill-City/IngameIME-Common)，[Windmill-City/IngameIME_Win32](https://github.com/Windmill-City/IngameIME_Win32)：TSF 输入上下文与组字回调。此依赖与本仓库的 C 薄壳一起编进 `IngameIME.dll`，整份按 LGPL 2.1 分发，见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
+- [Windmill-City/IngameIME-Common](https://github.com/Windmill-City/IngameIME-Common)，[Windmill-City/IngameIME_Win32](https://github.com/Windmill-City/IngameIME_Win32)：TSF 输入上下文与组字回调。此依赖与本仓库的上层 C 薄壳一起编进 `IngameIME.dll`，整份按 LGPL 2.1 分发，见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
 - DeepSeek V4.1 Flash & DeepSeek Harness，GPT 6.1 Sol & Codex：本项目全程由大肥鱼妈妈与小龙娘构建。
 
 ## 赞助
@@ -173,3 +217,13 @@ dotnet build -c Release -p:DeployToGame=true -p:GameDir="D:\Steam\steamapps\comm
 - QQ群：[168603371](https://qm.qq.com/q/EikuZ5sP4G)
 - Telegram：[@lgc2333](https://t.me/lgc2333)
 - 邮箱：<lgc2333@126.com>
+
+## 许可
+
+插件代码按 MIT 许可分发，全文见 [LICENSE](LICENSE)。
+
+插件随包分发 `IngameIME.dll`。它包含 IngameIME 与 `native/shim/` 的 C 薄壳，整份按 GNU LGPL 2.1 分发，全文见 [native/LICENSE-LGPL-2.1.txt](native/LICENSE-LGPL-2.1.txt)。`IngameIME.dll` 是插件旁边的一个独立文件，可以自行重新编译并替换，做法见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
+
+---
+
+_Made with ♥️ by LgCuwukii_

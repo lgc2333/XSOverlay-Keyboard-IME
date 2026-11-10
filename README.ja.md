@@ -1,3 +1,5 @@
+<!-- markdownlint-disable MD033 MD036 -->
+
 # XSOverlay Keyboard IME
 
 [简体中文](README.md) | [繁體中文](README.zh-TW.md) | **日本語** | [한국어](README.ko.md) | [English](README.en.md)
@@ -8,6 +10,10 @@
 XSOverlay の VR キーボードをシステムの IME に接続します。キーボードページの入力欄で未確定の文字列を入力し、その文字列と候補をキーボード上に表示します。候補はキーボードのキーで選び、確定したテキストを入力欄へ書き戻します。
 
 VRC ChatBox の機能も強化します。有効にして入力欄にフォーカスすると、本文を毎秒 1 回、頭上の吹き出しへ反映します。IME の未確定文字列は含みません。入力欄を空にするかフォーカスを外しても、吹き出しは残ります。送信に成功すると入力欄を空にします。文字数制限を超えた場合、全文を入力欄に保持し、吹き出しには短縮したプレビューを表示して、エラーを出します。
+
+## 免責
+
+本プロジェクトは、C# エコシステムに詳しくない開発者が AI を使って作りました。実装は粗く、すっきりしたコードを好む開発者には不親切かもしれません。申し訳ありません。整理する案や PR があれば歓迎します。よろしくお願いします。
 
 ## このプラグインを作った理由
 
@@ -28,7 +34,16 @@ AI エージェントと最後の難しい不具合を直す中で、システ�
 
 ## 展示
 
-準備中
+<table>
+  <tr>
+    <td width="50%"><img width="100%" src="docs/assets/showcase-zh-weasel.png" alt="小狼毫が変換中"></td>
+    <td width="50%"><img width="100%" src="docs/assets/showcase-jp-ms.png" alt="日本語 Microsoft IME が変換中"></td>
+  </tr>
+  <tr>
+    <td align="center">小狼毫</td>
+    <td align="center">日本語 Microsoft IME</td>
+  </tr>
+</table>
 
 ## 動作環境
 
@@ -36,7 +51,7 @@ AI エージェントと最後の難しい不具合を直す中で、システ�
 
 - Windows 10 以降、64 ビット。
 - XSOverlay Beta 695。ほかのバージョンは未検証です。
-- BepInEx 5.4.23.6、x64 版。ほかのバージョンは未検証です。
+- BepInEx 5.4.23.6、x64 版。ほかのバージョンは未検証です。クイックインストールのアーカイブには含まれています。
 - このプラグインはキーボードページに侵襲的な変更を加えます。他のプラグインとの互換性は未検証です。
 
 ### IME
@@ -47,7 +62,28 @@ AI エージェントと最後の難しい不具合を直す中で、システ�
 
 ## インストール
 
-準備中
+### A. クイックインストール（プラグインローダーも一緒に入ります）
+
+1. [最新リリース](https://github.com/lgc2333/XSOverlay-Keyboard-IME/releases/latest) から `XSOverlayKeyboardIme-<バージョン>+BepInEx.zip` をダウンロードします。
+2. XSOverlay を終了します。
+3. Steam ライブラリで XSOverlay を右クリックし、「管理」→「ローカルファイルを閲覧」を選びます。
+4. アーカイブの全ファイルをこのフォルダに展開します。上書きを聞かれたら上書きします。
+5. XSOverlay を起動すれば使えます。
+
+このアーカイブにはプラグインと BepInEx 5.4.23.6 x64 が入っています。BepInEx を先に入れている場合、手順 4 は同名ファイルを上書きします。`BepInEx.cfg` と各プラグインの設定は変わりません。
+
+### B. 手動インストール（BepInEx を入れている場合）
+
+1. [BepInEx Releases](https://github.com/BepInEx/BepInEx/releases) から BepInEx 5.4.23.6 x64 をダウンロードし、XSOverlay フォルダに展開します。
+2. [最新リリース](https://github.com/lgc2333/XSOverlay-Keyboard-IME/releases/latest) から `XSOverlayKeyboardIme-<バージョン>.zip` をダウンロードします。
+3. XSOverlay フォルダに展開します。または展開した `BepInEx\plugins\XSOverlayKeyboardIme\` フォルダ全体をコピーします。
+4. XSOverlay を起動すれば使えます。
+
+### インストール後
+
+プラグインのファイルは `BepInEx\plugins\XSOverlayKeyboardIme\` にあります。ログは `BepInEx\LogOutput.log` で、本プラグインの行は `[ime]` で始まります。
+
+アンインストールは `BepInEx\plugins\XSOverlayKeyboardIme\` フォルダを削除します。BepInEx 自身のファイル（`BepInEx\` フォルダ、`winhttp.dll`、`doorstop_config.ini`、`.doorstop_version`）は、ほかのプラグインが使っていないときだけ削除します。
 
 ## 設計上のトレードオフ
 
@@ -159,6 +195,14 @@ dotnet build -c Release -p:DeployToGame=true
 dotnet build -c Release -p:DeployToGame=true -p:GameDir="D:\Steam\steamapps\common\XSOverlay_Beta"
 ```
 
+配布用のアーカイブをビルドします：
+
+```powershell
+pwsh scripts/pack.ps1
+```
+
+`dist/XSOverlayKeyboardIme-<バージョン>.zip`（プラグインのみ）と `dist/XSOverlayKeyboardIme-<バージョン>+BepInEx.zip`（プラグインと BepInEx）を書き出します。スクリプトはリポジトリの `GameDir` を使います。別のフォルダでビルドするには `-GameDir` を渡します。
+
 ## 謝辞
 
 - [Windmill-City/IngameIME-Common](https://github.com/Windmill-City/IngameIME-Common)、[Windmill-City/IngameIME_Win32](https://github.com/Windmill-City/IngameIME_Win32)：TSF の入力コンテキストとコンポジションのコールバック。この依存は本リポジトリの C シムと一緒に `IngameIME.dll` へ組み込まれ、全体を LGPL 2.1 で配布します。[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) を参照してください。
@@ -176,3 +220,13 @@ dotnet build -c Release -p:DeployToGame=true -p:GameDir="D:\Steam\steamapps\comm
 - QQ グループ：[168603371](https://qm.qq.com/q/EikuZ5sP4G)
 - Telegram：[@lgc2333](https://t.me/lgc2333)
 - メール：<lgc2333@126.com>
+
+## ライセンス
+
+プラグインのコードは MIT ライセンスで配布します。全文は [LICENSE](LICENSE) にあります。
+
+プラグインは `IngameIME.dll` を同梱します。これには IngameIME と `native/shim/` の C レイヤーが含まれ、ファイル全体を GNU LGPL 2.1 で配布します。全文は [native/LICENSE-LGPL-2.1.txt](native/LICENSE-LGPL-2.1.txt) にあります。`IngameIME.dll` はプラグインの隣にある独立したファイルなので、ビルドし直して差し替えられます。方法は [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) を参照してください。
+
+---
+
+_Made with ♥️ by LgCuwukii_

@@ -20,10 +20,12 @@ native/                            IngameIME.dll 的 CMake 构建
   IngameIME-Common/                子模块；上游的公共头文件
   shim/shim.cpp                    插件调用的 C ABI；LGPL，编进那个库
 web/                               键盘页脚本；TypeScript 加一份样式表，打包后注入
+scripts/pack.ps1                   发布包：插件，以及插件加 BepInEx，写到 dist/
 Directory.Build.props              共享编译设置
 Directory.Build.targets            可选的部署目标
 docs/                              公开文档目录
   adr/                             一个决定一个文件，按编号
+  assets/                          展示截图，README 引用
   archived/                        历史资料
     handoffs/                      历史交接
     notes/                         已结束的主题调查
@@ -44,6 +46,9 @@ dotnet build -c Release
 
 # 构建，并把插件与原生库复制进 XSOverlay
 dotnet build -c Release -p:DeployToGame=true
+
+# 出发布包：依次构建页面脚本、原生库、插件，再打包到 dist/
+pwsh scripts/pack.ps1
 
 # 跑单元测试
 dotnet test XSOverlayKeyboardIme.Tests
@@ -74,10 +79,11 @@ pnpm --dir web test
 - 先构建原生库，再部署：插件从自己所在目录加载 `IngameIME.dll`，缺了它就不给 XSOverlay 打补丁。
 - 不要递归子模块：`IngameIME_Win32` 经 SSH 地址取它自己那份 `IngameIME-Common`，而 `native/CMakeLists.txt` 用的是同级子模块。
 - CSharpier 是锁版本的本地工具。克隆后跑一次 `dotnet tool restore`，改动 `.config/dotnet-tools.json` 之后也要再跑一次。
-- XSOverlay 路径默认是 `D:\SteamLibrary\steamapps\common\XSOverlay_Beta`，用 `-p:GameDir=<path>` 覆盖。
+- XSOverlay 路径只有一份默认值，在 `XSOverlayKeyboardIme.csproj` 的 `GameDir` 里；构建用 `-p:GameDir=<path>` 覆盖，`scripts/pack.ps1` 用 `-GameDir <path>` 覆盖。
 - 回车与 ChatBox 浏览器回归复用安装版按键、音效、composer 与 view 模块，宿主答复仍为 mock，不覆盖真实宿主往返。路径用 `XSOVERLAY_GAME_DIR` 覆盖；缺少模块时跳过依赖它们的用例。
 - 页面模块的真实 HTTP 路径以 `/apps/UserInterface/` 开头，回车测试服务器对旧路径与未知模块返回 404。
 - 日志落到 XSOverlay 目录下的 `BepInEx\LogOutput.log`。
+- 发布包有两份：`XSOverlayKeyboardIme-<版本>.zip` 只有插件，`XSOverlayKeyboardIme-<版本>+BepInEx.zip` 加 BepInEx 5.4.23.6 x64（SHA256 钉在脚本里）。两份都把插件放进 `BepInEx\plugins\XSOverlayKeyboardIme\`，与许可证一起。CI 不产出它们，因为要 XSOverlay 的 Managed 程序集。
 - CI 跑单元测试、页面浏览器回归、CSharpier、Prettier、测试工程上的分析器、页面脚本检查与原生构建。它从不构建插件：那需要 XSOverlay 的 Managed 程序集，而它们只留在这台机器上。
 
 ## 运行时约束

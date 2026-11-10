@@ -1,3 +1,5 @@
+<!-- markdownlint-disable MD033 MD036 -->
+
 # XSOverlay Keyboard IME
 
 [简体中文](README.md) | **繁體中文** | [日本語](README.ja.md) | [한국어](README.ko.md) | [English](README.en.md)
@@ -8,6 +10,10 @@
 給 XSOverlay 的 VR 鍵盤接入系統輸入法：在鍵盤頁的輸入框裡組字，組字串與候選顯示在鍵盤上，用鍵盤上的按鍵選候選，完成輸入後寫回輸入框。
 
 以及 VRC ChatBox 功能增強：開啟它並聚焦輸入框後，正文每秒更新一次頭頂氣泡（不包括預編輯），清空或失焦保留氣泡，傳送成功後清空輸入框。正文超限時保留本機全文，氣泡顯示截短預覽並報錯。
+
+## 聲明
+
+本專案由一位不熟悉 C# 生態的開發者全程使用 AI 打造。程式實作可能有些粗糙，對重視整潔的開發者可能非常不友善，在此說聲抱歉。如果你有整理這類問題的想法，也歡迎提出方案或 PR，感謝。
 
 ## 為什麼做這個插件
 
@@ -28,7 +34,16 @@ VRChat 裡的中文輸入，試過的兩個方案都不夠用。
 
 ## 展示
 
-待補
+<table>
+  <tr>
+    <td width="50%"><img width="100%" src="docs/assets/showcase-zh-weasel.png" alt="小狼毫組字中"></td>
+    <td width="50%"><img width="100%" src="docs/assets/showcase-jp-ms.png" alt="微軟日文輸入法組字中"></td>
+  </tr>
+  <tr>
+    <td align="center">小狼毫</td>
+    <td align="center">微軟日文輸入法</td>
+  </tr>
+</table>
 
 ## 執行需求
 
@@ -36,7 +51,7 @@ VRChat 裡的中文輸入，試過的兩個方案都不夠用。
 
 - Windows 10 或以上版本，64 位元。
 - XSOverlay Beta 695，其他版本未經驗證。
-- BepInEx 5.4.23.6，x64 版本，其他版本未經驗證。
+- BepInEx 5.4.23.6，x64 版本，其他版本未經驗證。（快速安裝的壓縮檔已包含它）
 - 本插件對鍵盤頁做了一些侵入性修改，與其他插件的相容性尚未驗證。
 
 ### 輸入法
@@ -47,7 +62,28 @@ VRChat 裡的中文輸入，試過的兩個方案都不夠用。
 
 ## 安裝
 
-待補
+### A. 快速安裝（連同插件載入器一起安裝）
+
+1. 從 [最新 Release](https://github.com/lgc2333/XSOverlay-Keyboard-IME/releases/latest) 下載 `XSOverlayKeyboardIme-<版本>+BepInEx.zip`。
+2. 結束 XSOverlay。
+3. 在 Steam 媒體庫中右鍵 XSOverlay，選擇「管理」→「瀏覽本機檔案」。
+4. 把壓縮檔裡的全部檔案解壓縮進這個資料夾，詢問是否覆寫時選擇覆寫。
+5. 啟動 XSOverlay 即可開始使用。
+
+這個壓縮檔裡是插件加 BepInEx 5.4.23.6 x64。之前裝過 BepInEx 的話，第 4 步會覆蓋它的同名檔案，`BepInEx.cfg` 與各插件的設定不受影響。
+
+### B. 手動安裝（如果你安裝過 BepInEx）
+
+1. 從 [BepInEx Releases](https://github.com/BepInEx/BepInEx/releases) 下載 BepInEx 5.4.23.6 x64，解壓縮進 XSOverlay 資料夾。
+2. 從 [最新 Release](https://github.com/lgc2333/XSOverlay-Keyboard-IME/releases/latest) 下載 `XSOverlayKeyboardIme-<版本>.zip`。
+3. 把它解壓縮進 XSOverlay 資料夾，或解壓縮後把 `BepInEx\plugins\XSOverlayKeyboardIme\` 整個複製過去。
+4. 啟動 XSOverlay 即可開始使用。
+
+### 裝好之後
+
+插件檔案在 `BepInEx\plugins\XSOverlayKeyboardIme\`。日誌在 `BepInEx\LogOutput.log`，本插件寫入的行以 `[ime]` 開頭。
+
+要解除安裝，刪除 `BepInEx\plugins\XSOverlayKeyboardIme\` 資料夾。BepInEx 自己的檔案（`BepInEx\` 資料夾、`winhttp.dll`、`doorstop_config.ini`、`.doorstop_version`）只有在沒有其他插件使用它們時才刪除。
 
 ## 設計取捨
 
@@ -159,6 +195,14 @@ dotnet build -c Release -p:DeployToGame=true
 dotnet build -c Release -p:DeployToGame=true -p:GameDir="D:\Steam\steamapps\common\XSOverlay_Beta"
 ```
 
+產出發布壓縮檔：
+
+```powershell
+pwsh scripts/pack.ps1
+```
+
+它在 `dist/` 寫出 `XSOverlayKeyboardIme-<版本>.zip`（只有插件）與 `XSOverlayKeyboardIme-<版本>+BepInEx.zip`（插件加 BepInEx）。腳本用 csproj 裡的 `GameDir`，要換路徑就傳 `-GameDir`。
+
 ## 致謝
 
 - [Windmill-City/IngameIME-Common](https://github.com/Windmill-City/IngameIME-Common)，[Windmill-City/IngameIME_Win32](https://github.com/Windmill-City/IngameIME_Win32)：TSF 輸入上下文與組字回呼。此相依性與本專案的 C 薄殼一起編進 `IngameIME.dll`，整份依 LGPL 2.1 散布，見 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
@@ -176,3 +220,13 @@ dotnet build -c Release -p:DeployToGame=true -p:GameDir="D:\Steam\steamapps\comm
 - QQ 群：[168603371](https://qm.qq.com/q/EikuZ5sP4G)
 - Telegram：[@lgc2333](https://t.me/lgc2333)
 - 電子郵件：<lgc2333@126.com>
+
+## 許可
+
+插件程式碼依 MIT 許可證散布，全文見 [LICENSE](LICENSE)。
+
+插件隨套件散布 `IngameIME.dll`。它包含 IngameIME 與 `native/shim/` 的 C 薄殼，整份依 GNU LGPL 2.1 散布，全文見 [native/LICENSE-LGPL-2.1.txt](native/LICENSE-LGPL-2.1.txt)。`IngameIME.dll` 是插件旁邊的獨立檔案，可以自行重新編譯並替換，做法見 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
+
+---
+
+_Made with ♥️ by LgCuwukii_
