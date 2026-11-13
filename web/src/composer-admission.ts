@@ -4,10 +4,11 @@ import { reportFocus, useFocusIdentity } from './native-bridge'
 
 export interface FocusUpdate extends FocusIdentity {
   kind: string
+  restored?: boolean
 }
 
 /** Admission follows page-event arrival (ADR 0060); native browser input stays untouched. */
-export function installComposerAdmission(clear: () => void, beginEditing: () => void) {
+export function installComposerAdmission(clear: (restored: boolean) => void, beginEditing: () => void) {
   // Keyboard pages may use a non-secure local origin, where randomUUID is unavailable.
   const focusDocument = Array.from(
     crypto.getRandomValues(new Uint8Array(16)),
@@ -51,7 +52,7 @@ export function installComposerAdmission(clear: () => void, beginEditing: () => 
       phase = 'cleared'
       tab = null
       const captured = identity()
-      clear()
+      clear(update.restored === true)
       if (
         phase === 'cleared' &&
         captured.document === documentId &&
@@ -76,7 +77,7 @@ export function installComposerAdmission(clear: () => void, beginEditing: () => 
     phase = 'closed'
     documentId = null
     tab = null
-    clear()
+    clear(false)
   }
   function requestFocus(): void {
     if (phase !== 'open' || documentId == null) return

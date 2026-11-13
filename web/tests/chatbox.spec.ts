@@ -92,3 +92,26 @@ test('VRC toggle and native send pending state reach the host without changing n
   await expect.poll(async () => (await snapshots(page)).at(-1)?.active).toBe(false)
   expect(await page.evaluate(() => window.messages)).not.toContain('native-submit')
 })
+
+test('keeps typing active through a transient input-mode focus change', async ({ page }) => {
+  await page.evaluate(() => {
+    const api = window.__xsoKeyboardIme!
+    api.showComposerState({ active: true, ime: '中文输入法', profiles: [], activeProfile: -1 })
+    api.showSwitchIcon({ kind: 'glyph', glyph: '中', font: '', tooltip: '', enabled: true })
+    api.setKeyboardFormat('ANSI')
+  })
+  await expect(page.locator('.ime-switch-key')).toHaveCount(1)
+  await expect.poll(async () => (await snapshots(page)).at(-1)?.active).toBe(true)
+  const start = await snapshots(page)
+
+  await page.locator('.ime-switch-key').dispatchEvent('pointerdown')
+  await page.locator('#keyboard-voice-input').evaluate(input => input.blur())
+  await page.locator('#keyboard-voice-input').focus()
+  await page.evaluate(() => window.__xsoKeyboardIme!.showComposerState({
+    active: true, ime: '中文输入法', profiles: [], activeProfile: -1,
+  }))
+  await expect.poll(async () => (await snapshots(page)).at(-1)?.active).toBe(true)
+
+  const during = await snapshots(page)
+  expect(during.slice(start.length).some(state => !state.active)).toBe(false)
+})

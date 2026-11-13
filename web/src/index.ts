@@ -1,6 +1,7 @@
 import { nativeKeyOperations } from './native-key-operation'
 import { createCandidateBar } from './candidate-bar'
 import { observeChatbox } from './chatbox'
+import { installComposerSubmit } from './composer-submit'
 import { routeComposerReturn } from './composer-return'
 import {
   clearPreedit,
@@ -28,9 +29,10 @@ import { hasComposerFocus, releaseComposerFocus } from './composer-focus'
  */
 function install(): void {
   const bar = createCandidateBar()
-  const switchKey = createSwitchKey()
-  const returnRouting = routeComposerReturn()
   const chatbox = observeChatbox(committedComposerText)
+  const switchKey = createSwitchKey(chatbox.beginSwitch)
+  const submit = installComposerSubmit()
+  const returnRouting = routeComposerReturn(submit.defer)
   const refreshChatbox = chatbox.refresh
   keepComposerFocus((active) => {
     if (!active) {
@@ -46,13 +48,14 @@ function install(): void {
     requestCancel()
   })
   const nativeOperations = nativeKeyOperations()
-  const admission = installComposerAdmission(() => {
+  const admission = installComposerAdmission((restored) => {
     nativeOperations.cancelNativeKey()
     returnRouting.cancel()
     setImeComposing(false)
     clearPreedit()
     bar.render(null)
     switchKey.setActive(false)
+    submit.clear(restored)
     releaseComposerFocus()
   }, chatbox.beginEditing)
 
@@ -82,9 +85,11 @@ function install(): void {
     },
     showSwitchIcon: (view: SwitchIconView | null) => {
       switchKey.show(view)
+      chatbox.endSwitch()
     },
     showComposerState: (view: ComposerStateView) => {
       bar.showState(view)
+      chatbox.endSwitch()
     },
   }
 

@@ -22,7 +22,7 @@ namespace XSOverlayKeyboardIme.Ime
         private readonly FocusAdmission _focus = new FocusAdmission();
         private readonly Dictionary<VirtualKey, FocusTicket> _modifierOwners =
             new Dictionary<VirtualKey, FocusTicket>();
-        internal Action<string, FocusTicket> FocusChanged;
+        internal Action<string, FocusTicket, bool> FocusChanged;
 
         private readonly Action<string, Action<bool>> _onCommitted;
         internal Action<string, bool, Action<bool>> NativeKey;
@@ -205,7 +205,7 @@ namespace XSOverlayKeyboardIme.Ime
             {
                 case "cleared":
                     if (_focus.Acknowledge(ticket))
-                        FocusChanged?.Invoke("open", ticket);
+                        FocusChanged?.Invoke("open", ticket, false);
                     break;
                 case "request":
                     if (_focus.TryAcquire(ticket))
@@ -224,6 +224,9 @@ namespace XSOverlayKeyboardIme.Ime
                     break;
                 case "switch":
                     _window?.Post(() => PressSwitch(ticket));
+                    break;
+                case "submit":
+                    _window?.Post(() => Submit(ticket));
                     break;
                 case "cancel-composition":
                     QueueCancel(ticket);
@@ -246,7 +249,7 @@ namespace XSOverlayKeyboardIme.Ime
                 if (_lease.Acquire(() => _focus.IsAcquiring(ticket)) && _focus.Complete(ticket))
                 {
                     _composerActive = true;
-                    FocusChanged?.Invoke("held", ticket);
+                    FocusChanged?.Invoke("held", ticket, false);
                     RefreshComposer();
                 }
                 else if (_focus.IsAcquiring(ticket))
@@ -292,16 +295,22 @@ namespace XSOverlayKeyboardIme.Ime
             }
         }
 
+        private void Submit(FocusTicket ticket)
+        {
+            if (_focus.Revoke(ticket, out FocusTicket clear))
+                ClearFocus(clear);
+        }
+
         private void ClearFocus(FocusTicket clear)
         {
             if (!_focus.IsClearing(clear))
                 return;
-            EndFocus();
+            bool restored = EndFocus();
             if (_focus.IsClearing(clear))
-                FocusChanged?.Invoke("clear", clear);
+                FocusChanged?.Invoke("clear", clear, restored);
         }
 
-        private void EndFocus()
+        private bool EndFocus()
         {
             _pageOperations.Cancel();
             _browserKeys.Clear();
@@ -309,8 +318,13 @@ namespace XSOverlayKeyboardIme.Ime
             if (_acquiringFocus)
                 _endAfterAcquire = true;
             else
-                _lease?.Restore();
+            {
+                bool restored = _lease == null || _lease.Restore();
+                RefreshComposer();
+                return restored;
+            }
             RefreshComposer();
+            return false;
         }
 
         /// <summary>Cancels the composition the current host holds, if there is one. See ADR 0027.</summary>

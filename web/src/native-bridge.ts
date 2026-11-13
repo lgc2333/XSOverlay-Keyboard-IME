@@ -27,6 +27,11 @@ export function requestReturn(id: number): boolean {
   return focusedAction('return', id, `xso-keyboard-ime return ${id}`)
 }
 
+export function requestSubmit(): boolean {
+  const identity = focusIdentity?.()
+  return identity != null && reportFocus('submit', identity)
+}
+
 export function requestReturnFeedback(numpad: boolean, hapticTarget: string): boolean {
   return post(
     `xso-keyboard-ime return-feedback ${JSON.stringify({ numpad, hapticTarget })}`,

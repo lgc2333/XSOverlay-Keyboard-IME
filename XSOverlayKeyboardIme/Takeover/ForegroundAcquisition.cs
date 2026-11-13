@@ -88,7 +88,7 @@ namespace XSOverlayKeyboardIme.Takeover
             && original.Matches(_api.Identify(original.Handle))
             && valid();
 
-        internal void Restore()
+        internal bool Restore()
         {
             var previous = _previous;
             _previous = null;
@@ -98,7 +98,11 @@ namespace XSOverlayKeyboardIme.Takeover
                 && previous.Value.Matches(_api.Identify(previous.Value.Handle))
                 && _api.Foreground == _host
             )
-                _api.RequestForeground(previous.Value.Handle);
+            {
+                return _api.RequestForeground(previous.Value.Handle) && _api.Foreground == previous.Value.Handle;
+            }
+
+            return false;
         }
     }
 }

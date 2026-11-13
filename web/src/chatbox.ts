@@ -8,6 +8,7 @@ export function observeChatbox(readText: () => string) {
   let scheduled = false
   let revision = 0
   let completed = false
+  let switching = false
   const showOverflow = createChatboxOverflow()
 
   function sync(): void {
@@ -19,7 +20,7 @@ export function observeChatbox(readText: () => string) {
     showOverflow(enabled && text.length > 144)
     const state = {
       revision,
-      active: !completed && hasComposerFocus() && enabled,
+      active: !completed && (hasComposerFocus() || switching) && enabled,
       text,
       submitting: composer?.getAttribute('aria-busy') === 'true',
     }
@@ -51,6 +52,14 @@ export function observeChatbox(readText: () => string) {
   return {
     beginEditing: () => {
       completed = false
+      refresh()
+    },
+    beginSwitch: () => {
+      switching = true
+      refresh()
+    },
+    endSwitch: () => {
+      switching = false
       refresh()
     },
     refresh: (nextRevision?: number, success = false) => {

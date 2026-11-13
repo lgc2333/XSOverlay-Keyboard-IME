@@ -68,4 +68,20 @@ public sealed class FocusAdmissionTests
         Assert.False(gate.Complete(fresh));
         Assert.Null(gate.Current);
     }
+
+    [Fact]
+    public void Submit_revoke_requires_the_current_held_request()
+    {
+        var gate = new FocusAdmission();
+        var clear = gate.Bind("page-a");
+        gate.Acknowledge(clear);
+        var request = new FocusTicket("page-a", clear.Revision, 1);
+        Assert.True(gate.TryAcquire(request));
+        Assert.True(gate.Complete(request));
+
+        Assert.False(gate.Revoke(new FocusTicket("page-a", clear.Revision, 2), out _));
+        Assert.True(gate.Revoke(request, out var next));
+        Assert.Equal(clear.Revision + 1, next.Revision);
+        Assert.False(gate.Allows(request));
+    }
 }

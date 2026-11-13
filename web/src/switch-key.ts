@@ -51,7 +51,7 @@ export interface SwitchKey {
 /**
  * A native 1u key after left Alt, paid for by shortening the space bar. See ADR 0046.
  */
-export function createSwitchKey(): SwitchKey {
+export function createSwitchKey(onPress?: () => void): SwitchKey {
   let icon: SwitchIconView | null = null
   let active = false
   let keyboardFormat: string | null = null
@@ -111,7 +111,7 @@ export function createSwitchKey(): SwitchKey {
     unmount()
     const unit = document.getElementById('key-F1')
     if (unit == null) return
-    const key = createKey(model, unit)
+    const key = createKey(model, unit, onPress)
     draw(key, icon)
     mounted = {
       key,
@@ -148,7 +148,7 @@ export function createSwitchKey(): SwitchKey {
  * Takes the look of the key beside it: same size, margins, and the classes that decide
  * the colours, so a theme change reaches this key too.
  */
-function createKey(model: HTMLElement, unit: HTMLElement): HTMLElement {
+function createKey(model: HTMLElement, unit: HTMLElement, onPress?: () => void): HTMLElement {
   // A div rather than a button: the page's focus and active styles would flash a colour.
   const key = document.createElement('div')
   for (const name of model.classList) {
@@ -172,6 +172,7 @@ function createKey(model: HTMLElement, unit: HTMLElement): HTMLElement {
     if (key.getAttribute('aria-disabled') === 'true') return
     animateKey(key)
     playTap()
+    onPress?.()
     requestSwitch()
   })
 

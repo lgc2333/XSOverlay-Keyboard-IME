@@ -6,7 +6,7 @@ import { loadNativeKeyboardInput } from './native-keyboard-input'
 import type { NativeKeyboardInput, NativeRepeatController } from './native-keyboard-input'
 
 /** The host decides each Return before the page can send uncommitted text. */
-export function routeComposerReturn(): {
+export function routeComposerReturn(deferSubmit?: (replay: () => void) => boolean): {
   cancel: () => void
   resolve: (id: number, taken: boolean) => void
   sound: ReturnType<typeof createReturnFeedback>['sound']
@@ -44,6 +44,21 @@ export function routeComposerReturn(): {
     target.dispatchEvent(event)
   }
 
+  function replayAfterRestore(
+    target: EventTarget,
+    event: Event,
+    after: () => void = () => {},
+  ): void {
+    const replaySubmit = deferSubmit
+    const continuation = () => {
+      replay(target, event)
+      after()
+    }
+    if (replaySubmit == null || !replaySubmit(continuation)) {
+      continuation()
+    }
+  }
+
   document.addEventListener(
     'keydown',
     (event) => {
@@ -56,7 +71,7 @@ export function routeComposerReturn(): {
       }
       const target = event.target
       if (target == null) return
-      ask(event, () => replay(target, new KeyboardEvent('keydown', event)))
+      ask(event, () => replayAfterRestore(target, new KeyboardEvent('keydown', event)))
     },
     true,
   )
@@ -95,8 +110,9 @@ export function routeComposerReturn(): {
       () => {
         const wasHeld = held
         end()
-        replay(key, clone())
-        if (!wasHeld) key.dispatchEvent(release())
+        replayAfterRestore(key, clone(), () => {
+          if (!wasHeld) key.dispatchEvent(release())
+        })
       },
       () => {
         firstTaken = true

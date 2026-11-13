@@ -176,7 +176,7 @@ namespace XSOverlayKeyboardIme.Page
             && document == _focusDocument
             && generation == _focusGeneration;
 
-        internal static void ShowFocus(string kind, FocusTicket ticket)
+        internal static void ShowFocus(string kind, FocusTicket ticket, bool restored = false)
         {
             if (kind == "clear")
             {
@@ -197,6 +197,7 @@ namespace XSOverlayKeyboardIme.Page
                             document = ticket.Document,
                             revision = ticket.Revision,
                             request = ticket.Request,
+                            restored,
                         }
                     )
                 ),

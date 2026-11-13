@@ -28,7 +28,7 @@ namespace XSOverlayKeyboardIme.Ime
         /// <summary>Observes focus only; old work must never reacquire it.</summary>
         internal bool Ensure() => _acquisition.Ensure();
 
-        internal void Restore() => _acquisition.Restore();
+        internal bool Restore() => _acquisition.Restore();
 
         /// <summary>Tries the normal foreground switch once. See ADR 0041.</summary>
         private sealed class Platform : IForegroundPlatform

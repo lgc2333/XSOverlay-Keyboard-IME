@@ -138,6 +138,20 @@ namespace XSOverlayKeyboardIme.Takeover
                 return RevokeLocked(out clear);
         }
 
+        internal bool Revoke(FocusTicket ticket, out FocusTicket clear)
+        {
+            lock (_sync)
+            {
+                if (_phase != Phase.Held || !_ticket.SameRequest(ticket))
+                {
+                    clear = default;
+                    return false;
+                }
+
+                return RevokeLocked(out clear);
+            }
+        }
+
         internal bool Cancel(FocusTicket ticket, out FocusTicket clear)
         {
             lock (_sync)

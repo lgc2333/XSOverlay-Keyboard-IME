@@ -87,14 +87,26 @@ public sealed class ForegroundAcquisitionTests
         var api = new Platform { NormalSucceeds = true };
         var lease = new ForegroundAcquisition(api, api.Host);
         Assert.True(lease.Acquire(() => true));
-        lease.Restore();
-        lease.Restore();
+        Assert.True(lease.Restore());
+        Assert.False(lease.Restore());
         Assert.Equal(2, api.Requests);
         Assert.Equal((IntPtr)1, api.Foreground);
         Assert.True(lease.Acquire(() => true));
         api.OriginalIdentityValid = false;
-        lease.Restore();
+        Assert.False(lease.Restore());
         Assert.Equal(3, api.Requests);
+    }
+
+    [Fact]
+    public void Restore_reports_when_the_user_changed_the_foreground()
+    {
+        var api = new Platform { NormalSucceeds = true };
+        var lease = new ForegroundAcquisition(api, api.Host);
+        Assert.True(lease.Acquire(() => true));
+        api.Foreground = (IntPtr)99;
+
+        Assert.False(lease.Restore());
+        Assert.Equal(1, api.Requests);
     }
 
     private sealed class Platform : IForegroundPlatform
