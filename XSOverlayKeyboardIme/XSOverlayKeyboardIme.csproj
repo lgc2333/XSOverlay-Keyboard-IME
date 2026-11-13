@@ -3,7 +3,7 @@
     <AssemblyName>XSOverlayKeyboardIme</AssemblyName>
     <RootNamespace>XSOverlayKeyboardIme</RootNamespace>
     <Product>XSOverlay Keyboard IME</Product>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <BepInExPluginGuid>cc.lgck.xsoverlay.keyboardime</BepInExPluginGuid>
   </PropertyGroup>
 
