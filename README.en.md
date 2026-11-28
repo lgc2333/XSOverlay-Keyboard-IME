@@ -50,7 +50,7 @@ I cannot claim this is the best VR IME solution. With good tools already availab
 ### System and software versions
 
 - Windows 10 or later, 64-bit.
-- Tested with XSOverlay Beta 695, Beta 697, and Beta 698. Other versions are untested.  
+- Tested with XSOverlay Beta 695 ~ Beta 702. Other versions are untested.  
   To switch to Beta, right-click XSOverlay in your Steam Library. Open **Properties → Game Versions & Betas**. Select `beta`. Wait for Steam to finish the update.
 - BepInEx 5.4.23.6, x64. Other versions are untested. The quick install archive includes it.
 - This plugin makes invasive changes to the keyboard page. Compatibility with other plugins is untested.
