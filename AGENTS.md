@@ -121,6 +121,8 @@ pnpm --dir web test
 - 每个 ADR 最顶上、标题之上先写 YAML front-matter：`status`（例如 `accepted` | `proposed` | `deprecated` | `superseded`），再加可选的关系键 `supersedes` / `superseded_by` 与 `amends` / `amended_by`，每个键都放带引号的 id（`['0001']`，绝不裸写 `0001`，YAML 会把它读成八进制）。
 - 关系是双向的：一条关系是一对互相镜像的键。只是提到另一个 ADR 不配拥有键；只有文件自己就是建立关系的那一方时，ADR 才记这个键。
 
+- 同步 `README.zh-TW.md` 时，仅以 `README.md` 的简中原文为底稿。保留原文的句式、语气和细节，只做简繁转换和必要的台湾惯用语替换。保留文首 `[!NOTE]` 的简繁转换提示原文。
+
 ### 代码风格规则
 
 - 通用能力先查标准 API、现有依赖与运行时自带库，再选成熟库；已有可用实现时，不手写序列化、转义、编码等通用逻辑。

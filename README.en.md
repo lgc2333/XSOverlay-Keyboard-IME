@@ -24,7 +24,11 @@ For Chinese input in VRChat, the two solutions I tried did not fit.
 
 [OVR Toolkit](https://store.steampowered.com/app/1068820/OVR_Toolkit/) also bundles a virtual keyboard, but it is known to have performance problems, so I did not consider it. I have not tested whether it supports Chinese input, or whether the community has a working setup for it.
 
-Then I found that the XSOverlay keyboard recently added official VRC ChatBox support. So I had an idea: connect it to the system IME, and the dictionary you have built up is ready to use. This plugin started there.
+I noticed that the XSOverlay keyboard had a VRC ChatBox feature. That gave me the idea to use its keyboard and connect it to the system IME. This lets you keep the dictionary you have built up and type the way you are used to. That is how this plugin started.
+
+### Afterword
+
+After I made this plugin, I found that [OVR Overlay Translator](https://store.steampowered.com/app/4304620) also has a keyboard with IME support. I bought it for its translation feature. I briefly tried the keyboard in version 2.5.1. It supports both a built-in IME and the system IME, and it felt polished overall. When I used the system IME on my device, the keyboard had trouble displaying candidates in real time. I do not know whether the Beta version has the same issue. If you prefer to use another overlay, you can give it a try.
 
 ### Developer note
 
