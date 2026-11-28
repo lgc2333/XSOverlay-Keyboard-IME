@@ -4,11 +4,27 @@ import { requestSubmit } from './native-bridge'
 const SendButtonId = 'keyboard-voice-send'
 const SubmitError = 'Send failed. Try again.'
 
+interface DeferredComposerSubmit {
+  replay: () => void
+  button?: HTMLElement
+  onFailure?: () => void
+}
+
+export type DeferComposerSubmit = (submission: DeferredComposerSubmit) => boolean
+
 /** Defers the page's own send action until the host has restored its old target. */
 export function installComposerSubmit() {
-  let pending: { button: HTMLElement | null; replay: () => void } | null = null
+  let pending: DeferredComposerSubmit | null = null
   let replaying = false
   let restoreError: (() => void) | null = null
+
+  const defer: DeferComposerSubmit = (submission) => {
+    if (pending != null || !hasComposerFocus()) return false
+    pending = submission
+    if (requestSubmit()) return true
+    pending = null
+    return false
+  }
 
   function buttonFrom(event: Event): HTMLElement | null {
     const target = event.target
@@ -51,19 +67,11 @@ export function installComposerSubmit() {
             )
           }
         : () => button.click()
-    if (!defer(replay, button)) {
+    if (!defer({ replay, button })) {
       return
     }
     event.preventDefault()
     event.stopImmediatePropagation()
-  }
-
-  function defer(replay: () => void, button: HTMLElement | null = null): boolean {
-    if (pending != null || !hasComposerFocus()) return false
-    pending = { button, replay }
-    if (requestSubmit()) return true
-    pending = null
-    return false
   }
 
   function showError(): void {
@@ -107,6 +115,7 @@ export function installComposerSubmit() {
       if (queued == null) return
       if (!restored || (queued.button != null && !queued.button.isConnected)) {
         showError()
+        queued.onFailure?.()
         return
       }
       clearError()

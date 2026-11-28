@@ -25,8 +25,25 @@ test.beforeEach(async ({ page }) => {
     }),
   )
   await page.addScriptTag({
-    content:
-      "const input = document.getElementById('keyboard-voice-input'); const send = document.getElementById('keyboard-voice-send'); const submit = () => send.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0, buttons: 1, pointerId: 1, pointerType: 'mouse' })); send.addEventListener('pointerdown', event => { event.preventDefault(); input.blur(); window.messages.push('native-submit') }); input.addEventListener('keydown', event => { if (event.key === 'Enter') submit() }); document.getElementById('key-RETURN').addEventListener('pointerdown', submit)",
+    content: `
+      const input = document.getElementById('keyboard-voice-input')
+      const send = document.getElementById('keyboard-voice-send')
+      const submit = () => send.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true, cancelable: true, button: 0, buttons: 1, pointerId: 1, pointerType: 'mouse'
+      }))
+      send.addEventListener('pointerdown', event => {
+        event.preventDefault()
+        input.blur()
+        window.messages.push('native-submit')
+      })
+      input.addEventListener('keydown', event => { if (event.key === 'Enter') submit() })
+      for (const type of ['pointerdown', 'touchstart']) {
+        document.getElementById('key-RETURN').addEventListener(type, () => {
+          submit()
+          window.messages.push('native-return-feedback')
+        })
+      }
+    `,
   })
 })
 
@@ -121,49 +138,58 @@ test('defers the page Enter send through the same handshake', async ({ page }) =
   ).toHaveLength(1)
 })
 
-test('defers the virtual Return send through the same handshake', async ({ page }) => {
-  await page.locator('#keyboard-voice-input').fill('draft')
-  await page.locator('#key-RETURN').dispatchEvent(
-    'pointerdown',
-    { button: 0, buttons: 1, pointerId: 7, pointerType: 'mouse' },
-  )
-  const returnId = await page.evaluate(() =>
-    Number(
-      JSON.parse(
-        window.messages
-          .find(
-            (message) =>
-              message.startsWith('xso-keyboard-ime focus ') &&
-              JSON.parse(message.slice('xso-keyboard-ime focus '.length)).kind ===
-                'return',
-          )!
-          .slice('xso-keyboard-ime focus '.length),
-      ).index,
-    ),
-  )
-  await page.evaluate(
-    (id) => window.__xsoKeyboardIme!.resolveReturn(id, false),
-    returnId,
-  )
-  expect(await page.evaluate(() => window.messages)).not.toContain('native-submit')
-  expect(
-    await page.evaluate(() =>
-      window.messages.some((message) => message.includes('"kind":"submit"')),
-    ),
-  ).toBe(true)
+for (const inputType of ['pointer', 'touch']) {
+  for (const restored of [true, false]) {
+    test(`${inputType} Return has one feedback request when restore ${restored ? 'succeeds' : 'fails'}`, async ({ page }) => {
+      const composer = page.locator('#keyboard-voice-input')
+      const key = page.locator('#key-RETURN')
+      await composer.fill('draft')
+      if (inputType === 'pointer') {
+        await key.dispatchEvent('pointerdown', { button: 0, buttons: 1, pointerId: 7, pointerType: 'mouse' })
+      } else {
+        await key.evaluate((target) => {
+          const touch = new Touch({ identifier: 1, target })
+          target.dispatchEvent(new TouchEvent('touchstart', {
+            bubbles: true,
+            cancelable: true,
+            changedTouches: [touch],
+            touches: [touch],
+            targetTouches: [touch],
+          }))
+        })
+      }
+      const waiting = await page.evaluate(() => {
+        const prefix = 'xso-keyboard-ime focus '
+        const request = window.messages
+          .filter((message) => message.startsWith(prefix))
+          .map((message) => JSON.parse(message.slice(prefix.length)))
+          .find((message) => message.kind === 'return')
+        window.__xsoKeyboardIme!.resolveReturn(request.index, false)
+        return [...window.messages]
+      })
+      expect(waiting).not.toContain('native-submit')
+      expect(waiting).not.toContain('native-return-feedback')
+      expect(waiting.some((message) => message.includes('"kind":"submit"'))).toBe(true)
+      expect(waiting.some((message) => message.startsWith('xso-keyboard-ime return-feedback '))).toBe(false)
 
-  await page.evaluate(() =>
-    window.__xsoKeyboardIme!.applyFocus({
-      kind: 'clear',
-      document: 'document-a',
-      revision: 2,
-      request: 0,
-      restored: true,
-    }),
-  )
-  expect(
-    await page.evaluate(() =>
-      window.messages.filter((message) => message === 'native-submit'),
-    ),
-  ).toHaveLength(1)
-})
+      await page.evaluate((restored) => {
+        const clear = { kind: 'clear', document: 'document-a', revision: 2, request: 0, restored }
+        window.__xsoKeyboardIme!.applyFocus(clear)
+        window.__xsoKeyboardIme!.applyFocus(clear)
+      }, restored)
+      const messages = await page.evaluate(() => window.messages)
+      expect(messages.filter((message) => message === 'native-submit')).toHaveLength(restored ? 1 : 0)
+      expect(messages.filter((message) => message === 'native-return-feedback')).toHaveLength(restored ? 1 : 0)
+      const pluginFeedback = messages.filter((message) => message.startsWith('xso-keyboard-ime return-feedback '))
+      const expectedTarget = inputType === 'pointer' ? 'keyboard' : 'leftcontroller'
+      expect(pluginFeedback).toEqual(restored ? [] : [
+        `xso-keyboard-ime return-feedback ${JSON.stringify({ numpad: false, hapticTarget: expectedTarget })}`,
+      ])
+      await expect(composer).not.toBeFocused()
+      if (!restored) {
+        await expect(composer).toHaveValue('draft')
+        await expect(page.locator('#keyboard-voice-inline-error')).toHaveText('Send failed. Try again.')
+      }
+    })
+  }
+}

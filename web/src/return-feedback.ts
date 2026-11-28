@@ -19,7 +19,7 @@ export interface ReturnSound {
 
 /** Uses the native audio module instead of approximating its sound-pack settings. */
 export function createReturnFeedback(): {
-  press: (key: HTMLElement, hapticTarget: string) => void
+  forPress: (key: HTMLElement, hapticTarget: string) => () => void
   sound: (view: ReturnSound) => void
 } {
   let current: ReturnSound = { soundPack: null, audio: 'mute', enabled: false }
@@ -52,8 +52,15 @@ export function createReturnFeedback(): {
     audio?.dispose()
   })
   return {
-    press: (key, hapticTarget) => {
-      requestReturnFeedback(key.closest('#keyboard-numpad') != null, hapticTarget)
+    forPress: (key, hapticTarget) => {
+      const numpad = key.closest('#keyboard-numpad') != null
+      return () => {
+        try {
+          requestReturnFeedback(numpad, hapticTarget)
+        } catch (error) {
+          console.warn('[xso-ime] Return feedback failed', error)
+        }
+      }
     },
     sound: (view) => {
       void play(view).catch((error) =>

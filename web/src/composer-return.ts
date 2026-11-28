@@ -1,12 +1,13 @@
 /* eslint no-console: ["error", { allow: ["debug", "warn", "error"] }] -- Correlate Return requests without logging composer text. */
 import { findComposer } from './composer'
+import type { DeferComposerSubmit } from './composer-submit'
 import { requestReturn } from './native-bridge'
 import { createReturnFeedback } from './return-feedback'
 import { loadNativeKeyboardInput } from './native-keyboard-input'
 import type { NativeKeyboardInput, NativeRepeatController } from './native-keyboard-input'
 
 /** The host decides each Return before the page can send uncommitted text. */
-export function routeComposerReturn(deferSubmit?: (replay: () => void) => boolean): {
+export function routeComposerReturn(deferSubmit: DeferComposerSubmit): {
   cancel: () => void
   resolve: (id: number, taken: boolean) => void
   sound: ReturnType<typeof createReturnFeedback>['sound']
@@ -44,19 +45,8 @@ export function routeComposerReturn(deferSubmit?: (replay: () => void) => boolea
     target.dispatchEvent(event)
   }
 
-  function replayAfterRestore(
-    target: EventTarget,
-    event: Event,
-    after: () => void = () => {},
-  ): void {
-    const replaySubmit = deferSubmit
-    const continuation = () => {
-      replay(target, event)
-      after()
-    }
-    if (replaySubmit == null || !replaySubmit(continuation)) {
-      continuation()
-    }
+  function submitReturn(replay: () => void, onFailure?: () => void): void {
+    if (!deferSubmit({ replay, onFailure })) replay()
   }
 
   document.addEventListener(
@@ -71,7 +61,10 @@ export function routeComposerReturn(deferSubmit?: (replay: () => void) => boolea
       }
       const target = event.target
       if (target == null) return
-      ask(event, () => replayAfterRestore(target, new KeyboardEvent('keydown', event)))
+      ask(event, () => {
+        const press = new KeyboardEvent('keydown', event)
+        submitReturn(() => replay(target, press))
+      })
     },
     true,
   )
@@ -93,6 +86,7 @@ export function routeComposerReturn(deferSubmit?: (replay: () => void) => boolea
     let held = true
     const version = cancellationVersion
     const animationKey = key.closest<HTMLElement>('.key-shape-wrapper') ?? key
+    const playFeedback = feedback.forPress(key, hapticTarget)
     function current(): boolean {
       return version === cancellationVersion
         && key.isConnected
@@ -110,14 +104,16 @@ export function routeComposerReturn(deferSubmit?: (replay: () => void) => boolea
       () => {
         const wasHeld = held
         end()
-        replayAfterRestore(key, clone(), () => {
+        const press = clone()
+        submitReturn(() => {
+          replay(key, press)
           if (!wasHeld) key.dispatchEvent(release())
-        })
+        }, playFeedback)
       },
       () => {
         firstTaken = true
         nativeInput?.animate(animationKey)
-        feedback.press(key, hapticTarget)
+        playFeedback()
       },
     )
     if (firstRequest == null) {
